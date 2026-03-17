@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>钢铁行业数字化平台 Demo</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .container { max-width: 1200px; width: 100%; padding: 40px 20px; }
+        h1 { color: white; text-align: center; font-size: 36px; margin-bottom: 12px; }
+        .subtitle { color: rgba(255,255,255,0.8); text-align: center; font-size: 18px; margin-bottom: 48px; }
+        .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+        .card { background: white; border-radius: 16px; padding: 40px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); transition: transform 0.3s; cursor: pointer; }
+        .card:hover { transform: translateY(-8px); }
+        .card-icon { font-size: 48px; margin-bottom: 16px; }
+        .card h2 { font-size: 24px; color: #333; margin-bottom: 8px; }
+        .card .tagline { color: #1890ff; font-size: 14px; font-weight: 500; margin-bottom: 16px; }
+        .card p { color: #666; line-height: 1.8; margin-bottom: 24px; }
+        .card .features { list-style: none; margin-bottom: 24px; }
+        .card .features li { padding: 6px 0; color: #555; }
+        .card .features li::before { content: "✓ "; color: #52c41a; font-weight: bold; }
+        .card .links { display: flex; gap: 12px; flex-wrap: wrap; }
+        .card .links a { display: inline-block; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500; }
+        .btn-primary { background: #1890ff; color: white; }
+        .btn-secondary { background: #f0f5ff; color: #1890ff; border: 1px solid #1890ff; }
+        .btn-api { background: #f6ffed; color: #52c41a; border: 1px solid #52c41a; }
+        .demo-info { background: rgba(255,255,255,0.15); border-radius: 12px; padding: 24px; margin-top: 40px; color: white; }
+        .demo-info h3 { margin-bottom: 12px; }
+        .demo-info table { width: 100%; border-collapse: collapse; }
+        .demo-info td { padding: 8px 16px; border-bottom: 1px solid rgba(255,255,255,0.2); }
+        @media (max-width: 768px) { .cards { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>钢铁行业数字化平台</h1>
+        <p class="subtitle">对账通 + 提货通 — 从提货到对账到催收的全链路数字化</p>
+
+        <div class="cards">
+            <div class="card" onclick="window.open('http://localhost:3000','_blank')">
+                <div class="card-icon">📋</div>
+                <h2>对账通 AutoRecon</h2>
+                <div class="tagline">在线对账 · 电子签章 · 智能催收</div>
+                <p>卖方从ERP发起对账，自动生成对账单推送买方，买方多模式审核(ERP/Excel/在线/OCR/移动端)，电子签章确认，智能催收闭环。</p>
+                <ul class="features">
+                    <li>对账单全生命周期管理</li>
+                    <li>买方免注册一键确认</li>
+                    <li>自动比对 + 异议预测</li>
+                    <li>电子签章 + 催收评分</li>
+                    <li>发票关联 + 保理融资</li>
+                </ul>
+                <div class="links">
+                    <a href="http://localhost:3000" target="_blank" class="btn-primary">打开系统</a>
+                    <a href="http://localhost:8080/doc.html" target="_blank" class="btn-api">API文档</a>
+                    <a href="http://localhost:8080/h2-console" target="_blank" class="btn-secondary">数据库</a>
+                </div>
+            </div>
+
+            <div class="card" onclick="window.open('http://localhost:3001','_blank')">
+                <div class="card-icon">🚛</div>
+                <h2>提货通 PickupExpress</h2>
+                <div class="tagline">智能提货 · 证据留痕 · 全程可视</div>
+                <p>从合同签约到派车提货到仓库发货到自动结算，全链路证据自动采集。客户零操作，卖方全掌控，追款有理有据。</p>
+                <ul class="features">
+                    <li>留货合同静默模式(客户零操作)</li>
+                    <li>五层提货确权(防客户否认)</li>
+                    <li>多模式仓库发货(WMS/H5/驾驶员)</li>
+                    <li>逐吊实时上传 + 自动结算</li>
+                    <li>证据包自动归档(SHA-256防篡改)</li>
+                </ul>
+                <div class="links">
+                    <a href="http://localhost:3001" target="_blank" class="btn-primary">打开系统</a>
+                    <a href="http://localhost:8081/doc.html" target="_blank" class="btn-api">API文档</a>
+                    <a href="http://localhost:8081/h2-console" target="_blank" class="btn-secondary">数据库</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="demo-info">
+            <h3>Demo 账号</h3>
+            <table>
+                <tr><td><b>admin</b> / admin123</td><td>平台管理员 — 可查看所有功能</td></tr>
+                <tr><td><b>seller1</b> / 123456</td><td>卖方管理员(张三·XX钢铁) — 发起对账/提货管理</td></tr>
+                <tr><td><b>buyer1</b> / 123456</td><td>买方管理员(李四·YY建设) — 审核确认/签章</td></tr>
+                <tr><td><b>buyer2</b> / 123456</td><td>买方管理员(王五·ZZ贸易) — 审核确认/签章</td></tr>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

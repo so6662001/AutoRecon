@@ -2,6 +2,7 @@ import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import type { AxiosInstance, InternalAxiosRequestConfig } from 'axios'
 import { getEmbedConfig } from '@/config/embed'
+import { setupDemoInterceptor } from './demo-interceptor'
 
 const safeMessages: Record<number, string> = {
   400: '请求参数有误',
@@ -21,6 +22,8 @@ const instance: AxiosInstance = axios.create({
   baseURL: getBaseURL(),
   timeout: 10000,
 })
+
+setupDemoInterceptor(instance)
 
 instance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   config.baseURL = getBaseURL()
