@@ -12,7 +12,7 @@
       <el-descriptions :column="2" border>
         <el-descriptions-item label="对账单号">{{ dispute.billNo }}</el-descriptions-item>
         <el-descriptions-item label="状态">
-          <el-tag :type="getStatusTagType(dispute.status)" size="small">{{ getStatusText(dispute.status) }}</el-tag>
+          <el-tag :type="(getStatusTagType(dispute.status) as 'success' | 'warning' | 'info' | 'danger')" size="small">{{ getStatusText(dispute.status) }}</el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="品名">{{ dispute.productName }}</el-descriptions-item>
         <el-descriptions-item label="规格">{{ dispute.spec }}</el-descriptions-item>

@@ -100,7 +100,7 @@
         <el-table-column prop="buyerName" label="客户名称" min-width="160" />
         <el-table-column prop="status" label="状态" width="120">
           <template #default="{ row }">
-            <el-tag :type="getStatusTagType(row.status)" size="small">
+            <el-tag :type="(getStatusTagType(row.status) as 'success' | 'warning' | 'info' | 'danger')" size="small">
               {{ getStatusText(row.status) }}
             </el-tag>
           </template>

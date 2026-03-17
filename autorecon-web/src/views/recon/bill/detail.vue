@@ -5,7 +5,7 @@
       <div class="detail-header">
         <div class="header-left">
           <h2 class="bill-no">{{ bill.billNo ?? '-' }}</h2>
-          <el-tag :type="getStatusTagType(bill.status)" size="large">{{ getStatusText(bill.status) }}</el-tag>
+          <el-tag :type="(getStatusTagType(bill.status) as 'success' | 'warning' | 'info' | 'danger')" size="large">{{ getStatusText(bill.status) }}</el-tag>
         </div>
         <div class="header-actions">
           <template v-if="['CREATED', 'GENERATED'].includes(bill.status)">
@@ -341,7 +341,7 @@ async function fetchDetail() {
 
 async function loadDisputes() {
   try {
-    const res = await listDisputes(billId.value) as { list?: { id: number; subject: string; status: string; createdAt: string }[] }
+    const res = await listDisputes({ billId: billId.value }) as { list?: { id: number; subject: string; status: string; createdAt: string }[] }
     disputes.value = res?.list ?? []
   } catch {
     disputes.value = []

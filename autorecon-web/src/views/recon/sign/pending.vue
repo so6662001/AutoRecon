@@ -29,14 +29,14 @@
         <el-table-column prop="deadline" label="截止时间" width="170" />
         <el-table-column prop="sellerSignStatus" label="卖方签章状态" width="120">
           <template #default="{ row }">
-            <el-tag :type="getSignStatusTagType(row.sellerSignStatus)" size="small">
+            <el-tag :type="getSignStatusTagType(row.sellerSignStatus) as 'success' | 'primary' | 'warning' | 'info' | 'danger'" size="small">
               {{ getSignStatusText(row.sellerSignStatus) }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="buyerSignStatus" label="买方签章状态" width="120">
           <template #default="{ row }">
-            <el-tag :type="getSignStatusTagType(row.buyerSignStatus)" size="small">
+            <el-tag :type="getSignStatusTagType(row.buyerSignStatus) as 'success' | 'primary' | 'warning' | 'info' | 'danger'" size="small">
               {{ getSignStatusText(row.buyerSignStatus) }}
             </el-tag>
           </template>
@@ -80,7 +80,7 @@
             <el-radio
               v-for="seal in seals"
               :key="seal.id"
-              :label="seal.id"
+              :label="seal.id ?? undefined"
               class="seal-radio-item"
             >
               <div class="seal-preview">
@@ -183,7 +183,7 @@ const list = ref<PendingSignItem[]>([])
 const seals = ref<SealItem[]>([])
 const signDialogVisible = ref(false)
 const signStep = ref(0)
-const selectedSealId = ref<number | null>(null)
+const selectedSealId = ref<number | undefined>(undefined)
 const verifyType = ref('sms')
 const verifyCode = ref('')
 const countdown = ref(0)
@@ -223,14 +223,14 @@ function openSignDialog(row: PendingSignItem) {
 
 function resetSignDialog() {
   signStep.value = 0
-  selectedSealId.value = null
+  selectedSealId.value = undefined
   verifyType.value = 'sms'
   verifyCode.value = ''
   currentSignItem.value = null
 }
 
 const canProceed = computed(() => {
-  if (signStep.value === 0) return selectedSealId.value != null
+  if (signStep.value === 0) return selectedSealId.value !== undefined && selectedSealId.value !== null
   if (signStep.value === 2 && verifyType.value === 'sms') return verifyCode.value.length >= 4
   if (signStep.value === 2 && verifyType.value === 'face') return true
   return true
@@ -240,7 +240,7 @@ async function fetchSeals() {
   try {
     const res = await listSeals() as SealItem[]
     seals.value = Array.isArray(res) ? res : []
-    if (seals.value.length && !selectedSealId.value) {
+    if (seals.value.length && selectedSealId.value == null) {
       selectedSealId.value = seals.value[0].id
     }
   } catch {

@@ -52,7 +52,7 @@
         <el-table-column prop="raisedBy" label="提出方" width="100" />
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="getStatusTagType(row.status)" size="small">
+            <el-tag :type="(getStatusTagType(row.status) as 'success' | 'warning' | 'info' | 'danger')" size="small">
               {{ getStatusText(row.status) }}
             </el-tag>
           </template>
