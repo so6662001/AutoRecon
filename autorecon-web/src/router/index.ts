@@ -1,13 +1,13 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import type { Router } from 'vue-router'
 import NProgress from 'nprogress'
 import 'nprogress/nprogress.css'
 import { useUserStore } from '@/stores/user'
+import { getEmbedConfig } from '@/config/embed'
 
 NProgress.configure({ showSpinner: false })
 
-const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
-  routes: [
+const routes = [
     // Public routes
     {
       path: '/login',
@@ -205,27 +205,45 @@ const router = createRouter({
         },
       ],
     },
-  ],
-})
+  ]
 
-router.beforeEach(async (to, _from, next) => {
-  NProgress.start()
-  const userStore = useUserStore()
-  const token = userStore.token
-  const isPublic = to.meta.public === true
+export function createReconRouter(basePath?: string): Router {
+  const config = getEmbedConfig()
+  const history = createWebHistory(basePath ?? config.basePath ?? import.meta.env.BASE_URL)
 
-  if (!token && !isPublic && to.path !== '/login') {
-    next({ path: '/login', query: { redirect: to.fullPath } })
+  const router = createRouter({
+    history,
+    routes,
+  })
+
+  router.beforeEach(async (to, _from, next) => {
+    NProgress.start()
+    const userStore = useUserStore()
+    const token = userStore.token
+    const isPublic = to.meta.public === true
+    const { showLogin } = getEmbedConfig()
+
+    if (!showLogin) {
+      next()
+      return
+    }
+    if (!token && !isPublic && to.path !== '/login') {
+      next({ path: '/login', query: { redirect: to.fullPath } })
+      NProgress.done()
+    } else {
+      next()
+    }
+  })
+
+  router.afterEach((to) => {
     NProgress.done()
-  } else {
-    next()
-  }
-})
+    const title = (to.meta.title as string) || '自动对账'
+    document.title = `${title} - 自动对账`
+  })
 
-router.afterEach(() => {
-  NProgress.done()
-  const title = (router.currentRoute.value.meta.title as string) || '自动对账'
-  document.title = `${title} - 自动对账`
-})
+  return router
+}
+
+const router = createReconRouter()
 
 export default router

@@ -6,6 +6,9 @@
     </div>
     <div class="login-container">
       <div class="login-card">
+        <div v-if="DEMO_MODE" class="demo-banner">
+          Demo Mode
+        </div>
         <div class="login-header">
           <div class="login-logo">
             <el-icon :size="48"><DocumentChecked /></el-icon>
@@ -56,6 +59,17 @@
             </el-button>
           </el-form-item>
         </el-form>
+        <div v-if="DEMO_MODE" class="demo-accounts">
+          <div class="demo-accounts-title">Demo 账号:</div>
+          <div
+            v-for="u in demoUsers"
+            :key="u.username"
+            class="demo-account-card"
+            @click="fillDemoAccount(u)"
+          >
+            {{ u.username }} / {{ u.password }} ({{ u.role }})
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -67,6 +81,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { User, Lock, DocumentChecked } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import { DEMO_MODE, demoUsers } from '@/config/demo'
 
 const router = useRouter()
 const route = useRoute()
@@ -114,6 +129,11 @@ async function handleLogin() {
     }
   })
 }
+
+function fillDemoAccount(u: { username: string; password: string }) {
+  form.username = u.username
+  form.password = u.password
+}
 </script>
 
 <style lang="scss" scoped>
@@ -155,6 +175,7 @@ async function handleLogin() {
 }
 
 .login-card {
+  position: relative;
   background: #fff;
   border-radius: 16px;
   padding: 48px 40px;
@@ -201,6 +222,46 @@ async function handleLogin() {
   width: 100%;
   height: 44px;
   font-size: 16px;
+}
+
+.demo-banner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(90deg, #f59e0b, #d97706);
+  color: #fff;
+  text-align: center;
+  padding: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 16px 16px 0 0;
+}
+
+.demo-accounts {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.demo-accounts-title {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 12px;
+}
+
+.demo-account-card {
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  background: #f8fafc;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.demo-account-card:hover {
+  background: #e2e8f0;
 }
 
 @media (max-width: 480px) {

@@ -1,15 +1,20 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import type { AxiosInstance, InternalAxiosRequestConfig } from 'axios'
+import { getEmbedConfig } from '@/config/embed'
+import { getDemoMock } from '@/utils/demo-interceptor'
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || '/api'
+function getBaseURL(): string {
+  return getEmbedConfig().apiBaseUrl || import.meta.env.VITE_API_BASE_URL || '/api'
+}
 
 const instance: AxiosInstance = axios.create({
-  baseURL,
+  baseURL: getBaseURL(),
   timeout: 10000,
 })
 
 instance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  config.baseURL = getBaseURL()
   const token = localStorage.getItem('token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
@@ -27,9 +32,22 @@ instance.interceptors.response.use(
     return response.data
   },
   (error) => {
+    const config = getEmbedConfig()
+    const mockData = getDemoMock(
+      error.config?.url ?? '',
+      error.config?.method ?? 'get',
+      error.config as InternalAxiosRequestConfig
+    )
+    if (mockData) {
+      return Promise.resolve(mockData)
+    }
     if (error.response?.status === 401) {
-      localStorage.removeItem('token')
-      window.location.href = '/login'
+      if (config.embedded && config.onError) {
+        config.onError(error)
+      } else {
+        localStorage.removeItem('token')
+        window.location.href = '/login'
+      }
     } else {
       ElMessage.error(error.response?.data?.message || error.message || 'Request failed')
     }

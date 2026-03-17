@@ -55,6 +55,7 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Fold, Expand, ArrowDown, User, Lock, SwitchButton } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
+import { getEmbedConfig } from '@/config/embed'
 
 const props = defineProps<{
   collapsed: boolean
@@ -101,7 +102,12 @@ function handleCommand(cmd: string) {
       break
     case 'logout':
       userStore.logout()
-      router.push('/login')
+      const { onLogout } = getEmbedConfig()
+      if (onLogout) {
+        onLogout()
+      } else {
+        router.push('/login')
+      }
       break
   }
 }

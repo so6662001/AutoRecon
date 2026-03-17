@@ -1,8 +1,8 @@
 <template>
   <div class="layout-container">
-    <Sidebar :collapsed="collapsed" />
-    <div class="layout-main" :class="{ 'sidebar-collapsed': collapsed }">
-      <Header v-model:collapsed="collapsed" />
+    <Sidebar v-if="embedConfig.showSidebar" :collapsed="collapsed" />
+    <div class="layout-main" :class="{ 'sidebar-collapsed': collapsed, 'no-sidebar': !embedConfig.showSidebar, 'no-header': !embedConfig.showHeader }">
+      <Header v-if="embedConfig.showHeader" v-model:collapsed="collapsed" />
       <main class="layout-content">
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
@@ -15,11 +15,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import Sidebar from './components/Sidebar.vue'
 import Header from './components/Header.vue'
 import { useUserStore } from '@/stores/user'
+import { getEmbedConfig } from '@/config/embed'
 
+const embedConfig = computed(() => getEmbedConfig())
 const collapsed = ref(false)
 const userStore = useUserStore()
 
@@ -47,6 +49,10 @@ onMounted(() => {
 
   &.sidebar-collapsed {
     margin-left: 64px;
+  }
+
+  &.no-sidebar {
+    margin-left: 0;
   }
 }
 

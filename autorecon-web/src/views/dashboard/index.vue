@@ -318,8 +318,9 @@ function handleAction(row: TodoItem, action: string) {
 async function fetchDashboard() {
   loading.value = true
   try {
-    const res = await getDashboard() as DashboardData
-    dashboardData.value = res ?? {}
+    const res = await getDashboard() as DashboardData | { data?: DashboardData }
+    const data = res && 'data' in res && res.data ? res.data : res
+    dashboardData.value = (data ?? {}) as DashboardData
   } catch {
     dashboardData.value = {
       pendingCount: 12,
