@@ -32,7 +32,7 @@ public class ConfirmTimeoutServiceImpl extends ServiceImpl<ConfirmTimeoutConfigM
         ConfirmTimeoutConfig config = getOne(new LambdaQueryWrapper<ConfirmTimeoutConfig>()
                 .eq(ConfirmTimeoutConfig::getEnterpriseId, enterpriseId)
                 .eq(ConfirmTimeoutConfig::getBuyerId, buyerId)
-                .eq(ConfirmTimeoutConfig::getConfigType, scenario)
+                .eq(ConfirmTimeoutConfig::getScenario, scenario)
                 .last("LIMIT 1"));
 
         if (config != null) return config;
@@ -40,7 +40,7 @@ public class ConfirmTimeoutServiceImpl extends ServiceImpl<ConfirmTimeoutConfigM
         config = getOne(new LambdaQueryWrapper<ConfirmTimeoutConfig>()
                 .eq(ConfirmTimeoutConfig::getEnterpriseId, enterpriseId)
                 .isNull(ConfirmTimeoutConfig::getBuyerId)
-                .eq(ConfirmTimeoutConfig::getConfigType, scenario)
+                .eq(ConfirmTimeoutConfig::getScenario, scenario)
                 .last("LIMIT 1"));
 
         if (config != null) return config;
@@ -48,8 +48,9 @@ public class ConfirmTimeoutServiceImpl extends ServiceImpl<ConfirmTimeoutConfigM
         return ConfirmTimeoutConfig.builder()
                 .enterpriseId(enterpriseId)
                 .buyerId(buyerId)
-                .configType(scenario)
-                .hours(DEFAULT_HOURS)
+                .scenario(scenario)
+                .timeoutValue(DEFAULT_HOURS)
+                .timeoutUnit("hours")
                 .build();
     }
 
@@ -67,10 +68,14 @@ public class ConfirmTimeoutServiceImpl extends ServiceImpl<ConfirmTimeoutConfigM
 
         config.setEnterpriseId(dto.getEnterpriseId());
         config.setBuyerId(dto.getBuyerId());
-        config.setContractType(dto.getContractType());
-        config.setConfigType(dto.getConfigType());
-        config.setHours(dto.getHours());
-        config.setDays(dto.getDays());
+        config.setScenario(dto.getConfigType());
+        if (dto.getHours() != null) {
+            config.setTimeoutValue(dto.getHours());
+            config.setTimeoutUnit("hours");
+        } else if (dto.getDays() != null) {
+            config.setTimeoutValue(dto.getDays());
+            config.setTimeoutUnit("days");
+        }
 
         saveOrUpdate(config);
     }

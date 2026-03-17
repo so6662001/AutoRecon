@@ -27,14 +27,33 @@ public class ConfirmTimeoutConfig {
     private Long id;
     private Long enterpriseId;
     private Long buyerId;
-    private Integer contractType;
-    private String configType;
-    private Integer hours;
-    private Integer days;
+    @TableField("scenario")
+    private String scenario;
+    @TableField("timeout_value")
+    private Integer timeoutValue;
+    @TableField("timeout_unit")
+    private String timeoutUnit;
+    @TableField("reminder_before_hours")
+    private Integer reminderBeforeHours;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
     @TableLogic
     private Integer deleted;
+
+    /** Alias for scenario - used by service layer */
+    public String getConfigType() {
+        return scenario;
+    }
+
+    /** Hours when timeout_unit is 'hours' */
+    public Integer getHours() {
+        return "hours".equals(timeoutUnit) ? timeoutValue : null;
+    }
+
+    /** Days when timeout_unit is 'days' */
+    public Integer getDays() {
+        return "days".equals(timeoutUnit) ? timeoutValue : null;
+    }
 }

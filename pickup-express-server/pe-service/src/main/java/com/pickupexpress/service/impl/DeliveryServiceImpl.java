@@ -5,6 +5,8 @@ import com.pickupexpress.common.exception.BizException;
 import com.pickupexpress.common.exception.ErrorCode;
 import com.pickupexpress.domain.dto.DeliveryCompleteDTO;
 import com.pickupexpress.domain.dto.LiftUploadDTO;
+import com.pickupexpress.common.util.TenantUtil;
+import com.pickupexpress.domain.entity.Contract;
 import com.pickupexpress.domain.entity.DeliveryConfirm;
 import com.pickupexpress.domain.entity.DeliveryPhoto;
 import com.pickupexpress.domain.entity.LiftRecord;
@@ -13,6 +15,7 @@ import com.pickupexpress.domain.enums.DeliveryStatusEnum;
 import com.pickupexpress.domain.enums.PickupCodeStatusEnum;
 import com.pickupexpress.domain.enums.PickupOrderStatusEnum;
 import com.pickupexpress.domain.vo.DeliveryProgressVO;
+import com.pickupexpress.mapper.ContractMapper;
 import com.pickupexpress.mapper.DeliveryConfirmMapper;
 import com.pickupexpress.mapper.DeliveryPhotoMapper;
 import com.pickupexpress.mapper.LiftRecordMapper;
@@ -37,6 +40,7 @@ import java.util.List;
 public class DeliveryServiceImpl implements DeliveryService {
 
     private final PickupOrderMapper pickupOrderMapper;
+    private final ContractMapper contractMapper;
     private final LiftRecordMapper liftRecordMapper;
     private final DeliveryConfirmMapper deliveryConfirmMapper;
     private final DeliveryPhotoMapper deliveryPhotoMapper;
@@ -49,13 +53,20 @@ public class DeliveryServiceImpl implements DeliveryService {
                 new LambdaQueryWrapper<PickupOrder>()
                         .eq(PickupOrder::getPickupCode, pickupCode));
         if (order == null) {
+            log.warn("Pickup code verification failed: invalid code");
             throw new BizException(ErrorCode.PICKUP_CODE_INVALID);
         }
+        Contract contract = contractMapper.selectById(order.getContractId());
+        if (contract != null) {
+            TenantUtil.checkContractAccess(contract.getSellerId(), contract.getBuyerId());
+        }
         if (order.getPickupCodeExpireAt() != null && order.getPickupCodeExpireAt().isBefore(LocalDateTime.now())) {
+            log.warn("Pickup code verification failed: expired code, pickupOrderId={}", order.getId());
             throw new BizException(ErrorCode.PICKUP_CODE_EXPIRED);
         }
         if (vehiclePlate != null && !vehiclePlate.isBlank() && order.getVehiclePlate() != null
                 && !vehiclePlate.trim().equalsIgnoreCase(order.getVehiclePlate().trim())) {
+            log.warn("Pickup code verification failed: vehicle plate mismatch, pickupOrderId={}", order.getId());
             return false;
         }
         order.setPickupCodeStatus(PickupCodeStatusEnum.VERIFIED.getValue());
@@ -69,6 +80,13 @@ public class DeliveryServiceImpl implements DeliveryService {
         PickupOrder order = pickupOrderMapper.selectById(dto.getPickupOrderId());
         if (order == null) {
             throw new BizException(ErrorCode.PICKUP_ORDER_NOT_FOUND);
+        }
+        if (order.getDeliveryStatus() != null && order.getDeliveryStatus() == 2) {
+            throw new BizException(ErrorCode.DELIVERY_ALREADY_COMPLETED);
+        }
+        Contract contract = contractMapper.selectById(order.getContractId());
+        if (contract != null) {
+            TenantUtil.checkContractAccess(contract.getSellerId(), contract.getBuyerId());
         }
 
         Integer nextSeq = liftRecordMapper.selectCount(
@@ -136,6 +154,13 @@ public class DeliveryServiceImpl implements DeliveryService {
         PickupOrder order = pickupOrderMapper.selectById(dto.getPickupOrderId());
         if (order == null) {
             throw new BizException(ErrorCode.PICKUP_ORDER_NOT_FOUND);
+        }
+        if (order.getDeliveryStatus() != null && order.getDeliveryStatus() == 2) {
+            return;
+        }
+        Contract contract = contractMapper.selectById(order.getContractId());
+        if (contract != null) {
+            TenantUtil.checkContractAccess(contract.getSellerId(), contract.getBuyerId());
         }
 
         DeliveryConfirm confirm = DeliveryConfirm.builder()

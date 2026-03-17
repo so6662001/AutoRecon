@@ -4,11 +4,14 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.pickupexpress.common.exception.BizException;
 import com.pickupexpress.common.exception.ErrorCode;
+import com.pickupexpress.common.util.TenantUtil;
+import com.pickupexpress.domain.entity.Contract;
 import com.pickupexpress.domain.entity.LiftRecord;
 import com.pickupexpress.domain.entity.PickupOrder;
 import com.pickupexpress.domain.entity.SettlementOrder;
 import com.pickupexpress.domain.enums.SettlementStatusEnum;
 import com.pickupexpress.domain.vo.SettlementVO;
+import com.pickupexpress.mapper.ContractMapper;
 import com.pickupexpress.mapper.LiftRecordMapper;
 import com.pickupexpress.mapper.PickupOrderMapper;
 import com.pickupexpress.mapper.SettlementOrderMapper;
@@ -35,6 +38,7 @@ public class SettlementServiceImpl extends ServiceImpl<SettlementOrderMapper, Se
     private static final String SETTLEMENT_NO_PREFIX = "JS";
 
     private final PickupOrderMapper pickupOrderMapper;
+    private final ContractMapper contractMapper;
     private final LiftRecordMapper liftRecordMapper;
 
     @Override
@@ -43,6 +47,10 @@ public class SettlementServiceImpl extends ServiceImpl<SettlementOrderMapper, Se
         PickupOrder order = pickupOrderMapper.selectById(pickupOrderId);
         if (order == null) {
             throw new BizException(ErrorCode.PICKUP_ORDER_NOT_FOUND);
+        }
+        Contract contract = contractMapper.selectById(order.getContractId());
+        if (contract != null) {
+            TenantUtil.checkContractAccess(contract.getSellerId(), contract.getBuyerId());
         }
 
         List<LiftRecord> lifts = liftRecordMapper.selectList(
@@ -97,6 +105,10 @@ public class SettlementServiceImpl extends ServiceImpl<SettlementOrderMapper, Se
         if (settlement == null) {
             throw new BizException(ErrorCode.SETTLEMENT_NOT_FOUND);
         }
+        Contract contract = contractMapper.selectById(settlement.getContractId());
+        if (contract != null) {
+            TenantUtil.checkContractAccess(contract.getSellerId(), contract.getBuyerId());
+        }
         SettlementVO vo = new SettlementVO();
         BeanUtils.copyProperties(settlement, vo);
         return vo;
@@ -108,6 +120,10 @@ public class SettlementServiceImpl extends ServiceImpl<SettlementOrderMapper, Se
         SettlementOrder settlement = getById(settlementId);
         if (settlement == null) {
             throw new BizException(ErrorCode.SETTLEMENT_NOT_FOUND);
+        }
+        Contract contract = contractMapper.selectById(settlement.getContractId());
+        if (contract != null) {
+            TenantUtil.checkContractAccess(contract.getSellerId(), contract.getBuyerId());
         }
         settlement.setCustomerViewed(1);
         settlement.setCustomerViewedAt(java.time.LocalDateTime.now());

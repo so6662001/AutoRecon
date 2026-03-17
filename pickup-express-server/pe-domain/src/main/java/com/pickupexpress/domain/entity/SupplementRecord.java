@@ -27,6 +27,7 @@ public class SupplementRecord {
     private Long id;
     private Long pickupOrderId;
     private Long contractId;
+    @TableField("delivery_detail")
     private String supplementData;
     private String documentUrls;
     private Integer approvalStatus;

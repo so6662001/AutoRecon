@@ -35,6 +35,11 @@ public class RateLimitInterceptor implements HandlerInterceptor {
                 response.setStatus(429);
                 return false;
             }
+        } else if (PATH_MATCHER.match("/api/v1/evidence/delivery/verify-code", path)) {
+            if (!allow(loginCounters, clientIp, LOGIN_MAX_PER_MINUTE)) {
+                response.setStatus(429);
+                return false;
+            }
         } else if (PATH_MATCHER.match("/api/v1/guest/**", path)) {
             if (!allow(guestCounters, clientIp, GUEST_MAX_PER_MINUTE)) {
                 response.setStatus(429);

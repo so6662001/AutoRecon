@@ -19,7 +19,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(new RateLimitInterceptor())
-                .addPathPatterns("/api/v1/users/login", "/api/v1/guest/**");
+                .addPathPatterns("/api/v1/users/login", "/api/v1/evidence/delivery/verify-code", "/api/v1/guest/**");
         registry.addInterceptor(authInterceptor)
                 .addPathPatterns("/api/**")
                 .excludePathPatterns(

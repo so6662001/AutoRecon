@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.pickupexpress.common.exception.BizException;
 import com.pickupexpress.common.exception.ErrorCode;
+import com.pickupexpress.common.util.TenantUtil;
 import com.pickupexpress.domain.entity.*;
 import com.pickupexpress.domain.vo.EvidencePackageVO;
 import com.pickupexpress.mapper.*;
@@ -43,9 +44,12 @@ public class EvidenceServiceImpl extends ServiceImpl<EvidencePackageMapper, Evid
         if (order == null) {
             throw new BizException(ErrorCode.PICKUP_ORDER_NOT_FOUND);
         }
+        Contract contract = contractMapper.selectById(order.getContractId());
+        if (contract != null) {
+            TenantUtil.checkContractAccess(contract.getSellerId(), contract.getBuyerId());
+        }
 
         StringBuilder content = new StringBuilder();
-        Contract contract = contractMapper.selectById(order.getContractId());
         if (contract != null) {
             content.append(contract.getContractNo()).append(contract.getSignedPdfUrl());
         }
@@ -116,9 +120,15 @@ public class EvidenceServiceImpl extends ServiceImpl<EvidencePackageMapper, Evid
         if (pkg == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
+        PickupOrder order = pickupOrderMapper.selectById(pickupOrderId);
+        if (order != null) {
+            Contract contract = contractMapper.selectById(order.getContractId());
+            if (contract != null) {
+                TenantUtil.checkContractAccess(contract.getSellerId(), contract.getBuyerId());
+            }
+        }
         EvidencePackageVO vo = new EvidencePackageVO();
         BeanUtils.copyProperties(pkg, vo);
-        PickupOrder order = pickupOrderMapper.selectById(pickupOrderId);
         if (order != null) {
             vo.setContractNo(order.getContractNo());
             vo.setPickupNo(order.getPickupNo());
@@ -134,9 +144,12 @@ public class EvidenceServiceImpl extends ServiceImpl<EvidencePackageMapper, Evid
         }
         PickupOrder order = pickupOrderMapper.selectById(pkg.getPickupOrderId());
         if (order == null) return false;
+        Contract contract = contractMapper.selectById(order.getContractId());
+        if (contract != null) {
+            TenantUtil.checkContractAccess(contract.getSellerId(), contract.getBuyerId());
+        }
 
         StringBuilder content = new StringBuilder();
-        Contract contract = contractMapper.selectById(pkg.getContractId());
         if (contract != null) {
             content.append(contract.getContractNo()).append(contract.getSignedPdfUrl());
         }

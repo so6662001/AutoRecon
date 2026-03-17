@@ -2,7 +2,14 @@ package com.pickupexpress.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.pickupexpress.common.exception.BizException;
+import com.pickupexpress.common.exception.ErrorCode;
+import com.pickupexpress.common.util.TenantUtil;
+import com.pickupexpress.domain.entity.Contract;
+import com.pickupexpress.domain.entity.PickupOrder;
 import com.pickupexpress.domain.entity.ProgressEvent;
+import com.pickupexpress.mapper.ContractMapper;
+import com.pickupexpress.mapper.PickupOrderMapper;
 import com.pickupexpress.mapper.ProgressEventMapper;
 import com.pickupexpress.service.ProgressEventService;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +29,9 @@ import java.util.List;
 public class ProgressEventServiceImpl extends ServiceImpl<ProgressEventMapper, ProgressEvent>
         implements ProgressEventService {
 
+    private final ContractMapper contractMapper;
+    private final PickupOrderMapper pickupOrderMapper;
+
     @Override
     public void recordEvent(Long pickupOrderId, Long contractId, String eventType, String title, String detail, String operator) {
         ProgressEvent event = ProgressEvent.builder()
@@ -38,6 +48,13 @@ public class ProgressEventServiceImpl extends ServiceImpl<ProgressEventMapper, P
 
     @Override
     public List<ProgressEvent> getTimeline(Long pickupOrderId) {
+        PickupOrder order = pickupOrderMapper.selectById(pickupOrderId);
+        if (order != null) {
+            Contract contract = contractMapper.selectById(order.getContractId());
+            if (contract != null) {
+                TenantUtil.checkContractAccess(contract.getSellerId(), contract.getBuyerId());
+            }
+        }
         return list(new LambdaQueryWrapper<ProgressEvent>()
                 .eq(ProgressEvent::getPickupOrderId, pickupOrderId)
                 .orderByAsc(ProgressEvent::getCreatedAt));
@@ -45,6 +62,10 @@ public class ProgressEventServiceImpl extends ServiceImpl<ProgressEventMapper, P
 
     @Override
     public List<ProgressEvent> getContractTimeline(Long contractId) {
+        Contract contract = contractMapper.selectById(contractId);
+        if (contract != null) {
+            TenantUtil.checkContractAccess(contract.getSellerId(), contract.getBuyerId());
+        }
         return list(new LambdaQueryWrapper<ProgressEvent>()
                 .eq(ProgressEvent::getContractId, contractId)
                 .orderByAsc(ProgressEvent::getCreatedAt));

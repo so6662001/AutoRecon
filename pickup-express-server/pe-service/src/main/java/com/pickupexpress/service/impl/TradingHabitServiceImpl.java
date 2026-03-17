@@ -2,6 +2,7 @@ package com.pickupexpress.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.pickupexpress.common.util.TenantUtil;
 import com.pickupexpress.domain.entity.TradingHabitRecord;
 import com.pickupexpress.mapper.TradingHabitRecordMapper;
 import com.pickupexpress.service.TradingHabitService;
@@ -64,6 +65,7 @@ public class TradingHabitServiceImpl extends ServiceImpl<TradingHabitRecordMappe
 
     @Override
     public List<TradingHabitRecord> listByBuyer(Long buyerId) {
+        TenantUtil.checkOwnership(buyerId);
         return list(new LambdaQueryWrapper<TradingHabitRecord>()
                 .eq(TradingHabitRecord::getBuyerId, buyerId)
                 .orderByDesc(TradingHabitRecord::getLastPickupAt));

@@ -10,6 +10,7 @@ import com.pickupexpress.service.ContractService;
 import com.pickupexpress.service.ProgressEventService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -28,7 +29,7 @@ public class ContractController {
 
     @Operation(summary = "分页查询合同")
     @GetMapping("/")
-    public R<PageResult<ContractVO>> queryContracts(ContractQueryDTO query) {
+    public R<PageResult<ContractVO>> queryContracts(@Valid ContractQueryDTO query) {
         PageResult<ContractVO> result = contractService.queryContracts(query);
         return R.ok(result);
     }

@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.pickupexpress.common.exception.BizException;
 import com.pickupexpress.common.exception.ErrorCode;
+import com.pickupexpress.common.util.TenantUtil;
 import com.pickupexpress.common.result.PageResult;
 import com.pickupexpress.domain.dto.DispatchConfirmDTO;
 import com.pickupexpress.domain.dto.DispatchRequestDTO;
@@ -17,6 +18,7 @@ import com.pickupexpress.domain.enums.PickupCodeStatusEnum;
 import com.pickupexpress.domain.enums.PickupOrderStatusEnum;
 import com.pickupexpress.domain.vo.PickupOrderDetailVO;
 import com.pickupexpress.domain.vo.PickupOrderVO;
+import com.pickupexpress.domain.entity.Contract;
 import com.pickupexpress.mapper.*;
 import com.pickupexpress.service.ContractService;
 import com.pickupexpress.service.PickupOrderService;
@@ -61,6 +63,7 @@ public class PickupOrderServiceImpl extends ServiceImpl<PickupOrderMapper, Picku
         if (contract == null) {
             throw new BizException(ErrorCode.CONTRACT_NOT_FOUND);
         }
+        TenantUtil.checkContractAccess(contract.getSellerId(), contract.getBuyerId());
 
         String pickupNo = generatePickupNo();
         String pickupCode = generatePickupCode();
@@ -118,6 +121,10 @@ public class PickupOrderServiceImpl extends ServiceImpl<PickupOrderMapper, Picku
         if (order == null) {
             throw new BizException(ErrorCode.PICKUP_ORDER_NOT_FOUND);
         }
+        Contract contract = contractService.getById(order.getContractId());
+        if (contract != null) {
+            TenantUtil.checkContractAccess(contract.getSellerId(), contract.getBuyerId());
+        }
 
         PickupOrderDetailVO vo = new PickupOrderDetailVO();
         BeanUtils.copyProperties(order, vo);
@@ -137,6 +144,20 @@ public class PickupOrderServiceImpl extends ServiceImpl<PickupOrderMapper, Picku
         LambdaQueryWrapper<PickupOrder> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(contractId != null, PickupOrder::getContractId, contractId);
         wrapper.eq(status != null, PickupOrder::getStatus, status);
+        Long currentEnterpriseId = com.pickupexpress.common.util.SecurityUtil.getCurrentEnterpriseId();
+        if (currentEnterpriseId != null) {
+            List<Long> contractIds = contractService.list(
+                    new LambdaQueryWrapper<Contract>()
+                            .eq(Contract::getSellerId, currentEnterpriseId)
+                            .or()
+                            .eq(Contract::getBuyerId, currentEnterpriseId))
+                    .stream().map(Contract::getId).toList();
+            if (!contractIds.isEmpty()) {
+                wrapper.in(PickupOrder::getContractId, contractIds);
+            } else {
+                wrapper.eq(PickupOrder::getId, -1);
+            }
+        }
         wrapper.orderByDesc(PickupOrder::getCreatedAt);
 
         int pn = pageNum != null && pageNum > 0 ? pageNum : 1;
@@ -212,6 +233,10 @@ public class PickupOrderServiceImpl extends ServiceImpl<PickupOrderMapper, Picku
         PickupOrder order = getById(id);
         if (order == null) {
             throw new BizException(ErrorCode.PICKUP_ORDER_NOT_FOUND);
+        }
+        int status = order.getStatus() != null ? order.getStatus() : -1;
+        if (status != PickupOrderStatusEnum.DISPATCH_PENDING.getValue() && status != PickupOrderStatusEnum.READY.getValue()) {
+            throw new BizException(ErrorCode.CONTRACT_STATUS_ERROR);
         }
         order.setStatus(PickupOrderStatusEnum.CANCELLED.getValue());
         updateById(order);

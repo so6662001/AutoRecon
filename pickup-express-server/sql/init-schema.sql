@@ -101,7 +101,8 @@ CREATE TABLE `contract_template` (
     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
     `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     `deleted` TINYINT DEFAULT 0,
-    PRIMARY KEY (`id`)
+    PRIMARY KEY (`id`),
+    KEY `idx_contract_template_enterprise_id` (`enterprise_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='合同模板';
 
 -- ----------------------------
@@ -152,7 +153,9 @@ CREATE TABLE `pickup_order` (
     UNIQUE KEY `uk_pickup_no` (`pickup_no`),
     KEY `idx_pickup_order_contract_id` (`contract_id`),
     KEY `idx_pickup_order_buyer_id` (`buyer_id`),
-    KEY `idx_pickup_order_status` (`status`)
+    KEY `idx_pickup_order_status` (`status`),
+    KEY `idx_pickup_order_pickup_code` (`pickup_code`),
+    KEY `idx_pickup_order_driver_phone` (`driver_phone`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='提货单';
 
 -- ----------------------------
@@ -203,7 +206,7 @@ CREATE TABLE `delivery_confirm` (
     `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     `deleted` TINYINT DEFAULT 0,
     PRIMARY KEY (`id`),
-    KEY `idx_delivery_confirm_pickup_order_id` (`pickup_order_id`)
+    UNIQUE KEY `uk_delivery_confirm_pickup_order_id` (`pickup_order_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='发货确认';
 
 -- ----------------------------
@@ -254,7 +257,8 @@ CREATE TABLE `settlement_order` (
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_settlement_no` (`settlement_no`),
     KEY `idx_settlement_contract_id` (`contract_id`),
-    KEY `idx_settlement_buyer_id` (`buyer_id`)
+    KEY `idx_settlement_buyer_id` (`buyer_id`),
+    KEY `idx_settlement_pickup_order_id` (`pickup_order_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='结算单';
 
 -- ----------------------------
@@ -300,7 +304,8 @@ CREATE TABLE `progress_event` (
     `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     `deleted` TINYINT DEFAULT 0,
     PRIMARY KEY (`id`),
-    KEY `idx_progress_event_pickup_order_id` (`pickup_order_id`)
+    KEY `idx_progress_event_pickup_order_id` (`pickup_order_id`),
+    KEY `idx_progress_event_contract_id` (`contract_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='进度事件';
 
 -- ----------------------------
@@ -412,7 +417,8 @@ CREATE TABLE `warehouse` (
     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
     `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     `deleted` TINYINT DEFAULT 0,
-    PRIMARY KEY (`id`)
+    PRIMARY KEY (`id`),
+    KEY `idx_warehouse_enterprise_id` (`enterprise_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='仓库';
 
 -- ----------------------------
@@ -429,7 +435,8 @@ CREATE TABLE `carrier` (
     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
     `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     `deleted` TINYINT DEFAULT 0,
-    PRIMARY KEY (`id`)
+    PRIMARY KEY (`id`),
+    KEY `idx_carrier_enterprise_id` (`enterprise_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='承运公司';
 
 -- ----------------------------
@@ -439,6 +446,7 @@ DROP TABLE IF EXISTS `supplement_record`;
 CREATE TABLE `supplement_record` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
     `pickup_order_id` BIGINT DEFAULT NULL COMMENT '提货单ID',
+    `contract_id` BIGINT DEFAULT NULL COMMENT '合同ID',
     `submitted_by` BIGINT DEFAULT NULL COMMENT '提交人ID',
     `submit_reason` VARCHAR(500) DEFAULT NULL COMMENT '补录原因',
     `delivery_detail` JSON DEFAULT NULL COMMENT '发货明细',

@@ -3,10 +3,13 @@ package com.pickupexpress.service.impl;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.pickupexpress.common.exception.BizException;
 import com.pickupexpress.common.exception.ErrorCode;
+import com.pickupexpress.common.util.TenantUtil;
+import com.pickupexpress.domain.entity.Contract;
 import com.pickupexpress.domain.entity.PickupOrder;
 import com.pickupexpress.domain.entity.PickupVerification;
 import com.pickupexpress.domain.enums.VerificationLevelEnum;
 import com.pickupexpress.domain.vo.VerificationResultVO;
+import com.pickupexpress.mapper.ContractMapper;
 import com.pickupexpress.mapper.PickupOrderMapper;
 import com.pickupexpress.mapper.PickupVerificationMapper;
 import com.pickupexpress.service.AuthorizedPickupPersonService;
@@ -30,6 +33,7 @@ public class PickupVerificationServiceImpl extends ServiceImpl<PickupVerificatio
         implements PickupVerificationService {
 
     private final PickupOrderMapper pickupOrderMapper;
+    private final ContractMapper contractMapper;
     private final AuthorizedPickupPersonService authorizedPickupPersonService;
     private final NotificationService notificationService;
 
@@ -38,6 +42,10 @@ public class PickupVerificationServiceImpl extends ServiceImpl<PickupVerificatio
         PickupOrder order = pickupOrderMapper.selectById(pickupOrderId);
         if (order == null) {
             throw new BizException(ErrorCode.PICKUP_ORDER_NOT_FOUND);
+        }
+        Contract contract = contractMapper.selectById(order.getContractId());
+        if (contract != null) {
+            TenantUtil.checkContractAccess(contract.getSellerId(), contract.getBuyerId());
         }
 
         Long buyerId = order.getBuyerId();

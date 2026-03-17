@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.pickupexpress.common.exception.BizException;
+import com.pickupexpress.common.exception.ErrorCode;
 import com.pickupexpress.common.util.SecurityUtil;
 import com.pickupexpress.common.util.TenantUtil;
 import com.pickupexpress.domain.dto.SupplementCreateDTO;
@@ -14,6 +16,7 @@ import com.pickupexpress.domain.enums.ApprovalStatusEnum;
 import com.pickupexpress.domain.enums.DataSourceEnum;
 import com.pickupexpress.mapper.ContractMapper;
 import com.pickupexpress.mapper.LiftRecordMapper;
+import com.pickupexpress.mapper.PickupOrderMapper;
 import com.pickupexpress.mapper.SupplementRecordMapper;
 import com.pickupexpress.service.SupplementService;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +39,7 @@ public class SupplementServiceImpl extends ServiceImpl<SupplementRecordMapper, S
         implements SupplementService {
 
     private final ContractMapper contractMapper;
+    private final PickupOrderMapper pickupOrderMapper;
     private final LiftRecordMapper liftRecordMapper;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -66,6 +70,11 @@ public class SupplementServiceImpl extends ServiceImpl<SupplementRecordMapper, S
         Contract contract = contractMapper.selectById(record.getContractId());
         if (contract != null) {
             TenantUtil.checkOwnership(contract.getSellerId());
+        }
+
+        com.pickupexpress.domain.entity.PickupOrder order = pickupOrderMapper.selectById(record.getPickupOrderId());
+        if (order != null && order.getDeliveryStatus() != null && order.getDeliveryStatus() == 2) {
+            throw new BizException(ErrorCode.DELIVERY_ALREADY_COMPLETED);
         }
 
         record.setApprovalStatus(ApprovalStatusEnum.APPROVED.getValue());

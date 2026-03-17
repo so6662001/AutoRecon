@@ -27,6 +27,7 @@ public class NotificationLog {
     private Long id;
     private String targetType;
     private Long targetId;
+    @TableField("recipient_phone")
     private String recipient;
     private Integer channel;
     private String title;
