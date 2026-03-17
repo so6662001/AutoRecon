@@ -1,9 +1,12 @@
 package com.autorecon.controller;
 
 import com.autorecon.common.result.R;
+import com.autorecon.common.util.SecurityUtil;
+import com.autorecon.domain.dto.BatchCreateDTO;
 import com.autorecon.domain.entity.Enterprise;
 import com.autorecon.domain.entity.ReconBill;
 import com.autorecon.domain.vo.ReconBillVO;
+import jakarta.validation.Valid;
 import com.autorecon.mapper.EnterpriseMapper;
 import com.autorecon.mapper.ReconBillMapper;
 import com.autorecon.service.ReconBillService;
@@ -15,8 +18,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -37,19 +40,8 @@ public class BatchReconController {
 
     @PostMapping("/create")
     @Operation(summary = "批量创建对账单")
-    public R<String> batchCreate(@RequestBody Map<String, Object> body) {
-        @SuppressWarnings("unchecked")
-        List<Number> buyerIdsRaw = (List<Number>) body.get("buyerIds");
-        if (buyerIdsRaw == null || buyerIdsRaw.isEmpty()) {
-            return R.fail("buyerIds不能为空");
-        }
-        List<Long> buyerIds = buyerIdsRaw.stream()
-                .map(Number::longValue)
-                .collect(Collectors.toList());
-        LocalDate periodStart = LocalDate.parse((String) body.get("periodStart"));
-        LocalDate periodEnd = LocalDate.parse((String) body.get("periodEnd"));
-        Long templateId = ((Number) body.get("templateId")).longValue();
-        String batchId = reconBillService.batchCreateBills(buyerIds, periodStart, periodEnd, templateId);
+    public R<String> batchCreate(@Valid @RequestBody BatchCreateDTO dto) {
+        String batchId = reconBillService.batchCreateBills(dto.getBuyerIds(), dto.getPeriodStart(), dto.getPeriodEnd(), dto.getTemplateId());
         return R.ok(batchId);
     }
 
@@ -60,13 +52,20 @@ public class BatchReconController {
         wrapper.eq(ReconBill::getBatchId, batchId).orderByDesc(ReconBill::getCreatedAt);
         List<ReconBill> bills = reconBillMapper.selectList(wrapper);
 
+        Long currentEnterpriseId = SecurityUtil.getCurrentEnterpriseId();
+        if (currentEnterpriseId != null) {
+            bills = bills.stream()
+                    .filter(b -> currentEnterpriseId.equals(b.getSellerId()) || currentEnterpriseId.equals(b.getBuyerId()))
+                    .collect(Collectors.toList());
+        }
+
         List<Long> sellerIds = bills.stream().map(ReconBill::getSellerId).distinct().collect(Collectors.toList());
         List<Long> buyerIds = bills.stream().map(ReconBill::getBuyerId).distinct().collect(Collectors.toList());
         List<Long> allIds = new ArrayList<>();
         allIds.addAll(sellerIds);
         allIds.addAll(buyerIds);
 
-        Map<Long, String> enterpriseNames = new java.util.HashMap<>();
+        Map<Long, String> enterpriseNames = new HashMap<>();
         for (Long id : allIds) {
             if (id != null) {
                 Enterprise e = enterpriseMapper.selectById(id);

@@ -7,6 +7,7 @@ import com.autorecon.domain.entity.ReconCalendar;
 import com.autorecon.service.ReconCalendarService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -46,7 +47,7 @@ public class ReconCalendarController {
 
     @PostMapping("/")
     @Operation(summary = "创建日历事件")
-    public R<Long> createEvent(@RequestBody CalendarEventDTO dto) {
+    public R<Long> createEvent(@Valid @RequestBody CalendarEventDTO dto) {
         Long eventId = reconCalendarService.createEvent(dto);
         return R.ok(eventId);
     }

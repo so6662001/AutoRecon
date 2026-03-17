@@ -7,6 +7,7 @@ import com.autorecon.domain.entity.NotifySubscription;
 import com.autorecon.service.NotifySubscriptionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -35,7 +36,7 @@ public class NotifySubscriptionController {
 
     @PutMapping("/")
     @Operation(summary = "更新订阅配置")
-    public R<Void> updateSubscriptions(@RequestBody List<NotifySubscriptionDTO> subscriptions) {
+    public R<Void> updateSubscriptions(@Valid @RequestBody List<NotifySubscriptionDTO> subscriptions) {
         Long userId = SecurityUtil.getCurrentUserId();
         notifySubscriptionService.updateSubscriptions(userId, subscriptions);
         return R.ok();

@@ -2,6 +2,7 @@ package com.autorecon.service.impl;
 
 import com.autorecon.common.exception.BizException;
 import com.autorecon.common.exception.ErrorCode;
+import com.autorecon.common.util.TenantUtil;
 import com.autorecon.domain.entity.ReconBillItem;
 import com.autorecon.domain.vo.DisputePredictionVO;
 import com.autorecon.mapper.ReconBillItemMapper;
@@ -33,9 +34,11 @@ public class DisputePredictionServiceImpl implements DisputePredictionService {
 
     @Override
     public DisputePredictionVO predict(Long billId) {
-        if (reconBillMapper.selectById(billId) == null) {
+        com.autorecon.domain.entity.ReconBill bill = reconBillMapper.selectById(billId);
+        if (bill == null) {
             throw new BizException(ErrorCode.BILL_NOT_FOUND);
         }
+        TenantUtil.checkBillAccess(bill.getSellerId(), bill.getBuyerId());
 
         LambdaQueryWrapper<ReconBillItem> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ReconBillItem::getBillId, billId)

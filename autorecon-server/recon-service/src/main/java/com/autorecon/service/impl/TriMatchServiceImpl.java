@@ -2,6 +2,7 @@ package com.autorecon.service.impl;
 
 import com.autorecon.common.exception.BizException;
 import com.autorecon.common.exception.ErrorCode;
+import com.autorecon.common.util.TenantUtil;
 import com.autorecon.domain.entity.InvoiceLink;
 import com.autorecon.domain.entity.PaymentAllocation;
 import com.autorecon.domain.entity.ReconBill;
@@ -37,6 +38,7 @@ public class TriMatchServiceImpl implements TriMatchService {
         if (bill == null) {
             throw new BizException(ErrorCode.BILL_NOT_FOUND);
         }
+        TenantUtil.checkBillAccess(bill.getSellerId(), bill.getBuyerId());
 
         BigDecimal totalAmount = bill.getTotalAmount() != null ? bill.getTotalAmount() : BigDecimal.ZERO;
 

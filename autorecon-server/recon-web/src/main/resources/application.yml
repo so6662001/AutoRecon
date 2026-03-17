@@ -98,6 +98,11 @@ knife4j:
   setting:
     language: zh_cn
 
+# AutoRecon
+autorecon:
+  # CORS: default "*" for dev; set to frontend domain(s) in production, e.g. "https://app.example.com"
+  cors-allowed-origins: "*"
+
 # Logging
 logging:
   level:

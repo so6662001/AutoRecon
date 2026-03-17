@@ -4,6 +4,7 @@ import com.autorecon.common.exception.BizException;
 import com.autorecon.common.exception.ErrorCode;
 import com.autorecon.common.result.PageResult;
 import com.autorecon.common.util.SecurityUtil;
+import com.autorecon.common.util.TenantUtil;
 import com.autorecon.domain.dto.FinanceApplyDTO;
 import com.autorecon.domain.entity.FinanceApply;
 import com.autorecon.domain.entity.ReconBill;
@@ -82,6 +83,7 @@ public class FinanceServiceImpl extends ServiceImpl<FinanceApplyMapper, FinanceA
         if (apply == null) {
             throw new BizException(ErrorCode.NOT_FOUND.getCode(), "融资申请不存在");
         }
+        TenantUtil.checkOwnership(apply.getSellerId());
         return apply;
     }
 
@@ -116,6 +118,7 @@ public class FinanceServiceImpl extends ServiceImpl<FinanceApplyMapper, FinanceA
         if (apply == null) {
             throw new BizException(ErrorCode.NOT_FOUND.getCode(), "融资申请不存在");
         }
+        TenantUtil.checkOwnership(apply.getSellerId());
         apply.setStatus(status);
         apply.setApprovedAmount(approvedAmount);
         financeApplyMapper.updateById(apply);

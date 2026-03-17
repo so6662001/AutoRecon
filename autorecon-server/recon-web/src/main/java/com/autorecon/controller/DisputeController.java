@@ -36,7 +36,7 @@ public class DisputeController {
 
     @PostMapping("/{id}/messages")
     @Operation(summary = "发送异议消息")
-    public R<Void> sendMessage(@PathVariable Long id, @RequestBody DisputeMessageDTO dto) {
+    public R<Void> sendMessage(@PathVariable Long id, @Valid @RequestBody DisputeMessageDTO dto) {
         dto.setDisputeId(id);
         disputeService.sendMessage(dto);
         return R.ok();

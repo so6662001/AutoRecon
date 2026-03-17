@@ -6,6 +6,7 @@ import com.autorecon.common.util.SecurityUtil;
 import com.autorecon.common.util.TenantUtil;
 import com.autorecon.domain.entity.ReconBill;
 import com.autorecon.domain.entity.SignRecord;
+import com.autorecon.domain.enums.BillStatusEnum;
 import com.autorecon.domain.enums.SignStatusEnum;
 import com.autorecon.domain.entity.EnterpriseSeal;
 import com.autorecon.mapper.EnterpriseSealMapper;
@@ -79,20 +80,41 @@ public class SignServiceImpl implements SignService {
             }
         }
 
-        // Placeholder: update sign status
-        record.setSellerSignStatus(SignStatusEnum.SIGNED.getValue());
-        record.setSellerSealId(sealId);
-        record.setSellerSignAt(LocalDateTime.now());
-        record.setOverallStatus(SignStatusEnum.SIGNED.getValue());
-        record.setCompletedAt(LocalDateTime.now());
-        signRecordMapper.updateById(record);
-
-        bill = reconBillMapper.selectById(record.getBillId());
-        if (bill != null) {
-            bill.setSellerSignStatus(SignStatusEnum.SIGNED.getValue());
-            bill.setBuyerSignStatus(SignStatusEnum.SIGNED.getValue());
-            reconBillMapper.updateById(bill);
+        if (bill == null || currentEnterpriseId == null) {
+            throw new BizException(ErrorCode.UNAUTHORIZED);
         }
+
+        boolean isSeller = currentEnterpriseId.equals(bill.getSellerId());
+        boolean isBuyer = currentEnterpriseId.equals(bill.getBuyerId());
+        if (!isSeller && !isBuyer) {
+            throw new BizException(ErrorCode.FORBIDDEN);
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+
+        if (isSeller) {
+            record.setSellerSignStatus(SignStatusEnum.SIGNED.getValue());
+            record.setSellerSealId(sealId);
+            record.setSellerSignAt(now);
+            bill.setSellerSignStatus(SignStatusEnum.SIGNED.getValue());
+        } else {
+            record.setBuyerSignStatus(SignStatusEnum.SIGNED.getValue());
+            record.setBuyerSealId(sealId);
+            record.setBuyerSignAt(now);
+            bill.setBuyerSignStatus(SignStatusEnum.SIGNED.getValue());
+        }
+
+        int sellerStatus = record.getSellerSignStatus() != null ? record.getSellerSignStatus() : SignStatusEnum.PENDING.getValue();
+        int buyerStatus = record.getBuyerSignStatus() != null ? record.getBuyerSignStatus() : SignStatusEnum.PENDING.getValue();
+        boolean bothSigned = sellerStatus == SignStatusEnum.SIGNED.getValue() && buyerStatus == SignStatusEnum.SIGNED.getValue();
+
+        if (bothSigned) {
+            record.setOverallStatus(SignStatusEnum.SIGNED.getValue());
+            record.setCompletedAt(now);
+            bill.setStatus(BillStatusEnum.SIGNED.getCode());
+        }
+        signRecordMapper.updateById(record);
+        reconBillMapper.updateById(bill);
 
         log.info("Executed sign: signRecordId={}, sealId={}", signRecordId, sealId);
     }

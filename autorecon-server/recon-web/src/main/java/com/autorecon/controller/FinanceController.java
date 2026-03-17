@@ -8,6 +8,7 @@ import com.autorecon.domain.entity.FinanceApply;
 import com.autorecon.service.FinanceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -29,7 +30,7 @@ public class FinanceController {
 
     @PostMapping("/apply")
     @Operation(summary = "提交融资申请")
-    public R<Long> apply(@RequestBody FinanceApplyDTO dto) {
+    public R<Long> apply(@Valid @RequestBody FinanceApplyDTO dto) {
         Long applyId = financeService.apply(dto);
         return R.ok(applyId);
     }

@@ -3,6 +3,7 @@ package com.autorecon.service.impl;
 import com.autorecon.common.exception.BizException;
 import com.autorecon.common.exception.ErrorCode;
 import com.autorecon.common.util.SecurityUtil;
+import com.autorecon.common.util.TenantUtil;
 import com.autorecon.domain.dto.AutoReconPlanCreateDTO;
 import com.autorecon.domain.entity.AutoReconPlan;
 import com.autorecon.domain.entity.ReconBill;
@@ -40,7 +41,9 @@ public class AutoReconPlanServiceImpl extends ServiceImpl<AutoReconPlanMapper, A
     @Transactional(rollbackFor = Exception.class)
     public Long createPlan(AutoReconPlanCreateDTO dto) {
         Long sellerId = SecurityUtil.getCurrentEnterpriseId();
-        if (sellerId == null) sellerId = 1L;
+        if (sellerId == null) {
+            throw new BizException(ErrorCode.UNAUTHORIZED);
+        }
 
         String cronExpression = buildCronExpression(dto.getFrequency(), dto.getExecutionDay(), dto.getExecutionTime());
 
@@ -71,6 +74,7 @@ public class AutoReconPlanServiceImpl extends ServiceImpl<AutoReconPlanMapper, A
         if (plan == null) {
             throw new BizException(ErrorCode.NOT_FOUND.getCode(), "计划不存在");
         }
+        TenantUtil.checkOwnership(plan.getSellerId());
 
         plan.setPlanName(dto.getPlanName());
         plan.setBuyerId(dto.getBuyerId());
@@ -93,6 +97,7 @@ public class AutoReconPlanServiceImpl extends ServiceImpl<AutoReconPlanMapper, A
         if (plan == null) {
             throw new BizException(ErrorCode.NOT_FOUND.getCode(), "计划不存在");
         }
+        TenantUtil.checkOwnership(plan.getSellerId());
         int newStatus = STATUS_ACTIVE == (plan.getStatus() != null ? plan.getStatus() : 0) ? STATUS_DISABLED : STATUS_ACTIVE;
         plan.setStatus(newStatus);
         baseMapper.updateById(plan);
@@ -106,6 +111,7 @@ public class AutoReconPlanServiceImpl extends ServiceImpl<AutoReconPlanMapper, A
         if (plan == null) {
             throw new BizException(ErrorCode.NOT_FOUND.getCode(), "计划不存在");
         }
+        TenantUtil.checkOwnership(plan.getSellerId());
         if (plan.getTemplateId() == null) {
             throw new BizException(ErrorCode.BAD_REQUEST.getCode(), "计划未配置模板");
         }
@@ -162,6 +168,7 @@ public class AutoReconPlanServiceImpl extends ServiceImpl<AutoReconPlanMapper, A
         if (plan == null) {
             throw new BizException(ErrorCode.NOT_FOUND.getCode(), "计划不存在");
         }
+        TenantUtil.checkOwnership(plan.getSellerId());
         return plan;
     }
 

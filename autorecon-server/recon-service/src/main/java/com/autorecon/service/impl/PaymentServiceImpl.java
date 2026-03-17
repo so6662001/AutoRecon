@@ -20,6 +20,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -29,6 +31,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * 付款服务实现
@@ -40,6 +43,10 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> impl
 
     private static final String PAYMENT_NO_PREFIX = "PAY";
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
+    private static final AtomicLong PAYMENT_SEQ = new AtomicLong(0);
+
+    @Autowired(required = false)
+    private StringRedisTemplate stringRedisTemplate;
 
     private final PaymentMapper paymentMapper;
     private final PaymentAllocationMapper paymentAllocationMapper;
@@ -56,7 +63,7 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> impl
         Long currentEnterpriseId = SecurityUtil.getCurrentEnterpriseId();
         Long payeeId = currentEnterpriseId != null ? currentEnterpriseId : dto.getPayeeId();
 
-        String paymentNo = PAYMENT_NO_PREFIX + LocalDate.now().format(DATE_FORMAT) + System.currentTimeMillis() % 100000;
+        String paymentNo = generatePaymentNo();
         Payment payment = Payment.builder()
                 .paymentNo(paymentNo)
                 .payerId(dto.getPayerId())
@@ -248,5 +255,22 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> impl
         if (end != null) wrapper.le(Payment::getPaymentDate, end);
         wrapper.orderByDesc(Payment::getPaymentDate);
         return paymentMapper.selectList(wrapper);
+    }
+
+    private String generatePaymentNo() {
+        String dateStr = LocalDate.now().format(DATE_FORMAT);
+        if (stringRedisTemplate != null) {
+            try {
+                String redisKey = "recon:payment:no:" + dateStr;
+                Long seq = stringRedisTemplate.opsForValue().increment(redisKey);
+                if (seq != null) {
+                    return PAYMENT_NO_PREFIX + dateStr + String.format("%06d", seq);
+                }
+            } catch (Exception e) {
+                log.warn("Redis failed for payment no, using fallback: {}", e.getMessage());
+            }
+        }
+        long seq = PAYMENT_SEQ.incrementAndGet();
+        return PAYMENT_NO_PREFIX + dateStr + String.format("%06d", seq % 1000000);
     }
 }

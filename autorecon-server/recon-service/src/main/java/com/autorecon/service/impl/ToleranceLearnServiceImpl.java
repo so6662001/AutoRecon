@@ -2,6 +2,7 @@ package com.autorecon.service.impl;
 
 import com.autorecon.common.exception.BizException;
 import com.autorecon.common.exception.ErrorCode;
+import com.autorecon.common.util.TenantUtil;
 import com.autorecon.domain.entity.ToleranceLearn;
 import com.autorecon.mapper.ToleranceLearnMapper;
 import com.autorecon.service.ToleranceLearnService;
@@ -42,6 +43,7 @@ public class ToleranceLearnServiceImpl extends ServiceImpl<ToleranceLearnMapper,
         if (learn == null) {
             throw new BizException(ErrorCode.NOT_FOUND.getCode(), "容差学习记录不存在");
         }
+        TenantUtil.checkOwnership(learn.getSellerId());
         learn.setAdopted(1);
         toleranceLearnMapper.updateById(learn);
         log.info("Adopted tolerance suggestion: id={}", id);
@@ -50,6 +52,11 @@ public class ToleranceLearnServiceImpl extends ServiceImpl<ToleranceLearnMapper,
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void rejectSuggestion(Long id) {
+        ToleranceLearn learn = toleranceLearnMapper.selectById(id);
+        if (learn == null) {
+            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "容差学习记录不存在");
+        }
+        TenantUtil.checkOwnership(learn.getSellerId());
         toleranceLearnMapper.deleteById(id);
         log.info("Rejected tolerance suggestion: id={}", id);
     }

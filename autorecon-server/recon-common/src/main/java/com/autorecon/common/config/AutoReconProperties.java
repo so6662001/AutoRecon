@@ -15,6 +15,11 @@ public class AutoReconProperties {
     private String apiPrefix = "/api";
     private boolean demoMode = false;
 
+    /**
+     * CORS allowed origins. Default "*" for dev. In production, set to actual frontend domain(s).
+     */
+    private String corsAllowedOrigins = "*";
+
     private Module module = new Module();
 
     @Data

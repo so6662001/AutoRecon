@@ -40,7 +40,7 @@ public class GuestAccessController {
 
     @PostMapping("/confirm/{token}")
     @Operation(summary = "访客确认")
-    public R<Void> guestConfirm(@PathVariable String token, @RequestBody GuestConfirmDTO dto) {
+    public R<Void> guestConfirm(@PathVariable String token, @Valid @RequestBody GuestConfirmDTO dto) {
         dto.setToken(token);
         guestAccessService.guestConfirm(dto);
         return R.ok();
