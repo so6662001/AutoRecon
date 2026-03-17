@@ -7,6 +7,7 @@ import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.stream.Collectors;
 
@@ -37,6 +38,12 @@ public class GlobalExceptionHandler {
                 .map(err -> err.getField() + ": " + err.getDefaultMessage())
                 .collect(Collectors.joining("; "));
         return R.fail(400, message);
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public R<Void> handleNoResourceFound(NoResourceFoundException e) {
+        log.warn("No resource found: {}", e.getResourcePath());
+        return R.fail(404, "Not Found: " + e.getResourcePath());
     }
 
     @ExceptionHandler(Exception.class)
