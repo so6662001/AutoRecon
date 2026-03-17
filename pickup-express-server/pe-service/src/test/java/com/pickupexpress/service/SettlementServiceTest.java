@@ -1,15 +1,19 @@
 package com.pickupexpress.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.pickupexpress.common.auth.DefaultAuthContext;
+import com.pickupexpress.domain.entity.Contract;
 import com.pickupexpress.domain.entity.LiftRecord;
 import com.pickupexpress.domain.entity.PickupOrder;
 import com.pickupexpress.domain.entity.SettlementOrder;
 import com.pickupexpress.domain.enums.SettlementStatusEnum;
 import com.pickupexpress.domain.vo.SettlementVO;
+import com.pickupexpress.mapper.ContractMapper;
 import com.pickupexpress.mapper.LiftRecordMapper;
 import com.pickupexpress.mapper.PickupOrderMapper;
 import com.pickupexpress.mapper.SettlementOrderMapper;
 import com.pickupexpress.service.impl.SettlementServiceImpl;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,6 +36,9 @@ class SettlementServiceTest {
     private PickupOrderMapper pickupOrderMapper;
 
     @Mock
+    private ContractMapper contractMapper;
+
+    @Mock
     private LiftRecordMapper liftRecordMapper;
 
     @Mock
@@ -42,7 +49,13 @@ class SettlementServiceTest {
 
     @BeforeEach
     void setUp() {
+        DefaultAuthContext.setAuthInfo(1L, 1L, "test", "Test Enterprise", null);
         ReflectionTestUtils.setField(settlementService, "baseMapper", settlementOrderMapper);
+    }
+
+    @AfterEach
+    void tearDown() {
+        DefaultAuthContext.clearAuthInfo();
     }
 
     @Test
@@ -61,6 +74,7 @@ class SettlementServiceTest {
                 .build();
 
         when(pickupOrderMapper.selectById(1L)).thenReturn(order);
+        when(contractMapper.selectById(1L)).thenReturn(Contract.builder().id(1L).sellerId(1L).buyerId(2L).build());
         when(liftRecordMapper.selectList(any())).thenReturn(List.of(lift));
         when(settlementOrderMapper.selectCount(any())).thenReturn(0L);
         doAnswer(inv -> {
@@ -82,10 +96,12 @@ class SettlementServiceTest {
     void test_markCustomerViewed_success() {
         SettlementOrder settlement = SettlementOrder.builder()
                 .id(1L)
+                .contractId(1L)
                 .customerViewed(0)
                 .build();
 
         when(settlementOrderMapper.selectById(1L)).thenReturn(settlement);
+        when(contractMapper.selectById(1L)).thenReturn(Contract.builder().id(1L).sellerId(1L).buyerId(2L).build());
 
         settlementService.markCustomerViewed(1L);
 

@@ -1,5 +1,6 @@
 package com.pickupexpress.service;
 
+import com.pickupexpress.common.auth.DefaultAuthContext;
 import com.pickupexpress.domain.dto.DispatchConfirmDTO;
 import com.pickupexpress.domain.dto.DispatchRequestDTO;
 import com.pickupexpress.domain.entity.Contract;
@@ -8,6 +9,7 @@ import com.pickupexpress.domain.enums.DispatchModeEnum;
 import com.pickupexpress.domain.enums.PickupOrderStatusEnum;
 import com.pickupexpress.mapper.*;
 import com.pickupexpress.service.impl.PickupOrderServiceImpl;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -53,7 +55,13 @@ class PickupOrderServiceTest {
 
     @BeforeEach
     void setUp() {
+        DefaultAuthContext.setAuthInfo(1L, 1L, "test", "Test Enterprise", null);
         ReflectionTestUtils.setField(pickupOrderService, "baseMapper", pickupOrderMapper);
+    }
+
+    @AfterEach
+    void tearDown() {
+        DefaultAuthContext.clearAuthInfo();
     }
 
     @Test
@@ -68,6 +76,7 @@ class PickupOrderServiceTest {
         Contract contract = Contract.builder()
                 .id(1L)
                 .contractNo("HT2024001")
+                .sellerId(1L)
                 .buyerId(2L)
                 .warehouseId(10L)
                 .warehouseName("上海仓库")
@@ -97,6 +106,7 @@ class PickupOrderServiceTest {
         Contract contract = Contract.builder()
                 .id(1L)
                 .contractNo("HT2024001")
+                .sellerId(1L)
                 .buyerId(2L)
                 .warehouseId(10L)
                 .warehouseName("上海仓库")

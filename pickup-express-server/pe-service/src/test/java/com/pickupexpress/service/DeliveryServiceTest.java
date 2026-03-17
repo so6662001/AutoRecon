@@ -1,17 +1,21 @@
 package com.pickupexpress.service;
 
+import com.pickupexpress.common.auth.DefaultAuthContext;
 import com.pickupexpress.common.exception.BizException;
 import com.pickupexpress.domain.dto.DeliveryCompleteDTO;
 import com.pickupexpress.domain.dto.LiftUploadDTO;
+import com.pickupexpress.domain.entity.Contract;
 import com.pickupexpress.domain.entity.DeliveryConfirm;
 import com.pickupexpress.domain.entity.LiftRecord;
 import com.pickupexpress.domain.entity.PickupOrder;
 import com.pickupexpress.domain.enums.PickupCodeStatusEnum;
+import com.pickupexpress.mapper.ContractMapper;
 import com.pickupexpress.mapper.DeliveryConfirmMapper;
 import com.pickupexpress.mapper.DeliveryPhotoMapper;
 import com.pickupexpress.mapper.LiftRecordMapper;
 import com.pickupexpress.mapper.PickupOrderMapper;
 import com.pickupexpress.service.impl.DeliveryServiceImpl;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,6 +39,9 @@ class DeliveryServiceTest {
     private PickupOrderMapper pickupOrderMapper;
 
     @Mock
+    private ContractMapper contractMapper;
+
+    @Mock
     private LiftRecordMapper liftRecordMapper;
 
     @Mock
@@ -51,18 +58,30 @@ class DeliveryServiceTest {
 
     @BeforeEach
     void setUp() {
+        DefaultAuthContext.setAuthInfo(1L, 1L, "test", "Test Enterprise", null);
+    }
+
+    @AfterEach
+    void tearDown() {
+        DefaultAuthContext.clearAuthInfo();
+    }
+
+    private Contract testContract() {
+        return Contract.builder().id(1L).sellerId(1L).buyerId(2L).build();
     }
 
     @Test
     void test_verifyPickupCode_valid_success() {
         PickupOrder order = PickupOrder.builder()
                 .id(1L)
+                .contractId(1L)
                 .pickupCode("ABC123")
                 .vehiclePlate("沪A12345")
                 .pickupCodeExpireAt(LocalDateTime.now().plusHours(1))
                 .build();
 
         when(pickupOrderMapper.selectOne(any())).thenReturn(order);
+        when(contractMapper.selectById(1L)).thenReturn(testContract());
 
         boolean result = deliveryService.verifyPickupCode("ABC123", "沪A12345");
 
@@ -76,11 +95,13 @@ class DeliveryServiceTest {
     void test_verifyPickupCode_expired_throwsException() {
         PickupOrder order = PickupOrder.builder()
                 .id(1L)
+                .contractId(1L)
                 .pickupCode("ABC123")
                 .pickupCodeExpireAt(LocalDateTime.now().minusHours(1))
                 .build();
 
         when(pickupOrderMapper.selectOne(any())).thenReturn(order);
+        when(contractMapper.selectById(1L)).thenReturn(testContract());
 
         assertThrows(BizException.class, () -> deliveryService.verifyPickupCode("ABC123", "沪A12345"));
         verify(pickupOrderMapper, never()).updateById(any(PickupOrder.class));
@@ -90,12 +111,14 @@ class DeliveryServiceTest {
     void test_verifyPickupCode_wrongPlate_throwsException() {
         PickupOrder order = PickupOrder.builder()
                 .id(1L)
+                .contractId(1L)
                 .pickupCode("ABC123")
                 .vehiclePlate("沪A12345")
                 .pickupCodeExpireAt(LocalDateTime.now().plusHours(1))
                 .build();
 
         when(pickupOrderMapper.selectOne(any())).thenReturn(order);
+        when(contractMapper.selectById(1L)).thenReturn(testContract());
 
         boolean result = deliveryService.verifyPickupCode("ABC123", "沪B99999");
 
@@ -107,10 +130,13 @@ class DeliveryServiceTest {
     void test_uploadLift_success() {
         PickupOrder order = PickupOrder.builder()
                 .id(1L)
+                .contractId(1L)
                 .totalLifts(0)
                 .totalPieces(0)
                 .totalWeight(BigDecimal.ZERO)
                 .build();
+
+        when(contractMapper.selectById(1L)).thenReturn(testContract());
 
         LiftUploadDTO dto = new LiftUploadDTO();
         dto.setPickupOrderId(1L);
@@ -157,6 +183,7 @@ class DeliveryServiceTest {
         dto.setSignatureUrl("https://example.com/sig.png");
 
         when(pickupOrderMapper.selectById(1L)).thenReturn(order);
+        when(contractMapper.selectById(1L)).thenReturn(testContract());
 
         deliveryService.completeDelivery(dto);
 

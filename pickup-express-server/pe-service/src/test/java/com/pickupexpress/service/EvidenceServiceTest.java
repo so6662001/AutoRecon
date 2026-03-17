@@ -1,9 +1,11 @@
 package com.pickupexpress.service;
 
+import com.pickupexpress.common.auth.DefaultAuthContext;
 import com.pickupexpress.domain.entity.*;
 import com.pickupexpress.domain.vo.EvidencePackageVO;
 import com.pickupexpress.mapper.*;
 import com.pickupexpress.service.impl.EvidenceServiceImpl;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -51,7 +53,13 @@ class EvidenceServiceTest {
 
     @BeforeEach
     void setUp() {
+        DefaultAuthContext.setAuthInfo(1L, 1L, "test", "Test Enterprise", null);
         ReflectionTestUtils.setField(evidenceService, "baseMapper", evidencePackageMapper);
+    }
+
+    @AfterEach
+    void tearDown() {
+        DefaultAuthContext.clearAuthInfo();
     }
 
     @Test
@@ -66,6 +74,8 @@ class EvidenceServiceTest {
         Contract contract = Contract.builder()
                 .id(1L)
                 .contractNo("HT2024001")
+                .sellerId(1L)
+                .buyerId(2L)
                 .signedPdfUrl("https://example.com/contract.pdf")
                 .build();
 
@@ -100,12 +110,15 @@ class EvidenceServiceTest {
 
         PickupOrder order = PickupOrder.builder()
                 .id(1L)
+                .contractId(1L)
                 .contractNo("HT2024001")
                 .pickupNo("TH202403170001")
                 .build();
 
+        Contract contract = Contract.builder().id(1L).sellerId(1L).buyerId(2L).build();
         when(evidencePackageMapper.selectOne(any(), anyBoolean())).thenReturn(pkg);
         when(pickupOrderMapper.selectById(1L)).thenReturn(order);
+        when(contractMapper.selectById(1L)).thenReturn(contract);
 
         EvidencePackageVO vo = evidenceService.getEvidencePackage(1L);
 
@@ -136,12 +149,16 @@ class EvidenceServiceTest {
 
         PickupOrder order = PickupOrder.builder()
                 .id(1L)
+                .contractId(1L)
                 .pickupNo("TH001")
                 .pickupCode("ABC123")
                 .build();
 
         Contract contract = Contract.builder()
+                .id(1L)
                 .contractNo("HT001")
+                .sellerId(1L)
+                .buyerId(2L)
                 .signedPdfUrl("url1")
                 .build();
 

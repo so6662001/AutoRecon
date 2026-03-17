@@ -1,12 +1,16 @@
 package com.pickupexpress.service;
 
+import com.pickupexpress.common.auth.DefaultAuthContext;
+import com.pickupexpress.domain.entity.Contract;
 import com.pickupexpress.domain.entity.PickupOrder;
 import com.pickupexpress.domain.entity.PickupVerification;
 import com.pickupexpress.domain.enums.VerificationLevelEnum;
 import com.pickupexpress.domain.vo.VerificationResultVO;
+import com.pickupexpress.mapper.ContractMapper;
 import com.pickupexpress.mapper.PickupOrderMapper;
 import com.pickupexpress.mapper.PickupVerificationMapper;
 import com.pickupexpress.service.impl.PickupVerificationServiceImpl;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,6 +30,9 @@ class PickupVerificationServiceTest {
     private PickupOrderMapper pickupOrderMapper;
 
     @Mock
+    private ContractMapper contractMapper;
+
+    @Mock
     private AuthorizedPickupPersonService authorizedPickupPersonService;
 
     @Mock
@@ -39,7 +46,13 @@ class PickupVerificationServiceTest {
 
     @BeforeEach
     void setUp() {
+        DefaultAuthContext.setAuthInfo(1L, 1L, "test", "Test Enterprise", null);
         ReflectionTestUtils.setField(pickupVerificationService, "baseMapper", pickupVerificationMapper);
+    }
+
+    @AfterEach
+    void tearDown() {
+        DefaultAuthContext.clearAuthInfo();
     }
 
     @Test
@@ -55,6 +68,7 @@ class PickupVerificationServiceTest {
                 .build();
 
         when(pickupOrderMapper.selectById(1L)).thenReturn(order);
+        when(contractMapper.selectById(1L)).thenReturn(Contract.builder().id(1L).sellerId(1L).buyerId(2L).build());
         when(authorizedPickupPersonService.isAuthorized(2L, "13800138000")).thenReturn(true);
         doAnswer(inv -> {
             PickupVerification v = inv.getArgument(0);
@@ -83,6 +97,7 @@ class PickupVerificationServiceTest {
                 .build();
 
         when(pickupOrderMapper.selectById(1L)).thenReturn(order);
+        when(contractMapper.selectById(1L)).thenReturn(Contract.builder().id(1L).sellerId(1L).buyerId(2L).build());
         when(authorizedPickupPersonService.isAuthorized(2L, "13900139000")).thenReturn(false);
         doAnswer(inv -> {
             PickupVerification v = inv.getArgument(0);
