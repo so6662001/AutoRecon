@@ -10,6 +10,7 @@ import com.pickupexpress.domain.vo.PickupOrderVO;
 import com.pickupexpress.common.result.PageResult;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * 提货单服务接口
@@ -33,4 +34,8 @@ public interface PickupOrderService extends IService<PickupOrder> {
     void cancelPickupOrder(Long id);
 
     String generatePickupCode();
+
+    List<PickupOrder> listByDriverPhone(String driverPhone);
+
+    PickupOrder getByPickupCode(String pickupCode);
 }

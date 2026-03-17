@@ -216,4 +216,22 @@ public class PickupOrderServiceImpl extends ServiceImpl<PickupOrderMapper, Picku
         order.setStatus(PickupOrderStatusEnum.CANCELLED.getValue());
         updateById(order);
     }
+
+    @Override
+    public List<PickupOrder> listByDriverPhone(String driverPhone) {
+        if (driverPhone == null || driverPhone.isBlank()) {
+            return new ArrayList<>();
+        }
+        return list(new LambdaQueryWrapper<PickupOrder>()
+                .eq(PickupOrder::getDriverPhone, driverPhone)
+                .orderByDesc(PickupOrder::getCreatedAt));
+    }
+
+    @Override
+    public PickupOrder getByPickupCode(String pickupCode) {
+        if (pickupCode == null || pickupCode.isBlank()) {
+            return null;
+        }
+        return getOne(new LambdaQueryWrapper<PickupOrder>().eq(PickupOrder::getPickupCode, pickupCode));
+    }
 }

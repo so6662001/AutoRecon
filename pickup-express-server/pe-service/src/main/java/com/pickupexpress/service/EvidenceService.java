@@ -14,4 +14,6 @@ public interface EvidenceService extends IService<EvidencePackage> {
     EvidencePackageVO getEvidencePackage(Long pickupOrderId);
 
     boolean verifyIntegrity(Long evidencePackageId);
+
+    boolean verifyIntegrityByPickupOrderId(Long pickupOrderId);
 }

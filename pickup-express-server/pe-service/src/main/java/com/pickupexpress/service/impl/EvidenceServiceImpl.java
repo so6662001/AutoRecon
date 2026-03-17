@@ -165,4 +165,13 @@ public class EvidenceServiceImpl extends ServiceImpl<EvidencePackageMapper, Evid
         String computedHash = computeSha256(content.toString());
         return computedHash.equals(pkg.getPackageHash());
     }
+
+    @Override
+    public boolean verifyIntegrityByPickupOrderId(Long pickupOrderId) {
+        EvidencePackage pkg = getOne(new LambdaQueryWrapper<EvidencePackage>().eq(EvidencePackage::getPickupOrderId, pickupOrderId));
+        if (pkg == null) {
+            return false;
+        }
+        return verifyIntegrity(pkg.getId());
+    }
 }
