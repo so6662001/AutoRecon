@@ -1,8 +1,10 @@
 package com.autorecon.common.util;
 
+import com.autorecon.common.auth.DefaultAuthContext;
+
 /**
  * Security utility for current user context.
- * Placeholder implementation - to be replaced with real auth (e.g. JWT, Spring Security).
+ * Delegates to AuthContext (DefaultAuthContext uses ThreadLocal).
  */
 public final class SecurityUtil {
 
@@ -15,8 +17,8 @@ public final class SecurityUtil {
      * @return current user ID, or null if not authenticated
      */
     public static Long getCurrentUserId() {
-        // TODO: Replace with real auth - get from SecurityContext/ThreadLocal
-        return 1L;
+        var info = DefaultAuthContext.getCurrentAuthInfo();
+        return info != null ? info.userId() : null;
     }
 
     /**
@@ -25,7 +27,37 @@ public final class SecurityUtil {
      * @return current enterprise ID, or null if not set
      */
     public static Long getCurrentEnterpriseId() {
-        // TODO: Replace with real auth - get from SecurityContext/ThreadLocal
-        return 1L;
+        var info = DefaultAuthContext.getCurrentAuthInfo();
+        return info != null ? info.enterpriseId() : null;
+    }
+
+    /**
+     * Get current username.
+     *
+     * @return current username, or null if not authenticated
+     */
+    public static String getCurrentUsername() {
+        var info = DefaultAuthContext.getCurrentAuthInfo();
+        return info != null ? info.username() : null;
+    }
+
+    /**
+     * Get current enterprise name.
+     *
+     * @return current enterprise name, or null if not set
+     */
+    public static String getCurrentEnterpriseName() {
+        var info = DefaultAuthContext.getCurrentAuthInfo();
+        return info != null ? info.enterpriseName() : null;
+    }
+
+    /**
+     * Check if current user is authenticated.
+     *
+     * @return true if authenticated
+     */
+    public static boolean isAuthenticated() {
+        var info = DefaultAuthContext.getCurrentAuthInfo();
+        return info != null && info.userId() != null;
     }
 }

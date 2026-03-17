@@ -1,0 +1,40 @@
+spring:
+  datasource:
+    type: com.zaxxer.hikari.HikariDataSource
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:autorecon_demo;DB_CLOSE_DELAY=-1;MODE=MySQL;DATABASE_TO_LOWER=TRUE
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/schema-h2.sql
+      data-locations: classpath:db/data-demo.sql
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: false
+
+autorecon:
+  demo-mode: true
+  auth:
+    enabled: false
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+logging:
+  level:
+    com.autorecon: DEBUG
+
+server:
+  port: 8080
