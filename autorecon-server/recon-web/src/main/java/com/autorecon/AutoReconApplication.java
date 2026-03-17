@@ -8,8 +8,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * AutoRecon - Steel Industry Reconciliation Platform
  * Application entry point.
  */
-@SpringBootApplication
-@MapperScan("com.autorecon.**.mapper")
+@SpringBootApplication(scanBasePackages = "com.autorecon")
+@MapperScan("com.autorecon.mapper")
 public class AutoReconApplication {
 
     public static void main(String[] args) {
