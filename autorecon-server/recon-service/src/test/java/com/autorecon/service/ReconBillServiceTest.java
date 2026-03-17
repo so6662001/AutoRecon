@@ -1,5 +1,6 @@
 package com.autorecon.service;
 
+import com.autorecon.common.auth.DefaultAuthContext;
 import com.autorecon.common.exception.BizException;
 import com.autorecon.common.exception.ErrorCode;
 import com.autorecon.domain.dto.ReconBillCreateDTO;
@@ -16,6 +17,7 @@ import com.autorecon.mapper.ReconBillItemMapper;
 import com.autorecon.mapper.ReconBillMapper;
 import com.autorecon.mapper.ReconTemplateMapper;
 import com.autorecon.service.impl.ReconBillServiceImpl;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -59,9 +61,17 @@ class ReconBillServiceTest {
     @Mock
     private DisputeMapper disputeMapper;
 
+    private static final Long TEST_ENTERPRISE_ID = 1L;
+
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(reconBillService, "baseMapper", reconBillMapper);
+        DefaultAuthContext.setAuthInfo(1L, TEST_ENTERPRISE_ID, "test", "Test", null);
+    }
+
+    @AfterEach
+    void tearDown() {
+        DefaultAuthContext.clearAuthInfo();
     }
 
     @Test
@@ -130,6 +140,8 @@ class ReconBillServiceTest {
         ReconBill bill = ReconBill.builder()
                 .id(1L)
                 .billNo("DZ001")
+                .sellerId(TEST_ENTERPRISE_ID)
+                .buyerId(2L)
                 .status(BillStatusEnum.CREATED.getCode())
                 .build();
 
@@ -146,6 +158,8 @@ class ReconBillServiceTest {
     void test_sendBill_wrongStatus_throwsBizException() {
         ReconBill bill = ReconBill.builder()
                 .id(1L)
+                .sellerId(TEST_ENTERPRISE_ID)
+                .buyerId(2L)
                 .status(BillStatusEnum.SIGNED.getCode())
                 .build();
 
@@ -160,6 +174,8 @@ class ReconBillServiceTest {
     void test_confirmBill_success() {
         ReconBill bill = ReconBill.builder()
                 .id(1L)
+                .sellerId(TEST_ENTERPRISE_ID)
+                .buyerId(2L)
                 .status(BillStatusEnum.PENDING.getCode())
                 .build();
 
@@ -176,6 +192,8 @@ class ReconBillServiceTest {
     void test_voidBill_success() {
         ReconBill bill = ReconBill.builder()
                 .id(1L)
+                .sellerId(TEST_ENTERPRISE_ID)
+                .buyerId(2L)
                 .status(BillStatusEnum.PENDING.getCode())
                 .build();
 
@@ -192,6 +210,8 @@ class ReconBillServiceTest {
     void test_voidBill_afterSigned_throwsBizException() {
         ReconBill bill = ReconBill.builder()
                 .id(1L)
+                .sellerId(TEST_ENTERPRISE_ID)
+                .buyerId(2L)
                 .status(BillStatusEnum.SIGNED.getCode())
                 .build();
 

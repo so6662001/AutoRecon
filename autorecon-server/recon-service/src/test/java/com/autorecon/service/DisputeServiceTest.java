@@ -1,5 +1,6 @@
 package com.autorecon.service;
 
+import com.autorecon.common.auth.DefaultAuthContext;
 import com.autorecon.common.exception.BizException;
 import com.autorecon.domain.dto.DisputeCreateDTO;
 import com.autorecon.domain.dto.DisputeMessageDTO;
@@ -12,6 +13,8 @@ import com.autorecon.mapper.DisputeMessageMapper;
 import com.autorecon.mapper.ReconBillMapper;
 import com.autorecon.service.impl.DisputeServiceImpl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -40,6 +43,18 @@ class DisputeServiceTest {
     @Mock
     private ReconBillMapper reconBillMapper;
 
+    private static final Long TEST_ENTERPRISE_ID = 1L;
+
+    @BeforeEach
+    void setUp() {
+        DefaultAuthContext.setAuthInfo(1L, TEST_ENTERPRISE_ID, "test", "Test", null);
+    }
+
+    @AfterEach
+    void tearDown() {
+        DefaultAuthContext.clearAuthInfo();
+    }
+
     @Test
     void test_createDispute_success_billStatusChangesToDisputed() {
 
@@ -49,7 +64,12 @@ class DisputeServiceTest {
         dto.setDisputeType(1);
         dto.setDescription("Test dispute");
 
-        ReconBill bill = ReconBill.builder().id(100L).status(BillStatusEnum.PENDING.getCode()).build();
+        ReconBill bill = ReconBill.builder()
+                .id(100L)
+                .sellerId(TEST_ENTERPRISE_ID)
+                .buyerId(2L)
+                .status(BillStatusEnum.PENDING.getCode())
+                .build();
 
         when(reconBillMapper.selectById(100L)).thenReturn(bill);
         doAnswer(inv -> {
@@ -71,7 +91,12 @@ class DisputeServiceTest {
     @Test
     void test_resolveDispute_whenAllDisputesResolved_billGoesToToSign() {
         Dispute dispute = Dispute.builder().id(1L).billId(100L).status(0).build();
-        ReconBill bill = ReconBill.builder().id(100L).status(BillStatusEnum.DISPUTED.getCode()).build();
+        ReconBill bill = ReconBill.builder()
+                .id(100L)
+                .sellerId(TEST_ENTERPRISE_ID)
+                .buyerId(2L)
+                .status(BillStatusEnum.DISPUTED.getCode())
+                .build();
 
         when(disputeMapper.selectById(1L)).thenReturn(dispute);
         when(disputeMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);

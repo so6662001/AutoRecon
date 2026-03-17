@@ -1,10 +1,12 @@
 package com.autorecon.service;
 
+import com.autorecon.common.auth.DefaultAuthContext;
 import com.autorecon.domain.dto.TemplateCreateDTO;
 import com.autorecon.domain.entity.ReconTemplate;
 import com.autorecon.mapper.ReconTemplateMapper;
 import com.autorecon.service.impl.ReconTemplateServiceImpl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,9 +31,17 @@ class ReconTemplateServiceTest {
     @Mock
     private ReconTemplateMapper reconTemplateMapper;
 
+    private static final Long TEST_ENTERPRISE_ID = 1L;
+
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(templateService, "baseMapper", reconTemplateMapper);
+        DefaultAuthContext.setAuthInfo(1L, TEST_ENTERPRISE_ID, "test", "Test", null);
+    }
+
+    @AfterEach
+    void tearDown() {
+        DefaultAuthContext.clearAuthInfo();
     }
 
     @Test
@@ -61,7 +71,11 @@ class ReconTemplateServiceTest {
 
     @Test
     void test_deleteTemplate_success() {
-        ReconTemplate template = ReconTemplate.builder().id(100L).templateName("Test").build();
+        ReconTemplate template = ReconTemplate.builder()
+                .id(100L)
+                .templateName("Test")
+                .enterpriseId(TEST_ENTERPRISE_ID)
+                .build();
 
         when(reconTemplateMapper.selectById(100L)).thenReturn(template);
 
