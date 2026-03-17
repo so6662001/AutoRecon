@@ -1,13 +1,18 @@
 package com.autorecon.controller;
 
 import com.autorecon.common.result.R;
+import com.autorecon.common.util.SecurityUtil;
+import com.autorecon.domain.entity.SignApproval;
 import com.autorecon.domain.entity.SignRecord;
+import com.autorecon.service.SignApprovalService;
 import com.autorecon.service.SignService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * 签章管理 REST Controller
@@ -20,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 public class SignController {
 
     private final SignService signService;
+    private final SignApprovalService signApprovalService;
 
     @PostMapping("/flows")
     @Operation(summary = "发起签章流程")
@@ -45,5 +51,35 @@ public class SignController {
     public R<SignRecord> getSignStatus(@PathVariable Long billId) {
         SignRecord record = signService.getSignStatus(billId);
         return R.ok(record);
+    }
+
+    @GetMapping("/pending")
+    @Operation(summary = "待签章列表")
+    public R<List<SignRecord>> listPendingSignRecords() {
+        Long enterpriseId = SecurityUtil.getCurrentEnterpriseId();
+        List<SignRecord> list = signService.listPendingSignRecords(enterpriseId);
+        return R.ok(list);
+    }
+
+    @GetMapping("/approvals/pending")
+    @Operation(summary = "待审批列表")
+    public R<List<SignApproval>> listPendingApprovals() {
+        Long approverId = SecurityUtil.getCurrentUserId();
+        List<SignApproval> list = signApprovalService.listPendingApprovals(approverId);
+        return R.ok(list);
+    }
+
+    @PutMapping("/approvals/{id}/approve")
+    @Operation(summary = "审批通过")
+    public R<Void> approve(@PathVariable Long id, @RequestParam(required = false) String comment) {
+        signApprovalService.approve(id, comment);
+        return R.ok();
+    }
+
+    @PutMapping("/approvals/{id}/reject")
+    @Operation(summary = "审批拒绝")
+    public R<Void> reject(@PathVariable Long id, @RequestParam(required = false) String comment) {
+        signApprovalService.reject(id, comment);
+        return R.ok();
     }
 }

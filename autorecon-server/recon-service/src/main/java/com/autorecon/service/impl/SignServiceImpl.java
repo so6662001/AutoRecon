@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 签章服务实现（Phase 2 占位）
@@ -81,5 +82,21 @@ public class SignServiceImpl implements SignService {
         LambdaQueryWrapper<SignRecord> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SignRecord::getBillId, billId).orderByDesc(SignRecord::getCreatedAt).last("LIMIT 1");
         return signRecordMapper.selectOne(wrapper);
+    }
+
+    @Override
+    public List<SignRecord> listPendingSignRecords(Long enterpriseId) {
+        LambdaQueryWrapper<ReconBill> billWrapper = new LambdaQueryWrapper<>();
+        billWrapper.and(w -> w.eq(ReconBill::getSellerId, enterpriseId).or().eq(ReconBill::getBuyerId, enterpriseId));
+        List<ReconBill> bills = reconBillMapper.selectList(billWrapper);
+        if (bills == null || bills.isEmpty()) {
+            return List.of();
+        }
+        List<Long> billIds = bills.stream().map(ReconBill::getId).toList();
+        LambdaQueryWrapper<SignRecord> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(SignRecord::getBillId, billIds)
+                .eq(SignRecord::getOverallStatus, SignStatusEnum.PENDING.getValue())
+                .orderByDesc(SignRecord::getCreatedAt);
+        return signRecordMapper.selectList(wrapper);
     }
 }
