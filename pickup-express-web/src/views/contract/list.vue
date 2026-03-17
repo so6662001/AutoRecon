@@ -42,7 +42,7 @@
       <el-table-column prop="contractNo" label="合同号" width="140" />
       <el-table-column prop="contractType" label="合同类型" width="100">
         <template #default="{ row }">
-          <el-tag :type="(contractTypeTag(row.contractType) || undefined) as any" size="small">
+          <el-tag :type="contractTypeTag(row.contractType)" size="small">
             {{ row.contractType || '-' }}
           </el-tag>
         </template>
@@ -69,7 +69,7 @@
       </el-table-column>
       <el-table-column prop="status" label="状态" width="100">
         <template #default="{ row }">
-          <el-tag :type="(statusTagType(row.status) || undefined) as any" size="small">
+          <el-tag :type="statusTagType(row.status)" size="small">
             {{ row.status || '-' }}
           </el-tag>
         </template>
@@ -126,23 +126,22 @@ const pagination = reactive({
   total: 0,
 })
 
-function contractTypeTag(type: string) {
+function contractTypeTag(type: string): 'success' | 'info' {
   if (type === '留货') return 'success'
-  if (type === '订货') return ''
   return 'info'
 }
 
-function statusTagType(status: string) {
-  const map: Record<string, string> = {
+function statusTagType(status: string): 'success' | 'warning' | 'info' {
+  const map: Record<string, 'success' | 'warning' | 'info'> = {
     可提货: 'success',
     待签约: 'warning',
-    提货中: '',
+    提货中: 'info',
     已结清: 'info',
     已提完: 'info',
     已签约: 'info',
     已关闭: 'info',
   }
-  return map[status] ?? ''
+  return map[status] ?? 'info'
 }
 
 function canInitiateSign(row: any) {

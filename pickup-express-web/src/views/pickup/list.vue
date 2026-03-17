@@ -49,14 +49,14 @@
       <el-table-column prop="driverName" label="驾驶员" width="100" />
       <el-table-column prop="deliveryMode" label="发货模式" width="100">
         <template #default="{ row }">
-          <el-tag :type="(deliveryModeTag(row.deliveryMode) || undefined) as any" size="small" :class="{ 'tag-purple': row.deliveryMode === '驾驶员' }">
+          <el-tag :type="deliveryModeTag(row.deliveryMode)" size="small" :class="{ 'tag-purple': row.deliveryMode === '驾驶员' }">
             {{ row.deliveryMode || '-' }}
           </el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="deliveryStatus" label="发货状态" width="100">
         <template #default="{ row }">
-          <el-tag :type="(deliveryStatusTag(row.deliveryStatus) || undefined) as any" size="small">
+          <el-tag :type="deliveryStatusTag(row.deliveryStatus)" size="small">
             {{ row.deliveryStatus || '-' }}
           </el-tag>
         </template>
@@ -69,7 +69,7 @@
       </el-table-column>
       <el-table-column prop="settlementStatus" label="结算状态" width="100">
         <template #default="{ row }">
-          <el-tag :type="(settlementTag(row.settlementStatus) || undefined) as any" size="small">
+          <el-tag :type="settlementTag(row.settlementStatus)" size="small">
             {{ row.settlementStatus || '-' }}
           </el-tag>
         </template>
@@ -126,36 +126,35 @@ const pagination = reactive({
   total: 0,
 })
 
-function deliveryModeTag(mode: string) {
-  // WMS(blue)/H5(green)/第三方(orange)/驾驶员(purple)/补录(gray)
-  const map: Record<string, string> = {
-    WMS: '',
+function deliveryModeTag(mode: string): 'success' | 'warning' | 'info' {
+  const map: Record<string, 'success' | 'warning' | 'info'> = {
+    WMS: 'info',
     H5: 'success',
     第三方: 'warning',
-    驾驶员: '',
+    驾驶员: 'info',
     补录: 'info',
   }
   return map[mode] ?? 'info'
 }
 
-function deliveryStatusTag(status: string) {
-  const map: Record<string, string> = {
+function deliveryStatusTag(status: string): 'success' | 'info' | 'danger' {
+  const map: Record<string, 'success' | 'info' | 'danger'> = {
     待派车: 'info',
-    已派车: '',
-    发货中: '',
+    已派车: 'info',
+    发货中: 'info',
     已完成: 'success',
     已取消: 'danger',
   }
-  return map[status] ?? ''
+  return map[status] ?? 'info'
 }
 
-function settlementTag(status: string) {
-  const map: Record<string, string> = {
+function settlementTag(status: string): 'warning' | 'success' | 'info' {
+  const map: Record<string, 'warning' | 'success' | 'info'> = {
     待结算: 'warning',
     已结算: 'success',
     已结清: 'info',
   }
-  return map[status] ?? ''
+  return map[status] ?? 'info'
 }
 
 function canCancel(row: any) {

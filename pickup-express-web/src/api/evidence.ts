@@ -47,6 +47,7 @@ export const markSettlementViewed = (id: number) =>
   put(`/v1/evidence/settlement/${id}/viewed`)
 export const listSettlementsByContract = (contractId: number) =>
   get(`/v1/evidence/settlement/contract/${contractId}`)
+export const listSettlements = (params: any) => get('/v1/evidence/settlement/list', params)
 
 // 证据
 export const archiveEvidence = (pickupOrderId: number) =>
@@ -59,11 +60,13 @@ export const verifyEvidence = (pickupOrderId: number) =>
 // 确权
 export const verifyPickup = (data: any) =>
   post('/v1/evidence/verification/verify', null, { params: data })
+export const listVerificationRecords = (params?: any) =>
+  get('/v1/evidence/verification/records', params)
 
 // 授权提货人
 export const registerPickupPerson = (data: any) => post('/v1/evidence/authorized-persons', data)
-export const listPickupPersons = (buyerId: number) =>
-  get('/v1/evidence/authorized-persons', { buyerId })
+export const listPickupPersons = (params?: { buyerId?: number; buyerName?: string }) =>
+  get('/v1/evidence/authorized-persons', params)
 export const confirmPickupPerson = (id: number) =>
   put(`/v1/evidence/authorized-persons/${id}/confirm`)
 export const disablePickupPerson = (id: number) =>
@@ -78,9 +81,11 @@ export const updateWarehouse = (id: number, data: any) =>
 // 承运公司
 export const listCarriers = () => get('/v1/evidence/carrier')
 export const createCarrier = (data: any) => post('/v1/evidence/carrier', data)
+export const updateCarrier = (id: number, data: any) => put(`/v1/evidence/carrier/${id}`, data)
 
 // 补录
 export const createSupplement = (data: any) => post('/v1/evidence/supplement', data)
+export const getSupplement = (id: number) => get(`/v1/evidence/supplement/${id}`)
 export const approveSupplement = (id: number, comment: string) =>
   put(`/v1/evidence/supplement/${id}/approve`, null, { params: { comment } })
 export const rejectSupplement = (id: number, comment: string) =>
@@ -109,7 +114,14 @@ export const getContractTimeline = (contractId: number) =>
 export const getDashboard = () => get('/v1/evidence/dashboard')
 
 // 交易习惯
-export const listTradingHabits = (buyerId: number) =>
-  get('/v1/evidence/trading-habits', { buyerId })
+export const listTradingHabits = (params?: { buyerId?: number; buyerName?: string }) =>
+  get('/v1/evidence/trading-habits', params)
 export const getTradingHabitReport = (buyerId: number) =>
   get(`/v1/evidence/trading-habits/${buyerId}/report`)
+
+// 客户/买方
+export const queryBuyers = (params?: any) => get('/v1/evidence/buyers', params)
+
+// 证据包下载
+export const downloadEvidenceZip = (pickupOrderId: number) =>
+  get<Blob>(`/v1/evidence/archive/${pickupOrderId}/download`, undefined, { responseType: 'blob' })

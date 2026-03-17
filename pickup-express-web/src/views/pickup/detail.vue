@@ -5,7 +5,7 @@
       <div class="detail-header">
         <div class="header-left">
           <span class="pickup-no">{{ order.pickupOrderNo }}</span>
-          <el-tag :type="(statusTagType(order.status) || undefined) as any" size="small" class="ml-2">
+          <el-tag :type="statusTagType(order.status)" size="small" class="ml-2">
             {{ order.status }}
           </el-tag>
         </div>
@@ -234,15 +234,15 @@ const hasPhotos = computed(() =>
   photos.loading.length + photos.cargo.length + photos.plate.length + photos.weigh.length > 0
 )
 
-function statusTagType(s: string) {
-  const map: Record<string, string> = {
+function statusTagType(s: string): 'success' | 'info' | 'danger' {
+  const map: Record<string, 'success' | 'info' | 'danger'> = {
     待派车: 'info',
-    已派车: '',
-    发货中: '',
+    已派车: 'info',
+    发货中: 'info',
     已完成: 'success',
     已取消: 'danger',
   }
-  return map[s] ?? ''
+  return map[s] ?? 'info'
 }
 
 function formatNum(val: number | string) {

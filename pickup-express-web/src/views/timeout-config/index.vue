@@ -2,7 +2,7 @@
   <div class="page-container timeout-config">
     <div class="config-header">
       <el-select v-model="selectedBuyerId" placeholder="全部客户(平台范围)" clearable style="width: 220px">
-        <el-option label="平台默认" :value="null as any" />
+        <el-option label="平台默认" value="" />
         <el-option
           v-for="b in buyerOptions"
           :key="b.id"
@@ -74,7 +74,7 @@ import { getTimeoutConfig, saveTimeoutConfig, queryBuyers } from '@/api/evidence
 const loading = ref(false)
 const submitting = ref(false)
 const showEditDialog = ref(false)
-const selectedBuyerId = ref<number | null | undefined>(undefined)
+const selectedBuyerId = ref<number | string | undefined>(undefined)
 const editFormRef = ref<FormInstance>()
 const tableData = ref<any[]>([])
 const buyerOptions = ref<Array<{ id: number; name: string }>>([])
@@ -104,7 +104,7 @@ async function loadData() {
   loading.value = true
   try {
     const params: any = {}
-    if (selectedBuyerId.value) params.buyerId = selectedBuyerId.value
+    if (selectedBuyerId.value !== undefined && selectedBuyerId.value !== '') params.buyerId = selectedBuyerId.value as number
     const res = (await getTimeoutConfig(params)) as any
     const data = res?.data ?? res
     const list = data?.list ?? data?.records ?? data ?? []
