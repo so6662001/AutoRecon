@@ -215,6 +215,14 @@
                 <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
                 <version>${knife4j.version}</version>
             </dependency>
+
+            <!-- Spring Boot Test -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-test</artifactId>
+                <version>3.2.5</version>
+                <scope>test</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
