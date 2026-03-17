@@ -72,6 +72,7 @@
           :auto-upload="false"
           :show-file-list="false"
           accept=".xlsx,.xls,.csv"
+          :before-upload="beforeUpload"
           @change="handleExcelImport"
         >
           <el-button>导入Excel</el-button>
@@ -310,6 +311,15 @@ const systemFields = [
   { key: 'unitPrice', label: '单价' },
 ]
 
+function beforeUpload(file: File) {
+  const maxSize = 10 * 1024 * 1024 // 10MB
+  if (file.size > maxSize) {
+    ElMessage.error('文件大小不能超过10MB')
+    return false
+  }
+  return true
+}
+
 function formatAmount(val: number) {
   return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2 })
 }
@@ -457,6 +467,7 @@ function applyMappingAndImport() {
 async function handleExcelImport(uploadFile: { raw?: File }) {
   const file = uploadFile?.raw
   if (!file) return
+  if (!beforeUpload(file)) return
   try {
     const data = await parseExcelFile(file)
     if (!data.length) {

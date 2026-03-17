@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import type { Router } from 'vue-router'
 import NProgress from 'nprogress'
 import 'nprogress/nprogress.css'
+import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { getEmbedConfig } from '@/config/embed'
 
@@ -45,7 +46,7 @@ const routes = [
           path: 'recon/bills/create',
           name: 'billCreate',
           component: () => import('@/views/recon/bill/create.vue'),
-          meta: { title: '发起对账' },
+          meta: { title: '发起对账', roles: [1, 2, 3] },
         },
         {
           path: 'recon/bills/:id',
@@ -57,7 +58,7 @@ const routes = [
           path: 'recon/batch',
           name: 'batchRecon',
           component: () => import('@/views/recon/batch/index.vue'),
-          meta: { title: '批量对账' },
+          meta: { title: '批量对账', roles: [1, 2, 3] },
         },
         {
           path: 'recon/match/:billId',
@@ -96,7 +97,7 @@ const routes = [
           path: 'recon/templates',
           name: 'templateList',
           component: () => import('@/views/recon/template/list.vue'),
-          meta: { title: '模板管理', icon: 'Document' },
+          meta: { title: '模板管理', icon: 'Document', roles: [1, 2, 3] },
         },
         // 付款管理
         {
@@ -110,13 +111,13 @@ const routes = [
           path: 'recon/collection',
           name: 'collectionList',
           component: () => import('@/views/recon/collection/list.vue'),
-          meta: { title: '催收管理', icon: 'Bell' },
+          meta: { title: '催收管理', icon: 'Bell', roles: [1, 2, 3] },
         },
         {
           path: 'recon/credit',
           name: 'creditScore',
           component: () => import('@/views/recon/credit/index.vue'),
-          meta: { title: '信用评分' },
+          meta: { title: '信用评分', roles: [1, 2, 3] },
         },
         // 发票管理
         {
@@ -143,14 +144,14 @@ const routes = [
           path: 'recon/finance',
           name: 'financeList',
           component: () => import('@/views/recon/finance/list.vue'),
-          meta: { title: '融资管理', icon: 'TrendCharts' },
+          meta: { title: '融资管理', icon: 'TrendCharts', roles: [1, 2, 3] },
         },
         // 自动对账
         {
           path: 'recon/auto-plans',
           name: 'autoPlanList',
           component: () => import('@/views/recon/auto-plan/list.vue'),
-          meta: { title: '自动对账', icon: 'Timer' },
+          meta: { title: '自动对账', icon: 'Timer', roles: [1, 2, 3] },
         },
         // 对账日历
         {
@@ -164,7 +165,7 @@ const routes = [
           path: 'engagement',
           name: 'engagementList',
           component: () => import('@/views/engagement/list.vue'),
-          meta: { title: '买方引导', icon: 'Guide' },
+          meta: { title: '买方引导', icon: 'Guide', roles: [1, 2, 3] },
         },
         // 系统设置
         {
@@ -183,7 +184,7 @@ const routes = [
           path: 'system/users',
           name: 'userManage',
           component: () => import('@/views/system/users.vue'),
-          meta: { title: '用户管理', icon: 'User' },
+          meta: { title: '用户管理', icon: 'User', roles: [1, 4, 6] },
         },
         {
           path: 'system/subscriptions',
@@ -195,13 +196,13 @@ const routes = [
           path: 'system/billing',
           name: 'billingManage',
           component: () => import('@/views/system/billing.vue'),
-          meta: { title: '计费管理', icon: 'Wallet' },
+          meta: { title: '计费管理', icon: 'Wallet', roles: [1, 4, 6] },
         },
         {
           path: 'system/enterprise',
           name: 'enterpriseInfo',
           component: () => import('@/views/system/enterprise.vue'),
-          meta: { title: '企业信息' },
+          meta: { title: '企业信息', roles: [1, 4, 6] },
         },
       ],
     },
@@ -221,18 +222,44 @@ export function createReconRouter(basePath?: string): Router {
     const userStore = useUserStore()
     const token = userStore.token
     const isPublic = to.meta.public === true
-    const { showLogin } = getEmbedConfig()
+    const config = getEmbedConfig()
+    const { showLogin } = config
 
     if (!showLogin) {
-      next()
+      const embedToken = localStorage.getItem('token') || config.authToken
+      if (embedToken) {
+        next()
+      } else {
+        console.error('AutoRecon: No auth token provided in embedded mode')
+        next(false)
+      }
       return
     }
     if (!token && !isPublic && to.path !== '/login') {
       next({ path: '/login', query: { redirect: to.fullPath } })
       NProgress.done()
-    } else {
-      next()
+      return
     }
+    if (token && !isPublic && to.path !== '/login') {
+      if (!userStore.userInfo) {
+        try {
+          await userStore.getUserInfo()
+        } catch {
+          // Continue - role check may pass for routes without roles
+        }
+      }
+      const roles = to.meta.roles as number[] | undefined
+      if (roles && roles.length > 0) {
+        const userRole = userStore.userInfo?.roleType
+        if (userRole === undefined || userRole === null || !roles.includes(userRole)) {
+          ElMessage.error('没有访问权限')
+          next({ path: '/dashboard' })
+          NProgress.done()
+          return
+        }
+      }
+    }
+    next()
   })
 
   router.afterEach((to) => {

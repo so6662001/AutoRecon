@@ -35,8 +35,8 @@
             <div class="message-sender">{{ msg.senderName }}</div>
             <div class="message-time">{{ msg.createdAt }}</div>
             <div v-if="msg.contentType === 'text'" class="message-content">{{ msg.content }}</div>
-            <img v-else-if="msg.contentType === 'image'" :src="msg.content" class="message-image" alt="图片" />
-            <a v-else-if="msg.contentType === 'file'" :href="msg.content" target="_blank" rel="noopener" class="message-file">下载附件</a>
+            <img v-else-if="msg.contentType === 'image'" :src="sanitizeUrl(msg.content)" class="message-image" alt="图片" />
+            <a v-else-if="msg.contentType === 'file'" :href="sanitizeUrl(msg.content)" target="_blank" rel="noopener" class="message-file">下载附件</a>
             <div v-if="msg.read" class="message-read">已读</div>
           </div>
         </div>
@@ -59,6 +59,7 @@
             :auto-upload="false"
             :show-file-list="false"
             accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+            :before-upload="beforeUpload"
             @change="handleFileSelect"
           >
             <el-button text>
@@ -191,6 +192,28 @@ function getDisputeTypeText(type: string): string {
   return map[type] ?? type
 }
 
+function sanitizeUrl(url: string): string {
+  if (!url) return ''
+  try {
+    const parsed = new URL(url, window.location.origin)
+    if (['http:', 'https:'].includes(parsed.protocol)) {
+      return url
+    }
+  } catch {
+    if (url.startsWith('/')) return url
+  }
+  return ''
+}
+
+function beforeUpload(file: File) {
+  const maxSize = 10 * 1024 * 1024 // 10MB
+  if (file.size > maxSize) {
+    ElMessage.error('文件大小不能超过10MB')
+    return false
+  }
+  return true
+}
+
 function goBack() {
   router.push({ name: 'disputeList' })
 }
@@ -227,6 +250,7 @@ function scrollToBottom() {
 async function handleFileSelect(uploadFile: { raw?: File }) {
   const file = uploadFile?.raw
   if (!file) return
+  if (!beforeUpload(file)) return
   const isImage = file.type.startsWith('image/')
   const contentType = isImage ? 'image' : 'file'
   sending.value = true

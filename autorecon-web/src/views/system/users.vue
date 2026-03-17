@@ -9,8 +9,12 @@
     <el-table v-loading="loading" :data="tableData" stripe>
       <el-table-column prop="username" label="用户名" min-width="120" />
       <el-table-column prop="realName" label="姓名" min-width="100" />
-      <el-table-column prop="phone" label="手机号" min-width="120" />
-      <el-table-column prop="email" label="邮箱" min-width="160" />
+      <el-table-column prop="phone" label="手机号" min-width="120">
+        <template #default="{ row }">{{ maskPhone(row.phone) }}</template>
+      </el-table-column>
+      <el-table-column prop="email" label="邮箱" min-width="160">
+        <template #default="{ row }">{{ maskEmail(row.email) }}</template>
+      </el-table-column>
       <el-table-column prop="role" label="角色" width="100">
         <template #default="{ row }">
           <el-tag :type="(getRoleTagType(row.role) || 'info') as 'success' | 'primary' | 'warning' | 'info' | 'danger'" size="small">{{ getRoleText(row.role) }}</el-tag>
@@ -122,6 +126,7 @@ import {
   disableUser,
   enableUser,
 } from '@/api/system'
+import { maskPhone, maskEmail } from '@/utils/mask'
 
 interface UserItem {
   id: number

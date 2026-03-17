@@ -26,6 +26,7 @@
             action="#"
             :auto-upload="false"
             :show-file-list="false"
+            :before-upload="beforeUpload"
             @change="handleLogoChange"
           >
             <img v-if="form.logoUrl" :src="form.logoUrl" class="logo-preview" />
@@ -43,6 +44,8 @@
       <div v-if="authStatus === 'AUTHENTICATED'" class="auth-status authenticated">
         <el-tag type="success" size="large">已认证</el-tag>
         <p class="auth-detail">认证通过，可正常使用签章等高级功能</p>
+        <p v-if="authDetails.legalPersonIdNo" class="auth-detail">法人身份证：{{ maskIdNo(authDetails.legalPersonIdNo) }}</p>
+        <p v-if="authDetails.legalPersonPhone" class="auth-detail">法人手机：{{ maskPhone(authDetails.legalPersonPhone) }}</p>
       </div>
       <div v-else-if="authStatus === 'PENDING'" class="auth-status pending">
         <el-tag type="warning" size="large">认证中</el-tag>
@@ -73,22 +76,22 @@
           <el-input v-model="authForm.legalPhone" placeholder="请输入法人手机号" />
         </el-form-item>
         <el-form-item label="营业执照" prop="businessLicense">
-          <el-upload action="#" :auto-upload="false" :limit="1" @change="onAuthFileChange">
+          <el-upload action="#" :auto-upload="false" :limit="1" :before-upload="beforeUpload" @change="onAuthFileChange">
             <el-button type="primary" size="small">上传</el-button>
           </el-upload>
         </el-form-item>
         <el-form-item label="法人身份证正面">
-          <el-upload action="#" :auto-upload="false" :limit="1">
+          <el-upload action="#" :auto-upload="false" :limit="1" :before-upload="beforeUpload">
             <el-button type="primary" size="small">上传</el-button>
           </el-upload>
         </el-form-item>
         <el-form-item label="法人身份证反面">
-          <el-upload action="#" :auto-upload="false" :limit="1">
+          <el-upload action="#" :auto-upload="false" :limit="1" :before-upload="beforeUpload">
             <el-button type="primary" size="small">上传</el-button>
           </el-upload>
         </el-form-item>
         <el-form-item label="授权委托书(可选)">
-          <el-upload action="#" :auto-upload="false" :limit="1">
+          <el-upload action="#" :auto-upload="false" :limit="1" :before-upload="beforeUpload">
             <el-button type="primary" size="small">上传</el-button>
           </el-upload>
         </el-form-item>
@@ -112,11 +115,13 @@ import {
   submitAuth,
   getAuthStatus,
 } from '@/api/system'
+import { maskIdNo, maskPhone } from '@/utils/mask'
 
 const enterpriseId = ref(1)
 const formRef = ref<FormInstance>()
 const authFormRef = ref<FormInstance>()
 const authStatus = ref<'NONE' | 'PENDING' | 'AUTHENTICATED'>('NONE')
+const authDetails = reactive<{ legalPersonIdNo?: string; legalPersonPhone?: string }>({})
 const authFormVisible = ref(false)
 const authSubmitting = ref(false)
 
@@ -150,13 +155,25 @@ const authRules: FormRules = {
   legalPhone: [{ required: true, message: '请输入法人手机号', trigger: 'blur' }],
 }
 
+function beforeUpload(file: File) {
+  const maxSize = 10 * 1024 * 1024 // 10MB
+  if (file.size > maxSize) {
+    ElMessage.error('文件大小不能超过10MB')
+    return false
+  }
+  return true
+}
+
 function onAuthFileChange(uploadFile: { raw?: File }) {
-  authForm.businessLicense = uploadFile?.raw ?? null
+  const file = uploadFile?.raw
+  if (file && !beforeUpload(file)) return
+  authForm.businessLicense = file ?? null
 }
 
 function handleLogoChange(file: { raw?: File }) {
-  if (file?.raw) {
-    form.logoUrl = URL.createObjectURL(file.raw)
+  const raw = file?.raw
+  if (raw && beforeUpload(raw)) {
+    form.logoUrl = URL.createObjectURL(raw)
   }
 }
 
@@ -178,8 +195,10 @@ async function fetchEnterprise() {
 
 async function fetchAuthStatus() {
   try {
-    const res = await getAuthStatus(enterpriseId.value) as { status?: string }
+    const res = await getAuthStatus(enterpriseId.value) as { status?: string; legalPersonIdNo?: string; legalPersonPhone?: string; legalIdNo?: string; legalPhone?: string }
     authStatus.value = (res?.status as 'NONE' | 'PENDING' | 'AUTHENTICATED') ?? 'NONE'
+    authDetails.legalPersonIdNo = res?.legalPersonIdNo ?? res?.legalIdNo
+    authDetails.legalPersonPhone = res?.legalPersonPhone ?? res?.legalPhone
   } catch {
     authStatus.value = 'NONE'
   }

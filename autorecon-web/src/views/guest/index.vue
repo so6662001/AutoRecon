@@ -308,6 +308,10 @@ async function handleDispute() {
   }
 }
 
+function sanitizeFilename(name: string): string {
+  return name.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').substring(0, 100)
+}
+
 async function handleDownload() {
   try {
     const blob = await guestDownloadPdf(token.value)
@@ -315,7 +319,7 @@ async function handleDownload() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `对账单-${bill.value.period ?? 'download'}.pdf`
+      a.download = `对账单-${sanitizeFilename(bill.value.period ?? 'download')}.pdf`
       a.click()
       URL.revokeObjectURL(url)
       ElMessage.success('下载成功')

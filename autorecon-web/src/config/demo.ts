@@ -1,5 +1,6 @@
 // Demo mode mock data for when backend is not available
-export const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
+// Cannot be enabled in production builds
+export const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true' && import.meta.env.MODE !== 'production'
 
 export const demoUsers = [
   { username: 'admin', password: 'admin123', realName: '系统管理员', role: '平台运营' },

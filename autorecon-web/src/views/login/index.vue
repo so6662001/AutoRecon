@@ -120,7 +120,11 @@ async function handleLogin() {
       } else {
         localStorage.removeItem('login_username')
       }
-      const redirect = (route.query.redirect as string) || '/dashboard'
+      const rawRedirect = route.query.redirect as string
+      let redirect = '/dashboard'
+      if (rawRedirect && rawRedirect.startsWith('/') && !rawRedirect.startsWith('//')) {
+        redirect = rawRedirect
+      }
       router.push(redirect)
     } catch {
       // Error handled by request interceptor or store

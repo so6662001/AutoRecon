@@ -4,6 +4,15 @@ import type { AxiosInstance, InternalAxiosRequestConfig } from 'axios'
 import { getEmbedConfig } from '@/config/embed'
 import { getDemoMock } from '@/utils/demo-interceptor'
 
+const safeMessages: Record<number, string> = {
+  400: '请求参数有误',
+  401: '登录已过期，请重新登录',
+  403: '没有操作权限',
+  404: '请求的资源不存在',
+  500: '服务器内部错误，请稍后重试',
+  429: '操作过于频繁，请稍后重试',
+}
+
 function getBaseURL(): string {
   return getEmbedConfig().apiBaseUrl || import.meta.env.VITE_API_BASE_URL || '/api'
 }
@@ -26,22 +35,28 @@ instance.interceptors.response.use(
   (response) => {
     const { code, message } = response.data ?? {}
     if (code !== undefined && code !== 200) {
-      ElMessage.error(message || 'Request failed')
-      return Promise.reject(new Error(message || 'Request failed'))
+      const isBusinessError = typeof code === 'number' && code >= 10000 && code <= 50000
+      const displayMsg = isBusinessError ? (message || '操作失败') : '操作失败'
+      ElMessage.error(displayMsg)
+      return Promise.reject(new Error(displayMsg))
     }
     return response.data
   },
   (error) => {
     const config = getEmbedConfig()
-    const mockData = getDemoMock(
-      error.config?.url ?? '',
-      error.config?.method ?? 'get',
-      error.config as InternalAxiosRequestConfig
-    )
+    const status = error.response?.status
+    // Do not mock 401/403 - let auth errors propagate
+    const mockData = (status !== 401 && status !== 403)
+      ? getDemoMock(
+          error.config?.url ?? '',
+          error.config?.method ?? 'get',
+          error.config as InternalAxiosRequestConfig
+        )
+      : null
     if (mockData) {
       return Promise.resolve(mockData)
     }
-    if (error.response?.status === 401) {
+    if (status === 401) {
       if (config.embedded && config.onError) {
         config.onError(error)
       } else {
@@ -49,7 +64,9 @@ instance.interceptors.response.use(
         window.location.href = '/login'
       }
     } else {
-      ElMessage.error(error.response?.data?.message || error.message || 'Request failed')
+      const status = error.response?.status
+      const safeMsg = status != null ? safeMessages[status] : undefined
+      ElMessage.error(safeMsg ?? '操作失败，请稍后重试')
     }
     return Promise.reject(error)
   }
