@@ -1,4 +1,4 @@
-import { get, post, put } from '@/utils/request'
+import { get, post, put, del } from '@/utils/request'
 
 // 对账单
 export const createBill = (data: Record<string, unknown>) => post('/v1/recon/bills', data)
@@ -15,6 +15,10 @@ export const getDashboard = () => get('/v1/recon/dashboard')
 // 模板
 export const listTemplates = () => get('/v1/recon/templates')
 export const getDefaultTemplate = () => get('/v1/recon/templates/default')
+export const createTemplate = (data: Record<string, unknown>) => post('/v1/recon/templates', data)
+export const updateTemplate = (id: number, data: Record<string, unknown>) =>
+  put(`/v1/recon/templates/${id}`, data)
+export const deleteTemplate = (id: number) => del(`/v1/recon/templates/${id}`)
 
 // 比对
 export const executeMatch = (billId: number) => post(`/v1/recon/match/${billId}/execute`)
@@ -23,7 +27,7 @@ export const getDiffItems = (billId: number) => get(`/v1/recon/match/${billId}/d
 
 // 异议
 export const createDispute = (data: Record<string, unknown>) => post('/v1/recon/disputes', data)
-export const listDisputes = (billId: number) => get('/v1/recon/disputes', { billId })
+export const listDisputes = (params: Record<string, unknown>) => get('/v1/recon/disputes', params)
 export const getDisputeDetail = (id: number) => get(`/v1/recon/disputes/${id}`)
 export const sendDisputeMessage = (id: number, data: Record<string, unknown>) =>
   post(`/v1/recon/disputes/${id}/messages`, data)
@@ -59,7 +63,47 @@ export const createPayment = (data: Record<string, unknown>) => post('/v1/recon/
 // 催收
 export const listCollectionPlans = (params: Record<string, unknown>) =>
   get('/v1/recon/collection/plans', params)
+export const createCollectionPlan = (data: Record<string, unknown>) =>
+  post('/v1/recon/collection/plans', data)
+export const executePlan = (id: number, data: Record<string, unknown>) =>
+  post(`/v1/recon/collection/plans/${id}/execute`, undefined, { params: data })
+export const registerPaymentToCollection = (id: number, data: Record<string, unknown>) =>
+  post(`/v1/recon/collection/plans/${id}/register-payment`, undefined, { params: data })
+export const pausePlan = (id: number) => put(`/v1/recon/collection/plans/${id}/pause`)
+export const resumePlan = (id: number) => put(`/v1/recon/collection/plans/${id}/resume`)
+export const getCollectionLogs = (planId: number) =>
+  get(`/v1/recon/collection/plans/${planId}/logs`)
 
 // 信用评分
 export const getCreditScore = (buyerId: number) => get(`/v1/recon/credit/${buyerId}`)
 export const getCreditRanking = (limit: number) => get('/v1/recon/credit/ranking', { limit })
+export const getCreditDetail = (buyerId: number) => get(`/v1/recon/credit/${buyerId}/detail`)
+export const getCreditTrend = (buyerId: number) => get(`/v1/recon/credit/${buyerId}/trend`)
+export const adjustCredit = (buyerId: number, data: Record<string, unknown>) =>
+  put(`/v1/recon/credit/${buyerId}/adjust`, undefined, { params: data })
+
+// 发票
+export const createInvoice = (data: Record<string, unknown>) => post('/v1/recon/invoices', data)
+export const listInvoices = (params: Record<string, unknown>) => get('/v1/recon/invoices', params)
+export const linkInvoice = (data: Record<string, unknown>) => post('/v1/recon/invoices/link', data)
+export const getInvoiceLinks = (billId: number) => get(`/v1/recon/invoices/links/${billId}`)
+
+// 合同
+export const listContracts = (params: Record<string, unknown>) => get('/v1/recon/contracts', params)
+export const getContractSummary = (contractNo: string) =>
+  get(`/v1/recon/contracts/${contractNo}/summary`)
+export const getContractItems = (contractNo: string) =>
+  get(`/v1/recon/contracts/${contractNo}/items`)
+
+// 融资
+export const applyFinance = (data: Record<string, unknown>) => post('/v1/recon/finance/apply', data)
+export const listFinanceApplies = (params: Record<string, unknown>) =>
+  get('/v1/recon/finance', params)
+export const getEligibleBills = () => get('/v1/recon/finance/eligible-bills')
+
+// 三单匹配
+export const getTriMatch = (billId: number) => get(`/v1/recon/tri-match/${billId}`)
+
+// 批量对账
+export const batchCreate = (data: Record<string, unknown>) => post('/v1/recon/batch/create', data)
+export const getBatchBills = (batchId: string) => get(`/v1/recon/batch/${batchId}/bills`)
