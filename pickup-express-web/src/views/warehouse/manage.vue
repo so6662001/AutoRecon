@@ -9,7 +9,9 @@
       <el-table-column prop="code" label="编码" width="120" />
       <el-table-column prop="address" label="地址" min-width="180" />
       <el-table-column prop="contact" label="联系人" width="100" />
-      <el-table-column prop="phone" label="电话" width="120" />
+      <el-table-column prop="phone" label="电话" width="120">
+        <template #default="{ row }">{{ maskPhone(row.phone || '') }}</template>
+      </el-table-column>
       <el-table-column label="默认发货模式" width="130">
         <template #default="{ row }">
           <el-tag size="small">{{ deliveryModeLabel(row.deliveryMode) }}</el-tag>
@@ -78,6 +80,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { listWarehouses, createWarehouse, updateWarehouse } from '@/api/evidence'
+import { maskPhone } from '@/utils/mask'
 
 const loading = ref(false)
 const submitting = ref(false)

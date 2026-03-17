@@ -29,7 +29,7 @@
             :before-upload="beforeUpload"
             @change="handleLogoChange"
           >
-            <img v-if="form.logoUrl" :src="form.logoUrl" class="logo-preview" />
+            <img v-if="form.logoUrl" :src="sanitizeUrl(form.logoUrl)" class="logo-preview" />
             <el-icon v-else class="logo-uploader-icon"><Plus /></el-icon>
           </el-upload>
         </el-form-item>
@@ -116,6 +116,7 @@ import {
   getAuthStatus,
 } from '@/api/system'
 import { maskIdNo, maskPhone } from '@/utils/mask'
+import { sanitizeUrl } from '@/utils/sanitize-url'
 
 const enterpriseId = ref(1)
 const formRef = ref<FormInstance>()

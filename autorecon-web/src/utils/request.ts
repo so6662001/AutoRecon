@@ -61,6 +61,7 @@ instance.interceptors.response.use(
         config.onError(error)
       } else {
         localStorage.removeItem('token')
+        localStorage.removeItem('userInfo')
         window.location.href = '/login'
       }
     } else {

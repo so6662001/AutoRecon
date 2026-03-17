@@ -39,7 +39,7 @@
         <el-descriptions-item label="派车模式">{{ order.dispatchMode || '-' }}</el-descriptions-item>
         <el-descriptions-item label="车牌号">{{ order.plateNo || '-' }}</el-descriptions-item>
         <el-descriptions-item label="驾驶员">{{ order.driverName || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="电话">{{ order.driverPhone || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="电话">{{ maskPhone(order.driverPhone || '') || '-' }}</el-descriptions-item>
         <el-descriptions-item label="承运公司">{{ order.carrierName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="预计到达时间">{{ order.expectedArrivalTime || '-' }}</el-descriptions-item>
         <el-descriptions-item label="实际到达时间" :span="2">{{ order.actualArrivalTime || '-' }}</el-descriptions-item>
@@ -175,6 +175,7 @@ import {
   listSettlements,
   listVerificationRecords,
 } from '@/api/evidence'
+import { maskPhone } from '@/utils/mask'
 
 const route = useRoute()
 const router = useRouter()

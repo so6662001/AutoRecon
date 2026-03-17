@@ -7,7 +7,9 @@
     <el-table :data="tableData" v-loading="loading" stripe>
       <el-table-column prop="name" label="公司名称" min-width="160" />
       <el-table-column prop="contact" label="联系人" width="120" />
-      <el-table-column prop="phone" label="电话" width="130" />
+      <el-table-column prop="phone" label="电话" width="130">
+        <template #default="{ row }">{{ maskPhone(row.phone || '') }}</template>
+      </el-table-column>
       <el-table-column prop="status" label="状态" width="100">
         <template #default="{ row }">
           <el-tag :type="row.status === '正常' ? 'success' : 'info'" size="small">{{ row.status || '正常' }}</el-tag>
@@ -51,6 +53,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { listCarriers, createCarrier, updateCarrier } from '@/api/evidence'
+import { maskPhone } from '@/utils/mask'
 
 const loading = ref(false)
 const submitting = ref(false)

@@ -44,6 +44,7 @@ instance.interceptors.response.use(
     const status = error.response?.status
     if (status === 401) {
       localStorage.removeItem('token')
+      localStorage.removeItem('userInfo')
       window.location.href = '/login'
     } else {
       const safeMsg = status != null ? safeMessages[status] : undefined

@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import NProgress from 'nprogress'
 import 'nprogress/nprogress.css'
+import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 
 NProgress.configure({ showSpinner: false })
@@ -90,19 +91,19 @@ const routes = [
         path: 'warehouse/manage',
         name: 'warehouseManage',
         component: () => import('@/views/warehouse/manage.vue'),
-        meta: { title: '仓库管理', icon: 'OfficeBuilding' },
+        meta: { title: '仓库管理', icon: 'OfficeBuilding', roles: [1] },
       },
       {
         path: 'carrier/manage',
         name: 'carrierManage',
         component: () => import('@/views/carrier/manage.vue'),
-        meta: { title: '承运公司管理', icon: 'Truck' },
+        meta: { title: '承运公司管理', icon: 'Truck', roles: [1] },
       },
       {
         path: 'template/manage',
         name: 'templateManage',
         component: () => import('@/views/template/manage.vue'),
-        meta: { title: '合同模板管理', icon: 'DocumentCopy' },
+        meta: { title: '合同模板管理', icon: 'DocumentCopy', roles: [1] },
       },
       {
         path: 'authorized-persons',
@@ -114,7 +115,7 @@ const routes = [
         path: 'timeout-config',
         name: 'timeoutConfig',
         component: () => import('@/views/timeout-config/index.vue'),
-        meta: { title: '确认时效配置', icon: 'Timer' },
+        meta: { title: '确认时效配置', icon: 'Timer', roles: [1] },
       },
       {
         path: 'trading-habits',
@@ -126,7 +127,7 @@ const routes = [
         path: 'supplement/manage',
         name: 'supplementManage',
         component: () => import('@/views/supplement/manage.vue'),
-        meta: { title: '事后补录', icon: 'EditPen' },
+        meta: { title: '事后补录', icon: 'EditPen', roles: [1] },
       },
       {
         path: 'verification/records',
@@ -160,6 +161,16 @@ router.beforeEach(async (to, _from, next) => {
         await userStore.getUserInfo()
       } catch {
         // Continue
+      }
+    }
+    const roles = to.meta.roles as number[] | undefined
+    if (roles && roles.length > 0) {
+      const userRole = userStore.userInfo?.roleType
+      if (userRole === undefined || userRole === null || !roles.includes(userRole)) {
+        ElMessage.error('没有访问权限')
+        next({ path: '/dashboard' })
+        NProgress.done()
+        return
       }
     }
   }
