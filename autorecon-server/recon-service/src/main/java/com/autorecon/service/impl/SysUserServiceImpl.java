@@ -1,10 +1,11 @@
 package com.autorecon.service.impl;
 
-import cn.hutool.crypto.digest.DigestUtil;
+import cn.hutool.crypto.digest.BCrypt;
 import com.autorecon.common.exception.BizException;
 import com.autorecon.common.exception.ErrorCode;
 import com.autorecon.common.result.PageResult;
 import com.autorecon.common.util.SecurityUtil;
+import com.autorecon.common.util.TenantUtil;
 import com.autorecon.domain.dto.SysUserCreateDTO;
 import com.autorecon.domain.dto.SysUserUpdateDTO;
 import com.autorecon.domain.entity.SysUser;
@@ -43,7 +44,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             throw new BizException(ErrorCode.BAD_REQUEST.getCode(), "用户名已存在");
         }
 
-        String hashedPassword = DigestUtil.md5Hex(dto.getPassword());
+        String hashedPassword = BCrypt.hashpw(dto.getPassword(), BCrypt.gensalt());
         SysUser user = SysUser.builder()
                 .enterpriseId(dto.getEnterpriseId())
                 .username(dto.getUsername())
@@ -66,6 +67,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (user == null) {
             throw new BizException(ErrorCode.NOT_FOUND.getCode(), "用户不存在");
         }
+        TenantUtil.checkOwnership(user.getEnterpriseId());
         if (dto.getRealName() != null) user.setRealName(dto.getRealName());
         if (dto.getPhone() != null) user.setPhone(dto.getPhone());
         if (dto.getEmail() != null) user.setEmail(dto.getEmail());
@@ -82,6 +84,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (user == null) {
             throw new BizException(ErrorCode.NOT_FOUND.getCode(), "用户不存在");
         }
+        TenantUtil.checkOwnership(user.getEnterpriseId());
         user.setStatus(0);
         sysUserMapper.updateById(user);
         log.info("Disabled user: id={}", id);
@@ -94,6 +97,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (user == null) {
             throw new BizException(ErrorCode.NOT_FOUND.getCode(), "用户不存在");
         }
+        TenantUtil.checkOwnership(user.getEnterpriseId());
         user.setStatus(1);
         sysUserMapper.updateById(user);
         log.info("Enabled user: id={}", id);
@@ -105,6 +109,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (user == null) {
             throw new BizException(ErrorCode.NOT_FOUND.getCode(), "用户不存在");
         }
+        TenantUtil.checkOwnership(user.getEnterpriseId());
         user.setPassword(null);
         return user;
     }
@@ -132,8 +137,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (user == null) {
             throw new BizException(ErrorCode.UNAUTHORIZED.getCode(), "用户名或密码错误");
         }
-        String hashedPassword = DigestUtil.md5Hex(password);
-        if (!hashedPassword.equals(user.getPassword())) {
+        if (!BCrypt.checkpw(password, user.getPassword())) {
             throw new BizException(ErrorCode.UNAUTHORIZED.getCode(), "用户名或密码错误");
         }
         if (user.getStatus() != null && user.getStatus() == 0) {

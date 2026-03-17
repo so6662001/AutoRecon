@@ -4,6 +4,7 @@ import com.autorecon.common.exception.BizException;
 import com.autorecon.common.exception.ErrorCode;
 import com.autorecon.common.result.PageResult;
 import com.autorecon.common.util.SecurityUtil;
+import com.autorecon.common.util.TenantUtil;
 import com.autorecon.domain.dto.ReconBillCreateDTO;
 import com.autorecon.domain.dto.ReconBillItemDTO;
 import com.autorecon.domain.dto.ReconBillQueryDTO;
@@ -125,6 +126,21 @@ public class ReconBillServiceImpl extends ServiceImpl<ReconBillMapper, ReconBill
         List<ReconBillItem> items = new ArrayList<>();
         int lineNo = 1;
         for (ReconBillItemDTO itemDto : dto.getItems()) {
+            if (itemDto.getQuantity() != null && itemDto.getQuantity().compareTo(BigDecimal.ZERO) < 0) {
+                throw new BizException(ErrorCode.BAD_REQUEST.getCode(), "数量不能为负数");
+            }
+            if (itemDto.getWeight() != null && itemDto.getWeight().compareTo(BigDecimal.ZERO) < 0) {
+                throw new BizException(ErrorCode.BAD_REQUEST.getCode(), "重量不能为负数");
+            }
+            if (itemDto.getUnitPrice() != null && itemDto.getUnitPrice().compareTo(BigDecimal.ZERO) < 0) {
+                throw new BizException(ErrorCode.BAD_REQUEST.getCode(), "单价不能为负数");
+            }
+            if (itemDto.getAmount() != null && itemDto.getAmount().compareTo(BigDecimal.ZERO) < 0) {
+                throw new BizException(ErrorCode.BAD_REQUEST.getCode(), "金额不能为负数");
+            }
+            if (itemDto.getTotalAmount() != null && itemDto.getTotalAmount().compareTo(BigDecimal.ZERO) < 0) {
+                throw new BizException(ErrorCode.BAD_REQUEST.getCode(), "总金额不能为负数");
+            }
             BigDecimal total = itemDto.getTotalAmount() != null ? itemDto.getTotalAmount() : BigDecimal.ZERO;
             if (itemDto.getAmount() != null && itemDto.getTaxAmount() != null) {
                 total = itemDto.getAmount().add(itemDto.getTaxAmount());
@@ -162,6 +178,9 @@ public class ReconBillServiceImpl extends ServiceImpl<ReconBillMapper, ReconBill
             items.add(item);
         }
 
+        if (totalAmount.compareTo(BigDecimal.ZERO) < 0 || totalQuantity.compareTo(BigDecimal.ZERO) < 0 || totalWeight.compareTo(BigDecimal.ZERO) < 0) {
+            throw new BizException(ErrorCode.BAD_REQUEST.getCode(), "合计金额、数量或重量不能为负数");
+        }
         bill.setTotalAmount(totalAmount);
         bill.setTotalQuantity(totalQuantity);
         bill.setTotalWeight(totalWeight);
@@ -202,6 +221,10 @@ public class ReconBillServiceImpl extends ServiceImpl<ReconBillMapper, ReconBill
     @Override
     public PageResult<ReconBillVO> queryBillList(ReconBillQueryDTO query) {
         LambdaQueryWrapper<ReconBill> wrapper = new LambdaQueryWrapper<>();
+        Long currentEnterpriseId = SecurityUtil.getCurrentEnterpriseId();
+        if (currentEnterpriseId != null) {
+            wrapper.and(w -> w.eq(ReconBill::getSellerId, currentEnterpriseId).or().eq(ReconBill::getBuyerId, currentEnterpriseId));
+        }
         if (query.getSellerId() != null) {
             wrapper.eq(ReconBill::getSellerId, query.getSellerId());
         }
@@ -286,6 +309,7 @@ public class ReconBillServiceImpl extends ServiceImpl<ReconBillMapper, ReconBill
         if (bill == null) {
             throw new BizException(ErrorCode.BILL_NOT_FOUND);
         }
+        TenantUtil.checkBillAccess(bill.getSellerId(), bill.getBuyerId());
 
         ReconBillDetailVO vo = new ReconBillDetailVO();
         BeanUtils.copyProperties(bill, vo);
@@ -346,6 +370,7 @@ public class ReconBillServiceImpl extends ServiceImpl<ReconBillMapper, ReconBill
         if (bill == null) {
             throw new BizException(ErrorCode.BILL_NOT_FOUND);
         }
+        TenantUtil.checkBillAccess(bill.getSellerId(), bill.getBuyerId());
         String status = bill.getStatus();
         if (!BillStatusEnum.GENERATED.getCode().equals(status) && !BillStatusEnum.CREATED.getCode().equals(status)) {
             throw new BizException(ErrorCode.BILL_STATUS_ERROR);
@@ -363,6 +388,7 @@ public class ReconBillServiceImpl extends ServiceImpl<ReconBillMapper, ReconBill
         if (bill == null) {
             throw new BizException(ErrorCode.BILL_NOT_FOUND);
         }
+        TenantUtil.checkBillAccess(bill.getSellerId(), bill.getBuyerId());
         if (!BillStatusEnum.PENDING.getCode().equals(bill.getStatus())) {
             throw new BizException(ErrorCode.BILL_STATUS_ERROR);
         }
@@ -378,6 +404,7 @@ public class ReconBillServiceImpl extends ServiceImpl<ReconBillMapper, ReconBill
         if (bill == null) {
             throw new BizException(ErrorCode.BILL_NOT_FOUND);
         }
+        TenantUtil.checkBillAccess(bill.getSellerId(), bill.getBuyerId());
         if (BillStatusEnum.SIGNED.getCode().equals(bill.getStatus())) {
             throw new BizException(ErrorCode.BILL_STATUS_ERROR);
         }
@@ -428,6 +455,7 @@ public class ReconBillServiceImpl extends ServiceImpl<ReconBillMapper, ReconBill
         if (bill == null) {
             throw new BizException(ErrorCode.BILL_NOT_FOUND);
         }
+        TenantUtil.checkBillAccess(bill.getSellerId(), bill.getBuyerId());
         log.info("PDF generation queued for billId={}", billId);
         return "pdf generation queued";
     }

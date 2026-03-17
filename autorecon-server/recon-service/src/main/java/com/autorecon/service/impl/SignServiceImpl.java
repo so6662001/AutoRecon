@@ -2,9 +2,13 @@ package com.autorecon.service.impl;
 
 import com.autorecon.common.exception.BizException;
 import com.autorecon.common.exception.ErrorCode;
+import com.autorecon.common.util.SecurityUtil;
+import com.autorecon.common.util.TenantUtil;
 import com.autorecon.domain.entity.ReconBill;
 import com.autorecon.domain.entity.SignRecord;
 import com.autorecon.domain.enums.SignStatusEnum;
+import com.autorecon.domain.entity.EnterpriseSeal;
+import com.autorecon.mapper.EnterpriseSealMapper;
 import com.autorecon.mapper.ReconBillMapper;
 import com.autorecon.mapper.SignRecordMapper;
 import com.autorecon.service.SignService;
@@ -27,6 +31,7 @@ public class SignServiceImpl implements SignService {
 
     private final SignRecordMapper signRecordMapper;
     private final ReconBillMapper reconBillMapper;
+    private final EnterpriseSealMapper enterpriseSealMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -35,6 +40,7 @@ public class SignServiceImpl implements SignService {
         if (bill == null) {
             throw new BizException(ErrorCode.BILL_NOT_FOUND);
         }
+        TenantUtil.checkBillAccess(bill.getSellerId(), bill.getBuyerId());
 
         String signFlowId = "SIGN_" + System.currentTimeMillis();
         SignRecord record = SignRecord.builder()
@@ -58,6 +64,20 @@ public class SignServiceImpl implements SignService {
         if (record == null) {
             throw new BizException(ErrorCode.SIGN_SEAL_NOT_FOUND.getCode(), "签章记录不存在");
         }
+        if (verifyCode == null || verifyCode.isBlank()) {
+            throw new BizException(ErrorCode.BAD_REQUEST.getCode(), "验证码不能为空");
+        }
+        ReconBill bill = reconBillMapper.selectById(record.getBillId());
+        if (bill != null) {
+            TenantUtil.checkBillAccess(bill.getSellerId(), bill.getBuyerId());
+        }
+        Long currentEnterpriseId = SecurityUtil.getCurrentEnterpriseId();
+        if (currentEnterpriseId != null && sealId != null) {
+            EnterpriseSeal seal = enterpriseSealMapper.selectById(sealId);
+            if (seal != null && !currentEnterpriseId.equals(seal.getEnterpriseId())) {
+                throw new BizException(ErrorCode.SIGN_SEAL_NOT_FOUND.getCode(), "印章不属于当前企业");
+            }
+        }
 
         // Placeholder: update sign status
         record.setSellerSignStatus(SignStatusEnum.SIGNED.getValue());
@@ -67,7 +87,7 @@ public class SignServiceImpl implements SignService {
         record.setCompletedAt(LocalDateTime.now());
         signRecordMapper.updateById(record);
 
-        ReconBill bill = reconBillMapper.selectById(record.getBillId());
+        bill = reconBillMapper.selectById(record.getBillId());
         if (bill != null) {
             bill.setSellerSignStatus(SignStatusEnum.SIGNED.getValue());
             bill.setBuyerSignStatus(SignStatusEnum.SIGNED.getValue());

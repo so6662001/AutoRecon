@@ -4,12 +4,15 @@ import com.autorecon.common.exception.BizException;
 import com.autorecon.common.exception.ErrorCode;
 import com.autorecon.common.result.PageResult;
 import com.autorecon.common.util.SecurityUtil;
+import com.autorecon.common.util.TenantUtil;
 import com.autorecon.domain.dto.InvoiceCreateDTO;
 import com.autorecon.domain.dto.InvoiceLinkDTO;
 import com.autorecon.domain.entity.Invoice;
 import com.autorecon.domain.entity.InvoiceLink;
+import com.autorecon.domain.entity.ReconBill;
 import com.autorecon.mapper.InvoiceLinkMapper;
 import com.autorecon.mapper.InvoiceMapper;
+import com.autorecon.mapper.ReconBillMapper;
 import com.autorecon.service.InvoiceService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -32,6 +35,7 @@ public class InvoiceServiceImpl extends ServiceImpl<InvoiceMapper, Invoice> impl
 
     private final InvoiceMapper invoiceMapper;
     private final InvoiceLinkMapper invoiceLinkMapper;
+    private final ReconBillMapper reconBillMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -81,6 +85,10 @@ public class InvoiceServiceImpl extends ServiceImpl<InvoiceMapper, Invoice> impl
         if (invoice == null) {
             throw new BizException(ErrorCode.NOT_FOUND.getCode(), "发票不存在");
         }
+        ReconBill bill = reconBillMapper.selectById(dto.getBillId());
+        if (bill != null) {
+            TenantUtil.checkBillAccess(bill.getSellerId(), bill.getBuyerId());
+        }
 
         InvoiceLink link = InvoiceLink.builder()
                 .billId(dto.getBillId())
@@ -101,6 +109,10 @@ public class InvoiceServiceImpl extends ServiceImpl<InvoiceMapper, Invoice> impl
 
     @Override
     public List<InvoiceLink> getInvoiceLinks(Long billId) {
+        ReconBill bill = reconBillMapper.selectById(billId);
+        if (bill != null) {
+            TenantUtil.checkBillAccess(bill.getSellerId(), bill.getBuyerId());
+        }
         LambdaQueryWrapper<InvoiceLink> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(InvoiceLink::getBillId, billId).orderByDesc(InvoiceLink::getCreatedAt);
         return invoiceLinkMapper.selectList(wrapper);

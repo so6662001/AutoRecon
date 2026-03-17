@@ -3,6 +3,7 @@ package com.autorecon.service.impl;
 import com.autorecon.common.exception.BizException;
 import com.autorecon.common.exception.ErrorCode;
 import com.autorecon.common.util.SecurityUtil;
+import com.autorecon.common.util.TenantUtil;
 import com.autorecon.domain.dto.TemplateCreateDTO;
 import com.autorecon.domain.entity.ReconTemplate;
 import com.autorecon.mapper.ReconTemplateMapper;
@@ -58,6 +59,7 @@ public class ReconTemplateServiceImpl extends ServiceImpl<ReconTemplateMapper, R
         if (template == null) {
             throw new BizException(ErrorCode.TEMPLATE_NOT_FOUND);
         }
+        TenantUtil.checkOwnership(template.getEnterpriseId());
         BeanUtils.copyProperties(dto, template, "id", "enterpriseId", "createdAt");
         template.setId(id);
 
@@ -78,6 +80,7 @@ public class ReconTemplateServiceImpl extends ServiceImpl<ReconTemplateMapper, R
         if (template == null) {
             throw new BizException(ErrorCode.TEMPLATE_NOT_FOUND);
         }
+        TenantUtil.checkOwnership(template.getEnterpriseId());
         baseMapper.deleteById(id);
         log.info("Deleted template: id={}", id);
     }

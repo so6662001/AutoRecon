@@ -2,6 +2,7 @@ package com.autorecon.controller;
 
 import com.autorecon.common.result.PageResult;
 import com.autorecon.common.result.R;
+import com.autorecon.domain.dto.BatchCreateDTO;
 import com.autorecon.domain.dto.ReconBillCreateDTO;
 import com.autorecon.domain.dto.ReconBillQueryDTO;
 import com.autorecon.domain.vo.ReconBillDetailVO;
@@ -14,10 +15,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * 对账单管理 REST Controller
@@ -82,19 +79,8 @@ public class ReconBillController {
 
     @PostMapping("/batch")
     @Operation(summary = "批量创建对账单")
-    public R<String> batchCreateBills(@RequestBody Map<String, Object> body) {
-        @SuppressWarnings("unchecked")
-        List<Number> buyerIdsRaw = (List<Number>) body.get("buyerIds");
-        if (buyerIdsRaw == null || buyerIdsRaw.isEmpty()) {
-            return R.fail("buyerIds不能为空");
-        }
-        List<Long> buyerIds = buyerIdsRaw.stream()
-                .map(Number::longValue)
-                .collect(Collectors.toList());
-        LocalDate periodStart = LocalDate.parse((String) body.get("periodStart"));
-        LocalDate periodEnd = LocalDate.parse((String) body.get("periodEnd"));
-        Long templateId = ((Number) body.get("templateId")).longValue();
-        String batchId = reconBillService.batchCreateBills(buyerIds, periodStart, periodEnd, templateId);
+    public R<String> batchCreateBills(@Valid @RequestBody BatchCreateDTO dto) {
+        String batchId = reconBillService.batchCreateBills(dto.getBuyerIds(), dto.getPeriodStart(), dto.getPeriodEnd(), dto.getTemplateId());
         return R.ok(batchId);
     }
 }

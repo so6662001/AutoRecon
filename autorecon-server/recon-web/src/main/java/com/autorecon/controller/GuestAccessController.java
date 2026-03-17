@@ -2,10 +2,12 @@ package com.autorecon.controller;
 
 import com.autorecon.common.result.R;
 import com.autorecon.domain.dto.GuestConfirmDTO;
+import com.autorecon.domain.dto.GuestTokenGenerateDTO;
 import com.autorecon.domain.vo.GuestBillVO;
 import com.autorecon.service.GuestAccessService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -42,5 +44,12 @@ public class GuestAccessController {
         dto.setToken(token);
         guestAccessService.guestConfirm(dto);
         return R.ok();
+    }
+
+    @PostMapping("/generate")
+    @Operation(summary = "生成访客令牌（需认证，仅对账单卖方可操作）")
+    public R<String> generateGuestToken(@Valid @RequestBody GuestTokenGenerateDTO dto) {
+        String token = guestAccessService.generateGuestToken(dto.getBillId(), dto.getBuyerPhone());
+        return R.ok(token);
     }
 }

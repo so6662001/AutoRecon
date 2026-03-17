@@ -2,6 +2,7 @@ package com.autorecon.service.impl;
 
 import com.autorecon.common.exception.BizException;
 import com.autorecon.common.exception.ErrorCode;
+import com.autorecon.common.util.TenantUtil;
 import com.autorecon.domain.dto.BillItemExcelDTO;
 import com.autorecon.domain.dto.ReconBillItemDTO;
 import com.autorecon.domain.entity.BuyerDataConfig;
@@ -50,8 +51,20 @@ public class ReconDataServiceImpl implements ReconDataService {
         if (bill == null) {
             throw new BizException(ErrorCode.BILL_NOT_FOUND);
         }
+        TenantUtil.checkBillAccess(bill.getSellerId(), bill.getBuyerId());
         if (file == null || file.isEmpty()) {
             throw new BizException(ErrorCode.BAD_REQUEST.getCode(), "上传文件不能为空");
+        }
+        if (file.getSize() > 10 * 1024 * 1024) {
+            throw new BizException(ErrorCode.BAD_REQUEST.getCode(), "文件大小不能超过10MB");
+        }
+        String filename = file.getOriginalFilename();
+        if (filename == null || (!filename.toLowerCase().endsWith(".xlsx") && !filename.toLowerCase().endsWith(".xls") && !filename.toLowerCase().endsWith(".csv"))) {
+            throw new BizException(ErrorCode.BAD_REQUEST.getCode(), "仅支持 .xlsx、.xls、.csv 格式文件");
+        }
+        String contentType = file.getContentType();
+        if (contentType != null && !contentType.contains("spreadsheet") && !contentType.contains("excel") && !"text/csv".equals(contentType) && !contentType.contains("octet-stream")) {
+            throw new BizException(ErrorCode.BAD_REQUEST.getCode(), "文件类型不正确");
         }
 
         try {
@@ -100,7 +113,7 @@ public class ReconDataServiceImpl implements ReconDataService {
             throw e;
         } catch (Exception e) {
             log.error("Excel upload failed for billId={}", billId, e);
-            throw new BizException(ErrorCode.BAD_REQUEST.getCode(), "Excel 解析失败: " + e.getMessage());
+            throw new BizException(ErrorCode.BAD_REQUEST.getCode(), "Excel 解析失败，请检查文件格式是否正确");
         }
     }
 
@@ -111,6 +124,7 @@ public class ReconDataServiceImpl implements ReconDataService {
         if (bill == null) {
             throw new BizException(ErrorCode.BILL_NOT_FOUND);
         }
+        TenantUtil.checkBillAccess(bill.getSellerId(), bill.getBuyerId());
         if (buyerItems == null) {
             return;
         }

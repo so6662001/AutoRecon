@@ -27,8 +27,9 @@ spring:
       stat-view-servlet:
         enabled: true
         url-pattern: /druid/*
-        login-username: admin
-        login-password: admin
+        # Change these credentials in production - do not use defaults
+        login-username: autorecon_druid_admin
+        login-password: Ch4ng3MePr0d
 
   # Redis
   data:

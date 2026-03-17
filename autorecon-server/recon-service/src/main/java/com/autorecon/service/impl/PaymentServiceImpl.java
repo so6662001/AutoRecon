@@ -2,6 +2,8 @@ package com.autorecon.service.impl;
 
 import com.autorecon.common.exception.BizException;
 import com.autorecon.common.exception.ErrorCode;
+import com.autorecon.common.util.SecurityUtil;
+import com.autorecon.common.util.TenantUtil;
 import com.autorecon.domain.dto.PaymentAllocateDTO;
 import com.autorecon.domain.dto.PaymentCreateDTO;
 import com.autorecon.domain.entity.Payment;
@@ -51,11 +53,14 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> impl
             throw new BizException(ErrorCode.PAYMENT_AMOUNT_ERROR);
         }
 
+        Long currentEnterpriseId = SecurityUtil.getCurrentEnterpriseId();
+        Long payeeId = currentEnterpriseId != null ? currentEnterpriseId : dto.getPayeeId();
+
         String paymentNo = PAYMENT_NO_PREFIX + LocalDate.now().format(DATE_FORMAT) + System.currentTimeMillis() % 100000;
         Payment payment = Payment.builder()
                 .paymentNo(paymentNo)
                 .payerId(dto.getPayerId())
-                .payeeId(dto.getPayeeId())
+                .payeeId(payeeId)
                 .paymentDate(dto.getPaymentDate())
                 .paymentAmount(dto.getPaymentAmount())
                 .paymentMethod(dto.getPaymentMethod())
@@ -79,6 +84,12 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> impl
         if (payment == null) {
             throw new BizException(ErrorCode.NOT_FOUND.getCode(), "付款记录不存在");
         }
+        Long currentEnterpriseId = SecurityUtil.getCurrentEnterpriseId();
+        if (currentEnterpriseId != null) {
+            if (!currentEnterpriseId.equals(payment.getPayerId()) && !currentEnterpriseId.equals(payment.getPayeeId())) {
+                throw new BizException(ErrorCode.FORBIDDEN);
+            }
+        }
         if (payment.getUnallocatedAmount() == null || payment.getUnallocatedAmount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new BizException(ErrorCode.PAYMENT_ALREADY_ALLOCATED);
         }
@@ -92,11 +103,24 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> impl
         }
 
         for (PaymentAllocateDTO.AllocationItem item : dto.getAllocations()) {
+            if (item.getAmount() == null || item.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new BizException(ErrorCode.BAD_REQUEST.getCode(), "分配金额必须为正数");
+            }
+        }
+
+        for (PaymentAllocateDTO.AllocationItem item : dto.getAllocations()) {
             ReconBillItem billItem = item.getBillItemId() != null
                     ? reconBillItemMapper.selectById(item.getBillItemId())
                     : null;
             if (billItem == null) {
                 continue;
+            }
+            ReconBill bill = reconBillMapper.selectById(item.getBillId());
+            if (bill == null || !bill.getId().equals(billItem.getBillId())) {
+                throw new BizException(ErrorCode.BAD_REQUEST.getCode(), "对账单明细与对账单不匹配");
+            }
+            if (!bill.getSellerId().equals(payment.getPayeeId()) || !bill.getBuyerId().equals(payment.getPayerId())) {
+                throw new BizException(ErrorCode.BAD_REQUEST.getCode(), "对账单的买卖方与付款不匹配");
             }
 
             BigDecimal unpaid = billItem.getUnpaidAmount() != null ? billItem.getUnpaidAmount() : BigDecimal.ZERO;
@@ -130,6 +154,12 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> impl
         Payment payment = paymentMapper.selectById(paymentId);
         if (payment == null) {
             throw new BizException(ErrorCode.NOT_FOUND.getCode(), "付款记录不存在");
+        }
+        Long currentEnterpriseId = SecurityUtil.getCurrentEnterpriseId();
+        if (currentEnterpriseId != null) {
+            if (!currentEnterpriseId.equals(payment.getPayerId()) && !currentEnterpriseId.equals(payment.getPayeeId())) {
+                throw new BizException(ErrorCode.FORBIDDEN);
+            }
         }
         BigDecimal remaining = payment.getUnallocatedAmount();
         if (remaining == null || remaining.compareTo(BigDecimal.ZERO) <= 0) {
@@ -208,6 +238,10 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> impl
     @Override
     public List<Payment> listPayments(Long payerId, Long payeeId, LocalDate start, LocalDate end) {
         LambdaQueryWrapper<Payment> wrapper = new LambdaQueryWrapper<>();
+        Long currentEnterpriseId = SecurityUtil.getCurrentEnterpriseId();
+        if (currentEnterpriseId != null) {
+            wrapper.and(w -> w.eq(Payment::getPayerId, currentEnterpriseId).or().eq(Payment::getPayeeId, currentEnterpriseId));
+        }
         if (payerId != null) wrapper.eq(Payment::getPayerId, payerId);
         if (payeeId != null) wrapper.eq(Payment::getPayeeId, payeeId);
         if (start != null) wrapper.ge(Payment::getPaymentDate, start);

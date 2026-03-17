@@ -2,6 +2,8 @@ package com.autorecon.service.impl;
 
 import com.autorecon.common.exception.BizException;
 import com.autorecon.common.exception.ErrorCode;
+import com.autorecon.common.util.SecurityUtil;
+import com.autorecon.common.util.TenantUtil;
 import com.autorecon.domain.dto.GuestConfirmDTO;
 import com.autorecon.domain.vo.GuestBillVO;
 import com.autorecon.domain.entity.Dispute;
@@ -52,6 +54,10 @@ public class GuestAccessServiceImpl implements GuestAccessService {
         ReconBill bill = reconBillMapper.selectById(billId);
         if (bill == null) {
             throw new BizException(ErrorCode.BILL_NOT_FOUND);
+        }
+        Long currentEnterpriseId = SecurityUtil.getCurrentEnterpriseId();
+        if (currentEnterpriseId != null && !currentEnterpriseId.equals(bill.getSellerId())) {
+            throw new BizException(ErrorCode.FORBIDDEN);
         }
 
         String token = generateRandomToken();

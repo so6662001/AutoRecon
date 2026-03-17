@@ -2,6 +2,7 @@ package com.autorecon.service.impl;
 
 import com.autorecon.common.exception.BizException;
 import com.autorecon.common.exception.ErrorCode;
+import com.autorecon.common.util.TenantUtil;
 import com.autorecon.common.result.PageResult;
 import com.autorecon.domain.dto.EnterpriseAuthDTO;
 import com.autorecon.domain.dto.EnterpriseCreateDTO;
@@ -56,6 +57,7 @@ public class EnterpriseServiceImpl extends ServiceImpl<EnterpriseMapper, Enterpr
         if (enterprise == null) {
             throw new BizException(ErrorCode.NOT_FOUND.getCode(), "企业不存在");
         }
+        TenantUtil.checkOwnership(id);
         enterprise.setCompanyName(dto.getCompanyName());
         enterprise.setUnifiedCreditCode(dto.getUnifiedCreditCode());
         enterprise.setContactName(dto.getContactName());
@@ -99,6 +101,7 @@ public class EnterpriseServiceImpl extends ServiceImpl<EnterpriseMapper, Enterpr
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void submitAuth(Long enterpriseId, EnterpriseAuthDTO dto) {
+        TenantUtil.checkOwnership(enterpriseId);
         LambdaQueryWrapper<EnterpriseAuth> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(EnterpriseAuth::getEnterpriseId, enterpriseId).last("LIMIT 1");
         EnterpriseAuth auth = enterpriseAuthMapper.selectOne(wrapper);

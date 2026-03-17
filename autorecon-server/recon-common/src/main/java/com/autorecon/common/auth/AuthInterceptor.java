@@ -24,6 +24,9 @@ public class AuthInterceptor implements HandlerInterceptor {
 
     private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
 
+    /** Predefined demo tokens - only these are accepted in demo mode */
+    private static final Set<String> DEMO_TOKENS = Set.of("demo_token_1", "demo_token_2", "demo_token_admin");
+
     /** Default demo user/enterprise when auth is disabled or in demo mode */
     private static final long DEMO_USER_ID = 1L;
     private static final long DEMO_ENTERPRISE_ID = 1L;
@@ -37,13 +40,17 @@ public class AuthInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        if (!autoReconProperties.getAuth().isEnabled() || autoReconProperties.isDemoMode()) {
+        if (autoReconProperties.isDemoMode()) {
             String token = extractToken(request);
-            if (token != null && token.startsWith("demo:")) {
-                parseAndSetDemoToken(token);
-            } else {
+            if (token != null && DEMO_TOKENS.contains(token.trim())) {
                 setDemoAuth();
+                return true;
             }
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            return false;
+        }
+        if (!autoReconProperties.getAuth().isEnabled()) {
+            setDemoAuth();
             return true;
         }
 
@@ -76,7 +83,9 @@ public class AuthInterceptor implements HandlerInterceptor {
 
     private java.util.List<String> getExcludePatterns() {
         java.util.List<String> patterns = new java.util.ArrayList<>(autoReconProperties.getAuth().getExcludePaths());
-        patterns.add("/api/v1/guest/**");
+        patterns.add("/api/v1/guest/view/**");
+        patterns.add("/api/v1/guest/verify-phone");
+        patterns.add("/api/v1/guest/confirm/**");
         patterns.add("/api/v1/users/login");
         patterns.add("/doc.html");
         patterns.add("/swagger-resources/**");
@@ -104,19 +113,4 @@ public class AuthInterceptor implements HandlerInterceptor {
         );
     }
 
-    /** Parse demo token format: demo:userId:enterpriseId */
-    private void parseAndSetDemoToken(String token) {
-        String[] parts = token.split(":");
-        if (parts.length >= 3) {
-            try {
-                long userId = Long.parseLong(parts[1]);
-                long enterpriseId = Long.parseLong(parts[2]);
-                DefaultAuthContext.setAuthInfo(userId, enterpriseId, null, null, Set.of());
-            } catch (NumberFormatException e) {
-                setDemoAuth();
-            }
-        } else {
-            setDemoAuth();
-        }
-    }
 }

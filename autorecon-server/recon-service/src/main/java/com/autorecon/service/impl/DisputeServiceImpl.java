@@ -3,6 +3,7 @@ package com.autorecon.service.impl;
 import com.autorecon.common.exception.BizException;
 import com.autorecon.common.exception.ErrorCode;
 import com.autorecon.common.util.SecurityUtil;
+import com.autorecon.common.util.TenantUtil;
 import com.autorecon.domain.dto.DisputeCreateDTO;
 import com.autorecon.domain.dto.DisputeMessageDTO;
 import com.autorecon.domain.entity.Dispute;
@@ -45,6 +46,7 @@ public class DisputeServiceImpl extends ServiceImpl<DisputeMapper, Dispute> impl
         if (bill == null) {
             throw new BizException(ErrorCode.BILL_NOT_FOUND);
         }
+        TenantUtil.checkBillAccess(bill.getSellerId(), bill.getBuyerId());
 
         Long userId = SecurityUtil.getCurrentUserId();
         if (userId == null) userId = 1L;
@@ -75,6 +77,10 @@ public class DisputeServiceImpl extends ServiceImpl<DisputeMapper, Dispute> impl
         if (dispute == null) {
             throw new BizException(ErrorCode.NOT_FOUND.getCode(), "异议记录不存在");
         }
+        ReconBill bill = reconBillMapper.selectById(dispute.getBillId());
+        if (bill != null) {
+            TenantUtil.checkBillAccess(bill.getSellerId(), bill.getBuyerId());
+        }
 
         Long userId = SecurityUtil.getCurrentUserId();
         if (userId == null) userId = 1L;
@@ -100,6 +106,10 @@ public class DisputeServiceImpl extends ServiceImpl<DisputeMapper, Dispute> impl
         if (dispute == null) {
             throw new BizException(ErrorCode.NOT_FOUND.getCode(), "异议记录不存在");
         }
+        ReconBill bill = reconBillMapper.selectById(dispute.getBillId());
+        if (bill != null) {
+            TenantUtil.checkBillAccess(bill.getSellerId(), bill.getBuyerId());
+        }
 
         dispute.setStatus(DISPUTE_STATUS_RESOLVED);
         dispute.setResolvedAt(LocalDateTime.now());
@@ -111,7 +121,7 @@ public class DisputeServiceImpl extends ServiceImpl<DisputeMapper, Dispute> impl
         Long openCount = disputeMapper.selectCount(wrapper);
 
         if (openCount == 0) {
-            ReconBill bill = reconBillMapper.selectById(dispute.getBillId());
+            bill = reconBillMapper.selectById(dispute.getBillId());
             if (bill != null) {
                 bill.setStatus(BillStatusEnum.TO_SIGN.getCode());
                 reconBillMapper.updateById(bill);

@@ -1,6 +1,7 @@
 package com.autorecon.controller;
 
 import com.autorecon.common.result.R;
+import com.autorecon.domain.dto.OnlineSubmitDTO;
 import com.autorecon.domain.dto.ReconBillItemDTO;
 import com.autorecon.domain.entity.ReconBillItem;
 import com.autorecon.service.ReconDataService;
@@ -8,6 +9,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -35,11 +37,8 @@ public class ReconDataController {
 
     @PostMapping("/online-submit")
     @Operation(summary = "在线提交买方数据")
-    public R<Void> onlineSubmit(@RequestBody Map<String, Object> body) {
-        Long billId = ((Number) body.get("billId")).longValue();
-        @SuppressWarnings("unchecked")
-        List<ReconBillItemDTO> buyerItems = (List<ReconBillItemDTO>) body.get("buyerItems");
-        reconDataService.onlineSubmit(billId, buyerItems != null ? buyerItems : List.of());
+    public R<Void> onlineSubmit(@Valid @RequestBody OnlineSubmitDTO dto) {
+        reconDataService.onlineSubmit(dto.getBillId(), dto.getBuyerItems() != null ? dto.getBuyerItems() : List.of());
         return R.ok();
     }
 
