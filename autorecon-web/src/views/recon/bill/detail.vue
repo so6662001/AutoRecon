@@ -60,6 +60,9 @@
       <!-- Tabs -->
       <el-tabs v-model="activeTab" class="detail-tabs">
         <el-tab-pane label="对账明细" name="items">
+          <div class="items-toolbar">
+            <el-button type="primary" size="small" @click="openInvoiceLinksDialog">关联发票</el-button>
+          </div>
           <el-table :data="billItems" border style="width: 100%" :span-method="spanMethod">
             <el-table-column prop="contractNo" label="合同号" width="120" />
             <el-table-column prop="orderNo" label="订单号" width="120" />
@@ -72,6 +75,13 @@
             <el-table-column prop="unitPrice" label="单价" width="100" align="right" />
             <el-table-column prop="amount" label="金额" width="120" align="right">
               <template #default="{ row }">¥{{ formatAmount(row.amount) }}</template>
+            </el-table-column>
+            <el-table-column prop="invoice_status" label="开票状态" width="100">
+              <template #default="{ row }">
+                <el-tag :type="getInvoiceStatusTagType(row.invoice_status)" size="small">
+                  {{ getInvoiceStatusText(row.invoice_status) }}
+                </el-tag>
+              </template>
             </el-table-column>
           </el-table>
         </el-tab-pane>
@@ -130,21 +140,137 @@
         </el-tab-pane>
       </el-tabs>
     </div>
+
+    <!-- Edit Bill Dialog -->
+    <el-dialog v-model="showEditDialog" title="编辑对账单" width="900px" destroy-on-close @close="closeEditDialog">
+      <el-form :model="editForm" label-width="100px">
+        <el-form-item label="备注">
+          <el-input v-model="editForm.remark" type="textarea" :rows="2" placeholder="备注" />
+        </el-form-item>
+        <el-form-item label="对账模板">
+          <el-select v-model="editForm.templateId" placeholder="请选择模板" style="width: 100%">
+            <el-option v-for="t in templates" :key="t.id" :label="t.name" :value="t.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="对账周期">
+          <el-input v-model="editForm.period" placeholder="如: 2025-02-01 ~ 2025-02-28" />
+        </el-form-item>
+      </el-form>
+      <div class="edit-items-title">对账明细</div>
+      <el-table :data="editForm.items" border style="width: 100%" max-height="300">
+        <el-table-column prop="productName" label="品名" width="100" />
+        <el-table-column prop="spec" label="规格" width="80" />
+        <el-table-column prop="quantity" label="数量" width="100" align="right">
+          <template #default="{ row }">
+            <el-input-number v-model="row.quantity" size="small" :min="0" :precision="2" controls-position="right" style="width: 100%" />
+          </template>
+        </el-table-column>
+        <el-table-column prop="weight" label="重量(吨)" width="110" align="right">
+          <template #default="{ row }">
+            <el-input-number v-model="row.weight" size="small" :min="0" :precision="4" controls-position="right" style="width: 100%" />
+          </template>
+        </el-table-column>
+        <el-table-column prop="unitPrice" label="单价" width="110" align="right">
+          <template #default="{ row }">
+            <el-input-number v-model="row.unitPrice" size="small" :min="0" :precision="4" controls-position="right" style="width: 100%" />
+          </template>
+        </el-table-column>
+        <el-table-column prop="amount" label="金额" width="120" align="right">
+          <template #default="{ row }">
+            <el-input-number v-model="row.amount" size="small" :min="0" :precision="2" controls-position="right" style="width: 100%" />
+          </template>
+        </el-table-column>
+      </el-table>
+      <template #footer>
+        <el-button @click="showEditDialog = false">取消</el-button>
+        <el-button type="primary" :loading="editSubmitting" @click="handleSaveEdit">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Create Dispute Dialog -->
+    <el-dialog v-model="showDisputeDialog" title="提异议" width="520px" destroy-on-close @close="closeDisputeDialog">
+      <el-form :model="disputeForm" label-width="100px">
+        <el-form-item label="对账明细" required>
+          <el-select v-model="disputeForm.billItemId" placeholder="请选择明细行" style="width: 100%" filterable>
+            <el-option
+              v-for="(item, idx) in billItems"
+              :key="idx"
+              :label="`${idx + 1} ${item.productName ?? ''} ${item.spec ?? ''}`"
+              :value="item.id ?? idx"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="异议类型" required>
+          <el-select v-model="disputeForm.disputeType" placeholder="请选择" style="width: 100%">
+            <el-option label="数量差异" value="QUANTITY" />
+            <el-option label="重量差异" value="WEIGHT" />
+            <el-option label="单价差异" value="UNIT_PRICE" />
+            <el-option label="品规不符" value="SPEC_MISMATCH" />
+            <el-option label="缺少记录" value="MISSING_RECORD" />
+            <el-option label="其他" value="OTHER" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="描述" required>
+          <el-input v-model="disputeForm.description" type="textarea" :rows="4" placeholder="请描述异议内容" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showDisputeDialog = false">取消</el-button>
+        <el-button type="primary" :loading="disputeSubmitting" :disabled="!disputeForm.description?.trim()" @click="handleCreateDispute">提交</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="signDialogVisible" title="发起签章" width="480px" destroy-on-close>
+      <el-form label-width="100px">
+        <el-form-item label="签署顺序">
+          <el-radio-group v-model="signOrderType">
+            <el-radio :label="1">卖方先签</el-radio>
+            <el-radio :label="2">买方先签</el-radio>
+            <el-radio :label="3">无序签</el-radio>
+          </el-radio-group>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="signDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="signInitiating" @click="handleInitiateSign">确认发起</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="invoiceLinksDialogVisible" title="关联发票" width="600px" destroy-on-close @open="loadInvoiceLinks">
+      <el-table :data="invoiceLinks" border style="width: 100%">
+        <el-table-column prop="billItemId" label="明细ID" width="80" />
+        <el-table-column prop="invoiceNo" label="发票号" min-width="140" />
+        <el-table-column prop="invoiceAmount" label="发票金额" width="120" align="right">
+          <template #default="{ row }">¥{{ formatAmount(row.invoiceAmount) }}</template>
+        </el-table-column>
+        <el-table-column prop="invoiceStatus" label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag size="small">{{ getInvoiceStatusText(row.invoiceStatus) }}</el-tag>
+          </template>
+        </el-table-column>
+      </el-table>
+      <p v-if="!invoiceLinks.length" class="empty-hint">暂无关联发票，请通过发票管理进行关联</p>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, reactive, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getBillDetail,
+  updateBill,
   sendBill,
   confirmBill,
   voidBill,
   generatePdf,
   listDisputes,
+  createDispute,
   getSignStatus,
+  listTemplates,
+  initiateSign,
+  getInvoiceLinks,
 } from '@/api/recon'
 
 interface BillDetail {
@@ -154,8 +280,10 @@ interface BillDetail {
   sellerName?: string
   buyerName?: string
   period?: string
-  createdAt?: string
+  remark?: string
+  templateId?: number
   templateName?: string
+  createdAt?: string
   carryOverAmount?: number
   totalAmount?: number
   paidAmount?: number
@@ -166,6 +294,8 @@ interface BillDetail {
 }
 
 interface BillItem {
+  id?: number
+  lineNo?: number
   contractNo: string
   orderNo: string
   deliveryNo: string
@@ -176,6 +306,19 @@ interface BillItem {
   weight: number
   unitPrice: number
   amount: number
+  invoice_status?: string
+}
+
+interface InvoiceLink {
+  billItemId?: number
+  invoiceNo?: string
+  invoiceAmount?: number
+  invoiceStatus?: string
+}
+
+interface Template {
+  id: number
+  name: string
 }
 
 interface Payment {
@@ -198,6 +341,7 @@ interface SignStatus {
 }
 
 const route = useRoute()
+const router = useRouter()
 const billId = computed(() => Number(route.params.id))
 const loading = ref(false)
 const bill = ref<BillDetail>({
@@ -212,6 +356,60 @@ const payments = computed(() => bill.value.payments ?? [])
 const disputes = ref<{ id: number; subject: string; status: string; createdAt: string }[]>([])
 const signStatus = ref<SignStatus | null>(null)
 const operationLogs = computed(() => bill.value.operationLogs ?? [])
+const signDialogVisible = ref(false)
+const signOrderType = ref(1)
+const signInitiating = ref(false)
+
+const showEditDialog = ref(false)
+const showDisputeDialog = ref(false)
+const editSubmitting = ref(false)
+const disputeSubmitting = ref(false)
+const templates = ref<Template[]>([])
+const editForm = reactive({
+  remark: '',
+  templateId: null as number | null,
+  period: '',
+  items: [] as BillItem[],
+})
+const disputeForm = reactive({
+  billItemId: null as number | null,
+  disputeType: 'QUANTITY',
+  description: '',
+})
+
+const invoiceLinksDialogVisible = ref(false)
+const invoiceLinks = ref<InvoiceLink[]>([])
+
+function getInvoiceStatusText(status?: string) {
+  const map: Record<string, string> = {
+    NONE: '未开票',
+    FULL: '已开票',
+    PARTIAL: '部分开票',
+  }
+  return map[status ?? ''] ?? status ?? '未开票'
+}
+
+function getInvoiceStatusTagType(status?: string): 'success' | 'warning' | 'info' {
+  const map: Record<string, 'success' | 'warning' | 'info'> = {
+    NONE: 'info',
+    FULL: 'success',
+    PARTIAL: 'warning',
+  }
+  return map[status ?? ''] ?? 'info'
+}
+
+function openInvoiceLinksDialog() {
+  invoiceLinksDialogVisible.value = true
+}
+
+async function loadInvoiceLinks() {
+  try {
+    const res = await getInvoiceLinks(billId.value) as InvoiceLink[]
+    invoiceLinks.value = Array.isArray(res) ? res : []
+  } catch {
+    invoiceLinks.value = []
+  }
+}
 
 function formatAmount(val: number | undefined) {
   if (val == null) return '0.00'
@@ -364,8 +562,43 @@ function handleSend() {
   })
 }
 
+function openEditDialog() {
+  editForm.remark = bill.value.remark ?? ''
+  editForm.templateId = bill.value.templateId ?? null
+  editForm.period = bill.value.period ?? ''
+  editForm.items = (bill.value.items ?? []).map((i) => ({ ...i }))
+  showEditDialog.value = true
+}
+
+function closeEditDialog() {
+  editForm.remark = ''
+  editForm.templateId = null
+  editForm.period = ''
+  editForm.items = []
+}
+
+async function handleSaveEdit() {
+  editSubmitting.value = true
+  try {
+    await updateBill(billId.value, {
+      remark: editForm.remark,
+      templateId: editForm.templateId,
+      period: editForm.period,
+      items: editForm.items,
+    })
+    ElMessage.success('保存成功')
+    showEditDialog.value = false
+    fetchDetail()
+  } catch {
+    // error handled by interceptor
+  } finally {
+    editSubmitting.value = false
+  }
+}
+
 function handleEdit() {
-  ElMessage.info('编辑功能开发中')
+  if (!['CREATED', 'GENERATED'].includes(bill.value.status)) return
+  openEditDialog()
 }
 
 async function handleVoid() {
@@ -384,8 +617,46 @@ function handleConfirm() {
   })
 }
 
+function openDisputeDialog() {
+  if (billItems.value.length === 0) {
+    ElMessage.warning('暂无对账明细，无法创建异议')
+    return
+  }
+  disputeForm.billItemId = billItems.value[0].id ?? 0
+  disputeForm.disputeType = 'QUANTITY'
+  disputeForm.description = ''
+  showDisputeDialog.value = true
+}
+
+function closeDisputeDialog() {
+  disputeForm.billItemId = null
+  disputeForm.disputeType = 'QUANTITY'
+  disputeForm.description = ''
+}
+
+async function handleCreateDispute() {
+  if (!disputeForm.description?.trim()) return
+  disputeSubmitting.value = true
+  try {
+    await createDispute({
+      billId: billId.value,
+      billItemId: disputeForm.billItemId,
+      disputeType: disputeForm.disputeType,
+      description: disputeForm.description.trim(),
+    })
+    ElMessage.success('异议已提交')
+    showDisputeDialog.value = false
+    activeTab.value = 'disputes'
+    loadDisputes()
+  } catch {
+    // error handled by interceptor
+  } finally {
+    disputeSubmitting.value = false
+  }
+}
+
 function handleDispute() {
-  ElMessage.info('请前往异议列表创建异议')
+  openDisputeDialog()
 }
 
 function handleUrge() {
@@ -393,13 +664,40 @@ function handleUrge() {
 }
 
 function handleSign() {
-  ElMessage.info('请前往签章流程')
+  signOrderType.value = 1
+  signDialogVisible.value = true
+}
+
+async function handleInitiateSign() {
+  signInitiating.value = true
+  try {
+    await initiateSign(billId.value, signOrderType.value)
+    ElMessage.success('签章流程已发起')
+    signDialogVisible.value = false
+    router.push({ name: 'signPending' })
+  } catch {
+    ElMessage.error('发起签章失败')
+  } finally {
+    signInitiating.value = false
+  }
 }
 
 function handleDownloadPdf() {
   generatePdf(billId.value).then(() => {
     ElMessage.success('PDF生成中，请稍后下载')
   })
+}
+
+async function loadTemplates() {
+  try {
+    const res = await listTemplates() as Template[]
+    templates.value = Array.isArray(res) ? res : []
+    if (templates.value.length === 0) {
+      templates.value = [{ id: 1, name: '标准对账模板' }, { id: 2, name: '简化对账模板' }]
+    }
+  } catch {
+    templates.value = [{ id: 1, name: '标准对账模板' }]
+  }
 }
 
 watch(activeTab, (tab) => {
@@ -409,6 +707,7 @@ watch(activeTab, (tab) => {
 
 onMounted(() => {
   fetchDetail()
+  loadTemplates()
 })
 </script>
 
@@ -480,6 +779,16 @@ onMounted(() => {
     margin-top: 24px;
   }
 
+  .items-toolbar {
+    margin-bottom: 12px;
+  }
+
+  .empty-hint {
+    margin: 16px 0 0;
+    color: #909399;
+    font-size: 14px;
+  }
+
   .payment-summary {
     margin-top: 16px;
     padding: 12px;
@@ -494,6 +803,13 @@ onMounted(() => {
     font-size: 12px;
     color: #909399;
     margin-top: 4px;
+  }
+
+  .edit-items-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 16px 0 8px;
+    color: #303133;
   }
 }
 </style>

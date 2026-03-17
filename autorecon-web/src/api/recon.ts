@@ -4,6 +4,8 @@ import { get, post, put, del } from '@/utils/request'
 export const createBill = (data: Record<string, unknown>) => post('/v1/recon/bills', data)
 export const queryBills = (params: Record<string, unknown>) => get('/v1/recon/bills', params)
 export const getBillDetail = (id: number) => get(`/v1/recon/bills/${id}`)
+export const updateBill = (id: number, data: Record<string, unknown>) =>
+  put(`/v1/recon/bills/${id}`, data)
 export const sendBill = (id: number) => put(`/v1/recon/bills/${id}/send`)
 export const confirmBill = (id: number) => put(`/v1/recon/bills/${id}/confirm`)
 export const voidBill = (id: number) => put(`/v1/recon/bills/${id}/void`)
@@ -24,13 +26,24 @@ export const deleteTemplate = (id: number) => del(`/v1/recon/templates/${id}`)
 export const executeMatch = (billId: number) => post(`/v1/recon/match/${billId}/execute`)
 export const getMatchResult = (billId: number) => get(`/v1/recon/match/${billId}/result`)
 export const getDiffItems = (billId: number) => get(`/v1/recon/match/${billId}/diff`)
+export const uploadExcelForBill = (billId: number, file: File) => {
+  const fd = new FormData()
+  fd.append('file', file)
+  return post(`/v1/recon/data/upload-excel?billId=${billId}`, fd)
+}
 
 // 异议
 export const createDispute = (data: Record<string, unknown>) => post('/v1/recon/disputes', data)
+export const escalateDispute = (id: number) => put(`/v1/recon/disputes/${id}/escalate`)
 export const listDisputes = (params: Record<string, unknown>) => get('/v1/recon/disputes', params)
 export const getDisputeDetail = (id: number) => get(`/v1/recon/disputes/${id}`)
 export const sendDisputeMessage = (id: number, data: Record<string, unknown>) =>
   post(`/v1/recon/disputes/${id}/messages`, data)
+export const uploadDisputeAttachment = (id: number, file: File) => {
+  const fd = new FormData()
+  fd.append('file', file)
+  return post<{ url?: string; attachmentUrl?: string }>(`/v1/recon/disputes/${id}/upload`, fd)
+}
 export const resolveDispute = (id: number, data: { resolution: string }) =>
   put(`/v1/recon/disputes/${id}/resolve`, data)
 export const getDisputeMessages = (id: number) => get(`/v1/recon/disputes/${id}/messages`)
@@ -38,17 +51,25 @@ export const getDisputeMessages = (id: number) => get(`/v1/recon/disputes/${id}/
 // 签章
 export const initiateSign = (billId: number, signOrderType: number) =>
   post('/v1/recon/sign/flows', { billId, signOrderType })
+export const executeSign = (signRecordId: number, sealId: number, verifyCode: string) =>
+  post(`/v1/recon/sign/flows/${signRecordId}/sign`, undefined, { params: { sealId, verifyCode } })
 export const getSignStatus = (billId: number) => get(`/v1/recon/sign/flows/${billId}/status`)
 export const listPendingSigns = () => get('/v1/recon/sign/pending')
 export const listSeals = () => get('/v1/recon/sign/seals')
 export const createSeal = (data: Record<string, unknown>) => post('/v1/recon/sign/seals', data)
 export const disableSeal = (id: number) => put(`/v1/recon/sign/seals/${id}/disable`)
 export const enableSeal = (id: number) => put(`/v1/recon/sign/seals/${id}/enable`)
+export const revokeSeal = (id: number) => del(`/v1/recon/sign/seals/${id}`)
 export const listOperators = () => get('/v1/recon/sign/operators')
 export const createOperator = (data: Record<string, unknown>) => post('/v1/recon/sign/operators', data)
+export const updateOperator = (id: number, data: Record<string, unknown>) =>
+  put(`/v1/recon/sign/operators/${id}`, data)
+export const disableOperator = (id: number) => put(`/v1/recon/sign/operators/${id}/disable`)
 
 // 免注册
 export const guestViewBill = (token: string) => get(`/v1/guest/view/${token}`)
+export const guestDownloadPdf = (token: string) =>
+  get<Blob>(`/v1/guest/pdf/${token}`, undefined, { responseType: 'blob' })
 export const guestConfirm = (token: string, data: Record<string, unknown>) =>
   post(`/v1/guest/confirm/${token}`, data)
 export const verifyPhone = (data: { phone: string; code: string }) =>

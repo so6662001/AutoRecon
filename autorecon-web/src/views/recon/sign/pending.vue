@@ -159,7 +159,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Stamp, Document, User } from '@element-plus/icons-vue'
-import { listPendingSigns, listSeals } from '@/api/recon'
+import { listPendingSigns, listSeals, executeSign } from '@/api/recon'
 
 interface PendingSignItem {
   id: number
@@ -259,8 +259,14 @@ function sendVerifyCode() {
 }
 
 async function handleConfirmSign() {
+  const item = currentSignItem.value
+  if (!item || selectedSealId.value == null || !verifyCode.value) {
+    ElMessage.warning('请完成印章选择与验证')
+    return
+  }
   signing.value = true
   try {
+    await executeSign(item.id, selectedSealId.value, verifyCode.value)
     ElMessage.success('签章成功')
     signDialogVisible.value = false
     fetchList()

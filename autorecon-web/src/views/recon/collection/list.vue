@@ -23,6 +23,10 @@
       </el-col>
     </el-row>
 
+    <div class="action-bar">
+      <el-button type="primary" @click="createDialogVisible = true">新建催收计划</el-button>
+    </div>
+
     <el-form :model="searchForm" inline class="search-form">
       <el-form-item label="状态">
         <el-select v-model="searchForm.status" placeholder="全部" clearable style="width: 140px">
@@ -70,8 +74,9 @@
         </template>
       </el-table-column>
       <el-table-column prop="nextCollectDate" label="下次催收日" width="110" />
-      <el-table-column label="操作" width="260" fixed="right">
+      <el-table-column label="操作" width="340" fixed="right">
         <template #default="{ row }">
+          <el-button type="primary" link size="small" @click="handleViewLogs(row)">查看日志</el-button>
           <el-button type="primary" link size="small" @click="handleExecute(row)">执行催收</el-button>
           <el-button type="primary" link size="small" @click="handleRegisterPayment(row)">
             登记回款
@@ -125,6 +130,72 @@
       </template>
     </el-dialog>
 
+    <!-- Create plan dialog -->
+    <el-dialog v-model="createDialogVisible" title="新建催收计划" width="520px" destroy-on-close @open="loadSignedBills">
+      <el-form :model="createForm" label-width="100px">
+        <el-form-item label="对账单" required>
+          <el-select
+            v-model="createForm.billId"
+            filterable
+            remote
+            :remote-method="searchBills"
+            placeholder="搜索对账单号"
+            style="width: 100%"
+            @change="onBillSelect"
+          >
+            <el-option
+              v-for="b in signedBills"
+              :key="b.id"
+              :label="`${b.billNo ?? ''} (余额: ¥${formatAmount(b.balanceAmount)})`"
+              :value="b.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="应收金额" required>
+          <el-input-number v-model="createForm.amount" :min="0" :precision="2" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="到期日期" required>
+          <el-date-picker
+            v-model="createForm.dueDate"
+            type="date"
+            value-format="YYYY-MM-DD"
+            placeholder="选择到期日期"
+            style="width: 100%"
+          />
+        </el-form-item>
+        <el-form-item label="催收策略" required>
+          <el-select v-model="createForm.strategy" placeholder="请选择" style="width: 100%">
+            <el-option label="A级-宽松" value="A" />
+            <el-option label="B级-标准" value="B" />
+            <el-option label="C级-积极" value="C" />
+            <el-option label="D级-加急" value="D" />
+            <el-option label="E级-升级" value="E" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="createDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="createSubmitting" @click="handleCreatePlan">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Logs drawer -->
+    <el-drawer v-model="logsDrawerVisible" title="催收日志" size="480px" destroy-on-close>
+      <el-timeline v-if="collectionLogs.length">
+        <el-timeline-item
+          v-for="(log, i) in collectionLogs"
+          :key="i"
+          :timestamp="log.createdAt ?? log.date"
+          placement="top"
+        >
+          <el-tag size="small" :type="getLogActionTagType(log.actionType)">{{ log.actionType ?? '执行' }}</el-tag>
+          <div class="log-content">{{ log.content }}</div>
+          <div v-if="log.result" class="log-result">{{ log.result }}</div>
+        </el-timeline-item>
+      </el-timeline>
+      <el-empty v-else description="暂无日志" />
+    </el-drawer>
+
     <!-- Register payment dialog -->
     <el-dialog v-model="registerVisible" title="登记回款" width="400px">
       <el-form :model="registerForm" label-width="100px">
@@ -153,10 +224,13 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   listCollectionPlans,
+  createCollectionPlan,
   executePlan,
   registerPaymentToCollection,
   pausePlan,
   resumePlan,
+  getCollectionLogs,
+  queryBills,
 } from '@/api/recon'
 
 interface CollectionPlan {
@@ -173,11 +247,30 @@ interface CollectionPlan {
   nextCollectDate: string
 }
 
+interface SignedBill {
+  id: number
+  billNo?: string
+  balanceAmount?: number
+}
+
+interface CollectionLog {
+  createdAt?: string
+  date?: string
+  actionType?: string
+  content?: string
+  result?: string
+}
+
 const loading = ref(false)
 const tableData = ref<CollectionPlan[]>([])
 const executeVisible = ref(false)
 const registerVisible = ref(false)
+const createDialogVisible = ref(false)
+const createSubmitting = ref(false)
+const logsDrawerVisible = ref(false)
+const collectionLogs = ref<CollectionLog[]>([])
 const currentPlanId = ref<number | null>(null)
+const signedBills = ref<SignedBill[]>([])
 
 const stats = reactive({
   activeCount: 0,
@@ -198,6 +291,13 @@ const executeForm = reactive({
 const registerForm = reactive({
   amount: 0,
   remark: '',
+})
+
+const createForm = reactive({
+  billId: null as number | null,
+  amount: 0,
+  dueDate: '',
+  strategy: 'B',
 })
 
 function formatAmount(val: number | undefined) {
@@ -297,6 +397,83 @@ async function handleResume(row: CollectionPlan) {
   }
 }
 
+async function loadSignedBills() {
+  try {
+    const res = await queryBills({ status: 'SIGNED' }) as { list?: SignedBill[] }
+    signedBills.value = res?.list ?? []
+  } catch {
+    signedBills.value = []
+  }
+}
+
+async function searchBills(query: string) {
+  if (!query?.trim()) {
+    loadSignedBills()
+    return
+  }
+  try {
+    const res = await queryBills({ status: 'SIGNED', billNo: query }) as { list?: SignedBill[] }
+    signedBills.value = res?.list ?? []
+  } catch {
+    signedBills.value = []
+  }
+}
+
+function onBillSelect(billId: number | null) {
+  const bill = signedBills.value.find((b) => b.id === billId)
+  if (bill?.balanceAmount != null) {
+    createForm.amount = bill.balanceAmount
+  }
+}
+
+async function handleCreatePlan() {
+  if (!createForm.billId || !createForm.dueDate) {
+    ElMessage.warning('请填写对账单和到期日期')
+    return
+  }
+  createSubmitting.value = true
+  try {
+    await createCollectionPlan({
+      billId: createForm.billId,
+      amount: createForm.amount,
+      dueDate: createForm.dueDate,
+      strategy: createForm.strategy,
+    })
+    ElMessage.success('催收计划已创建')
+    createDialogVisible.value = false
+    createForm.billId = null
+    createForm.amount = 0
+    createForm.dueDate = ''
+    createForm.strategy = 'B'
+    fetchPlans()
+  } catch {
+    // error handled by interceptor
+  } finally {
+    createSubmitting.value = false
+  }
+}
+
+async function handleViewLogs(row: CollectionPlan) {
+  currentPlanId.value = row.id
+  logsDrawerVisible.value = true
+  try {
+    const res = await getCollectionLogs(row.id) as CollectionLog[]
+    collectionLogs.value = Array.isArray(res) ? res : []
+  } catch {
+    collectionLogs.value = []
+  }
+}
+
+function getLogActionTagType(actionType?: string): 'success' | 'warning' | 'info' | 'danger' {
+  const map: Record<string, 'success' | 'warning' | 'info' | 'danger'> = {
+    SMS: 'info',
+    EMAIL: 'info',
+    PHONE: 'warning',
+    MANUAL: 'info',
+  }
+  return (map[actionType ?? ''] ?? 'info') as 'success' | 'warning' | 'info' | 'danger'
+}
+
 async function fetchPlans() {
   loading.value = true
   try {
@@ -387,6 +564,21 @@ onMounted(() => {
   .text-danger {
     color: #f56c6c;
     font-weight: 600;
+  }
+
+  .action-bar {
+    margin-bottom: 16px;
+  }
+
+  .log-content {
+    margin-top: 4px;
+    font-size: 14px;
+  }
+
+  .log-result {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #909399;
   }
 }
 </style>

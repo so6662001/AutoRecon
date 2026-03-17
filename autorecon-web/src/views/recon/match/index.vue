@@ -126,10 +126,41 @@
     </div>
 
     <div class="action-bar">
-      <el-button type="primary">全部确认</el-button>
-      <el-button type="warning">标记差异为异议</el-button>
-      <el-button>导出比对报告</el-button>
+      <el-button type="primary" :loading="disputeSubmitting" @click="handleConfirmAll">全部确认</el-button>
+      <el-button type="warning" @click="handleOpenDisputeDialog">标记差异为异议</el-button>
+      <el-button @click="handleExportReport">导出比对报告</el-button>
     </div>
+
+    <el-dialog v-model="disputeDialogVisible" title="标记差异为异议" width="700px" destroy-on-close>
+      <p class="dialog-hint">请选择要创建异议的差异项：</p>
+      <el-table
+        :data="diffItemsForDispute"
+        max-height="300"
+        :row-key="(row: MatchItem): string => String(row.id ?? `${row.contractNo}-${row.productName}-${row.spec}`)"
+        @selection-change="handleDisputeSelectionChange"
+      >
+        <el-table-column type="selection" width="55" />
+        <el-table-column prop="contractNo" label="合同号" width="120" />
+        <el-table-column prop="productName" label="品名" min-width="100" />
+        <el-table-column prop="weightDiff" label="重量差异" width="90" align="right">
+          <template #default="{ row }">{{ formatDiff(row.weightDiff) }}</template>
+        </el-table-column>
+        <el-table-column prop="amountDiff" label="金额差异" width="100" align="right">
+          <template #default="{ row }">{{ formatAmount(row.amountDiff) }}</template>
+        </el-table-column>
+        <el-table-column prop="status" label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag size="small">{{ getStatusText(row.status) }}</el-tag>
+          </template>
+        </el-table-column>
+      </el-table>
+      <template #footer>
+        <el-button @click="disputeDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="disputeSubmitting" :disabled="selectedDiffItems.length === 0" @click="handleCreateDisputes">
+          创建异议 ({{ selectedDiffItems.length }})
+        </el-button>
+      </template>
+    </el-dialog>
 
     <el-dialog v-model="detailVisible" title="明细详情" width="600px" destroy-on-close>
       <div v-if="selectedItem" class="detail-content">
@@ -152,10 +183,10 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { RefreshRight, Refresh } from '@element-plus/icons-vue'
-import { executeMatch, getMatchResult, getDiffItems } from '@/api/recon'
+import { executeMatch, getMatchResult, getDiffItems, confirmBill, createDispute } from '@/api/recon'
 
 interface MatchItem {
   id?: number
@@ -169,6 +200,7 @@ interface MatchItem {
   buyerAmount?: number
   amountDiff?: number
   status: string
+  matchStatus?: number
 }
 
 interface MatchResult {
@@ -182,6 +214,7 @@ interface MatchResult {
 }
 
 const route = useRoute()
+const router = useRouter()
 const billId = computed(() => String(route.params.billId))
 
 const loading = ref(false)
@@ -198,6 +231,9 @@ const items = ref<MatchItem[]>([])
 const activeTab = ref('all')
 const detailVisible = ref(false)
 const selectedItem = ref<MatchItem | null>(null)
+const disputeDialogVisible = ref(false)
+const selectedDiffItems = ref<MatchItem[]>([])
+const disputeSubmitting = ref(false)
 
 const matchRate = computed(() => {
   const total = stats.value.total
@@ -213,6 +249,10 @@ const filteredItems = computed(() => {
   if (activeTab.value === 'buyerExtra') return list.filter((i) => i.status === 'buyer_extra')
   return list
 })
+
+const diffItemsForDispute = computed(() =>
+  items.value.filter((i) => i.status !== 'matched')
+)
 
 function formatDiff(val?: number): string {
   if (val == null) return '-'
@@ -285,6 +325,92 @@ async function handleExecute() {
 
 function handleRefresh() {
   fetchData()
+}
+
+function handleDisputeSelectionChange(rows: MatchItem[]) {
+  selectedDiffItems.value = rows
+}
+
+function detectDisputeType(item: MatchItem): number {
+  if (item.status === 'seller_extra' || item.status === 'buyer_extra') return 4
+  const hasWeight = (item.weightDiff ?? 0) !== 0
+  const hasAmount = (item.amountDiff ?? 0) !== 0
+  if (hasWeight) return 2
+  if (hasAmount) return 3
+  return 2
+}
+
+async function handleConfirmAll() {
+  try {
+    await ElMessageBox.confirm('确认所有匹配项无异议？', '确认', {
+      type: 'warning',
+    })
+    disputeSubmitting.value = true
+    await confirmBill(Number(billId.value))
+    ElMessage.success('全部确认成功')
+    router.push({ name: 'billDetail', params: { id: billId.value } })
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('确认失败')
+  } finally {
+    disputeSubmitting.value = false
+  }
+}
+
+function handleOpenDisputeDialog() {
+  if (diffItemsForDispute.value.length === 0) {
+    ElMessage.warning('暂无差异项可标记')
+    return
+  }
+  selectedDiffItems.value = []
+  disputeDialogVisible.value = true
+}
+
+async function handleCreateDisputes() {
+  if (selectedDiffItems.value.length === 0) return
+  disputeSubmitting.value = true
+  try {
+    let count = 0
+    for (const item of selectedDiffItems.value) {
+      await createDispute({
+        billId: Number(billId.value),
+        matchItemId: item.id,
+        disputeType: detectDisputeType(item),
+      })
+      count++
+    }
+    ElMessage.success(`已创建 ${count} 条异议`)
+    disputeDialogVisible.value = false
+    await fetchData()
+  } catch {
+    ElMessage.error('创建异议失败')
+  } finally {
+    disputeSubmitting.value = false
+  }
+}
+
+function handleExportReport() {
+  const headers = ['合同号', '品名', '规格', '卖方重量', '买方重量', '重量差异', '卖方金额', '买方金额', '金额差异', '状态']
+  const rows = items.value.map((r) => [
+    r.contractNo,
+    r.productName,
+    r.spec,
+    r.sellerWeight ?? '',
+    r.buyerWeight ?? '',
+    formatDiff(r.weightDiff),
+    r.sellerAmount ?? '',
+    r.buyerAmount ?? '',
+    formatAmount(r.amountDiff),
+    getStatusText(r.status),
+  ])
+  const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))].join('\n')
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `比对报告_${billNo.value || billId.value}_${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+  ElMessage.success('导出成功')
 }
 
 onMounted(() => {
@@ -413,6 +539,12 @@ onMounted(() => {
 
   .detail-content {
     padding: 8px 0;
+  }
+
+  .dialog-hint {
+    margin: 0 0 16px;
+    color: #606266;
+    font-size: 14px;
   }
 }
 </style>

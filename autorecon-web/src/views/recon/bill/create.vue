@@ -71,7 +71,7 @@
         <el-upload
           :auto-upload="false"
           :show-file-list="false"
-          accept=".xlsx,.xls"
+          accept=".xlsx,.xls,.csv"
           @change="handleExcelImport"
         >
           <el-button>导入Excel</el-button>
@@ -189,6 +189,27 @@
       </el-result>
     </div>
 
+    <!-- Excel Mapping Dialog -->
+    <el-dialog v-model="showMappingDialog" title="列映射" width="560px" destroy-on-close @close="closeMappingDialog">
+      <p class="mapping-hint">请将Excel列映射到对账明细字段（首行为表头）</p>
+      <el-form :model="mappingForm" label-width="120px">
+        <el-form-item v-for="field in systemFields" :key="field.key" :label="field.label">
+          <el-select v-model="mappingForm[field.key]" placeholder="选择Excel列" clearable style="width: 100%">
+            <el-option
+              v-for="(col, idx) in excelColumns"
+              :key="idx"
+              :label="col"
+              :value="idx"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showMappingDialog = false">取消</el-button>
+        <el-button type="primary" :disabled="!canApplyMapping" @click="applyMappingAndImport">确定导入</el-button>
+      </template>
+    </el-dialog>
+
     <!-- Footer buttons -->
     <div v-if="currentStep < 3" class="step-footer">
       <el-button v-if="currentStep > 0" @click="prevStep">上一步</el-button>
@@ -202,7 +223,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { createBill, listTemplates } from '@/api/recon'
+import { createBill, listTemplates, getDefaultTemplate } from '@/api/recon'
 
 interface BillItem {
   contractNo: string
@@ -263,6 +284,32 @@ const items = ref<BillItem[]>([
 
 const sendOption = ref('MANUAL')
 
+const showMappingDialog = ref(false)
+const excelColumns = ref<string[]>([])
+const excelRows = ref<string[][]>([])
+const mappingForm = reactive<Record<string, number | null>>({
+  contractNo: null,
+  orderNo: null,
+  deliveryNo: null,
+  productName: null,
+  spec: null,
+  material: null,
+  quantity: null,
+  weight: null,
+  unitPrice: null,
+})
+const systemFields = [
+  { key: 'contractNo', label: '合同号' },
+  { key: 'orderNo', label: '订单号' },
+  { key: 'deliveryNo', label: '发货单号' },
+  { key: 'productName', label: '品名' },
+  { key: 'spec', label: '规格' },
+  { key: 'material', label: '材质' },
+  { key: 'quantity', label: '数量' },
+  { key: 'weight', label: '重量(吨)' },
+  { key: 'unitPrice', label: '单价' },
+]
+
 function formatAmount(val: number) {
   return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2 })
 }
@@ -301,9 +348,125 @@ function removeRow(index: number) {
   items.value.splice(index, 1)
 }
 
-function handleExcelImport(uploadFile: { raw?: File }) {
-  if (uploadFile?.raw) {
-    ElMessage.info('Excel导入功能需对接后端解析接口')
+function parseCsvText(text: string): string[][] {
+  const rows: string[][] = []
+  const lines = text.split(/\r?\n/)
+  for (const line of lines) {
+    if (!line.trim()) continue
+    const row: string[] = []
+    let cur = ''
+    let inQuotes = false
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i]
+      if (c === '"') {
+        inQuotes = !inQuotes
+      } else if ((c === ',' && !inQuotes) || c === '\t') {
+        row.push(cur.trim())
+        cur = ''
+      } else {
+        cur += c
+      }
+    }
+    row.push(cur.trim())
+    rows.push(row)
+  }
+  return rows
+}
+
+function parseExcelFile(file: File): Promise<string[][]> {
+  return new Promise((resolve, reject) => {
+    const ext = file.name.toLowerCase().slice(-4)
+    if (ext === '.csv') {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const text = String(reader.result ?? '')
+        resolve(parseCsvText(text))
+      }
+      reader.onerror = () => reject(new Error('读取文件失败'))
+      reader.readAsText(file, 'UTF-8')
+    } else {
+      import('xlsx').then((XLSX) => {
+        const reader = new FileReader()
+        reader.onload = () => {
+          try {
+            const wb = XLSX.read(reader.result, { type: 'array' })
+            const firstSheet = wb.Sheets[wb.SheetNames[0]]
+            const data = XLSX.utils.sheet_to_json<string[]>(firstSheet, { header: 1, defval: '' })
+            resolve(data as string[][])
+          } catch (e) {
+            reject(e)
+          }
+        }
+        reader.onerror = () => reject(new Error('读取文件失败'))
+        reader.readAsArrayBuffer(file)
+      }).catch(reject)
+    }
+  })
+}
+
+function openMappingDialog(columns: string[], rows: string[][]) {
+  excelColumns.value = columns
+  excelRows.value = rows
+  systemFields.forEach((f) => { mappingForm[f.key] = null })
+  showMappingDialog.value = true
+}
+
+function closeMappingDialog() {
+  excelColumns.value = []
+  excelRows.value = []
+}
+
+const canApplyMapping = computed(() =>
+  systemFields.some((f) => mappingForm[f.key] != null)
+)
+
+function applyMappingAndImport() {
+  const rows = excelRows.value
+  if (rows.length < 2) {
+    ElMessage.warning('无数据行')
+    return
+  }
+  const newItems: BillItem[] = []
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i]
+    const getVal = (key: string) => {
+      const colIdx = mappingForm[key]
+      return colIdx != null && row[colIdx] != null ? String(row[colIdx]).trim() : ''
+    }
+    const q = parseFloat(getVal('quantity')) || 0
+    const w = parseFloat(getVal('weight')) || 0
+    const p = parseFloat(getVal('unitPrice')) || 0
+    newItems.push({
+      contractNo: getVal('contractNo'),
+      orderNo: getVal('orderNo'),
+      deliveryNo: getVal('deliveryNo'),
+      productName: getVal('productName'),
+      spec: getVal('spec'),
+      material: getVal('material'),
+      quantity: q,
+      weight: w,
+      unitPrice: p,
+    })
+  }
+  items.value = newItems.filter((r) => r.productName || r.contractNo || r.quantity > 0 || r.unitPrice > 0)
+  if (items.value.length === 0) items.value = newItems
+  showMappingDialog.value = false
+  ElMessage.success(`已导入 ${items.value.length} 条明细`)
+}
+
+async function handleExcelImport(uploadFile: { raw?: File }) {
+  const file = uploadFile?.raw
+  if (!file) return
+  try {
+    const data = await parseExcelFile(file)
+    if (!data.length) {
+      ElMessage.warning('文件为空')
+      return
+    }
+    const headers = data[0].map((h, i) => (h && String(h).trim()) || `列${i + 1}`)
+    openMappingDialog(headers, data)
+  } catch (e) {
+    ElMessage.error('解析文件失败')
   }
 }
 
@@ -425,13 +588,23 @@ function goToList() {
 
 async function loadTemplates() {
   try {
-    const res = await listTemplates() as Template[]
-    templates.value = Array.isArray(res) ? res : []
+    const [listRes, defaultRes] = await Promise.all([
+      listTemplates() as Promise<Template[]>,
+      getDefaultTemplate() as Promise<Template | null>,
+    ])
+    templates.value = Array.isArray(listRes) ? listRes : []
     if (templates.value.length === 0) {
       templates.value = [{ id: 1, name: '标准对账模板' }, { id: 2, name: '简化对账模板' }]
     }
+    const defaultTpl = defaultRes && typeof defaultRes === 'object' && 'id' in defaultRes ? defaultRes as Template : null
+    if (defaultTpl?.id && templates.value.some((t) => t.id === defaultTpl.id)) {
+      step1Form.templateId = defaultTpl.id
+    } else if (templates.value.length > 0 && !step1Form.templateId) {
+      step1Form.templateId = templates.value[0].id
+    }
   } catch {
     templates.value = [{ id: 1, name: '标准对账模板' }]
+    step1Form.templateId = 1
   }
 }
 
@@ -513,6 +686,12 @@ onMounted(() => {
     display: flex;
     justify-content: center;
     gap: 12px;
+  }
+
+  .mapping-hint {
+    margin: 0 0 16px;
+    font-size: 14px;
+    color: #606266;
   }
 }
 </style>

@@ -45,7 +45,7 @@
                 :stroke-width="12"
                 :color="progressColor"
               />
-              <span class="value">剩余 {{ usage?.sealRemaining ?? 0 }}</span>
+              <span class="value">剩余 {{ sealQuota?.remaining ?? usage?.sealRemaining ?? 0 }}</span>
             </div>
             <div class="usage-item">
               <span class="label">存储空间</span>
@@ -131,6 +131,7 @@ import {
   getCurrentSubscription,
   getUsage,
   getBillingBills,
+  getSealQuota,
   subscribe,
   purchaseSealPackage,
 } from '@/api/system'
@@ -160,6 +161,7 @@ interface BillItem {
 
 const subscription = ref<Subscription | null>(null)
 const usage = ref<Usage | null>(null)
+const sealQuota = ref<{ remaining?: number; total?: number } | null>(null)
 const bills = ref<BillItem[]>([])
 const billsLoading = ref(false)
 const selectedPackage = ref(1)
@@ -198,9 +200,9 @@ const customerUsagePercent = computed(() => {
 })
 
 const sealRemainPercent = computed(() => {
-  const u = usage.value
-  const total = (u?.sealRemaining ?? 0) + 100
-  return Math.min(100, ((u?.sealRemaining ?? 0) / total) * 100)
+  const remaining = sealQuota.value?.remaining ?? usage.value?.sealRemaining ?? 0
+  const total = (sealQuota.value?.total ?? remaining + 100) || 100
+  return Math.min(100, (remaining / total) * 100)
 })
 
 const storageUsagePercent = computed(() => {
@@ -219,6 +221,11 @@ async function fetchData() {
     usage.value = (await getUsage()) as Usage
   } catch {
     usage.value = null
+  }
+  try {
+    sealQuota.value = (await getSealQuota()) as { remaining?: number; total?: number } | null
+  } catch {
+    sealQuota.value = null
   }
   billsLoading.value = true
   try {
