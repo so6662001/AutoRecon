@@ -57,3 +57,21 @@ body {
 .full-height {
   height: 100%;
 }
+
+.page-container {
+  background: #fff;
+  border-radius: 8px;
+  padding: 24px;
+  min-height: 100%;
+
+  h2 {
+    margin: 0 0 16px;
+    font-size: 20px;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0;
+    color: #666;
+  }
+}
