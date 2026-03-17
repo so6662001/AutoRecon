@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import type { AxiosInstance, InternalAxiosRequestConfig } from 'axios'
+import { getEmbedConfig } from '@/config/embed'
 
 const safeMessages: Record<number, string> = {
   400: '请求参数有误',
@@ -12,7 +13,8 @@ const safeMessages: Record<number, string> = {
 }
 
 function getBaseURL(): string {
-  return import.meta.env.VITE_API_BASE_URL || '/api'
+  const config = getEmbedConfig()
+  return config.apiBaseUrl || import.meta.env.VITE_API_BASE_URL || '/api'
 }
 
 const instance: AxiosInstance = axios.create({
@@ -42,10 +44,15 @@ instance.interceptors.response.use(
   },
   (error) => {
     const status = error.response?.status
+    const config = getEmbedConfig()
     if (status === 401) {
       localStorage.removeItem('token')
       localStorage.removeItem('userInfo')
-      window.location.href = '/login'
+      if (config.embedded && config.onError) {
+        config.onError(error)
+      } else {
+        window.location.href = '/login'
+      }
     } else {
       const safeMsg = status != null ? safeMessages[status] : undefined
       ElMessage.error(safeMsg ?? '操作失败，请稍后重试')

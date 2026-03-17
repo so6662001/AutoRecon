@@ -1,8 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import type { Router } from 'vue-router'
 import NProgress from 'nprogress'
 import 'nprogress/nprogress.css'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import { getEmbedConfig } from '@/config/embed'
 
 NProgress.configure({ showSpinner: false })
 
@@ -139,48 +141,88 @@ const routes = [
   },
 ]
 
-const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
-  routes,
-})
+export function createPickupExpressRouter(basePath?: string): Router {
+  const config = getEmbedConfig()
+  const history = createWebHistory(basePath ?? config.basePath ?? import.meta.env.BASE_URL)
 
-router.beforeEach(async (to, _from, next) => {
-  NProgress.start()
-  const userStore = useUserStore()
-  const token = userStore.token
-  const isPublic = to.meta.public === true
+  const router = createRouter({
+    history,
+    routes,
+  })
 
-  if (!token && !isPublic && to.path !== '/login') {
-    next({ path: '/login', query: { redirect: to.fullPath } })
+  router.beforeEach(async (to, _from, next) => {
+    NProgress.start()
+    const userStore = useUserStore()
+    const token = userStore.token
+    const isPublic = to.meta.public === true
+    const config = getEmbedConfig()
+    const { showLogin } = config
+
+    // Embedded mode without login page: require token, skip redirect to /login
+    if (!showLogin) {
+      const embedToken = localStorage.getItem('token') || config.authToken
+      if (embedToken) {
+        if (!userStore.userInfo) {
+          try {
+            await userStore.getUserInfo()
+          } catch {
+            // Continue
+          }
+        }
+        const roles = to.meta.roles as number[] | undefined
+        if (roles && roles.length > 0) {
+          const userRole = userStore.userInfo?.roleType
+          if (userRole === undefined || userRole === null || !roles.includes(userRole)) {
+            ElMessage.error('没有访问权限')
+            next({ path: '/dashboard' })
+            NProgress.done()
+            return
+          }
+        }
+        next()
+      } else {
+        console.error('Pickup Express: No auth token provided in embedded mode')
+        next(false)
+      }
+      return
+    }
+
+    if (!token && !isPublic && to.path !== '/login') {
+      next({ path: '/login', query: { redirect: to.fullPath } })
+      NProgress.done()
+      return
+    }
+    if (token && !isPublic && to.path !== '/login') {
+      if (!userStore.userInfo) {
+        try {
+          await userStore.getUserInfo()
+        } catch {
+          // Continue
+        }
+      }
+      const roles = to.meta.roles as number[] | undefined
+      if (roles && roles.length > 0) {
+        const userRole = userStore.userInfo?.roleType
+        if (userRole === undefined || userRole === null || !roles.includes(userRole)) {
+          ElMessage.error('没有访问权限')
+          next({ path: '/dashboard' })
+          NProgress.done()
+          return
+        }
+      }
+    }
+    next()
+  })
+
+  router.afterEach((to) => {
     NProgress.done()
-    return
-  }
-  if (token && !isPublic && to.path !== '/login') {
-    if (!userStore.userInfo) {
-      try {
-        await userStore.getUserInfo()
-      } catch {
-        // Continue
-      }
-    }
-    const roles = to.meta.roles as number[] | undefined
-    if (roles && roles.length > 0) {
-      const userRole = userStore.userInfo?.roleType
-      if (userRole === undefined || userRole === null || !roles.includes(userRole)) {
-        ElMessage.error('没有访问权限')
-        next({ path: '/dashboard' })
-        NProgress.done()
-        return
-      }
-    }
-  }
-  next()
-})
+    const title = (to.meta.title as string) || '提货通'
+    document.title = `${title} - 提货通`
+  })
 
-router.afterEach((to) => {
-  NProgress.done()
-  const title = (to.meta.title as string) || '提货通'
-  document.title = `${title} - 提货通`
-})
+  return router
+}
+
+const router = createPickupExpressRouter()
 
 export default router

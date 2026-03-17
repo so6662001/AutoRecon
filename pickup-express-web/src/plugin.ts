@@ -6,43 +6,43 @@ import { createPinia } from 'pinia'
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
-import { createReconRouter } from './router'
+import { createPickupExpressRouter } from './router'
 import AppComponent from './App.vue'
 import './styles/global.scss'
 
 /**
- * AutoRecon Vue plugin for embedding in a host platform.
- * Use createAutoRecon(config) for plugin mode, or mountAutoRecon(element, config) for standalone mount.
+ * Pickup Express Vue plugin for embedding in a host platform.
+ * Use createPickupExpress(config) for plugin mode, or mountPickupExpress(element, config) for standalone mount.
  */
-export interface AutoReconPlugin {
+export interface PickupExpressPlugin {
   install: (app: App) => void
 }
 
 /**
- * Creates the AutoRecon plugin for use with app.use().
+ * Creates the Pickup Express plugin for use with app.use().
  * Call configureEmbed(config) before or pass config here.
  */
-export function createAutoRecon(config: Partial<EmbedConfig> = {}): AutoReconPlugin {
+export function createPickupExpress(config: Partial<EmbedConfig> = {}): PickupExpressPlugin {
   return {
     install(app: App) {
       configureEmbed(config)
       for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
         app.component(key, component)
       }
-      app.component('AutoReconApp', AppComponent)
+      app.component('PickupExpressApp', AppComponent)
     },
   }
 }
 
 /**
- * Mounts AutoRecon as a standalone app in an element (for embedding in host platform).
- * Uses its own router and Pinia instance. For full host integration, use createAutoRecon + createReconRouter.
+ * Mounts Pickup Express as a standalone app in an element (for embedding in host platform).
+ * Uses its own router and Pinia instance. For full host integration, use createPickupExpress + createPickupExpressRouter.
  */
-export function mountAutoRecon(element: Element | string, config: Partial<EmbedConfig> = {}) {
+export function mountPickupExpress(element: Element | string, config: Partial<EmbedConfig> = {}) {
   configureEmbed(config)
   const app = createApp(AppComponent)
   const pinia = createPinia()
-  const router = createReconRouter(config.basePath)
+  const router = createPickupExpressRouter(config.basePath)
 
   for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
     app.component(key, component)
@@ -57,5 +57,5 @@ export function mountAutoRecon(element: Element | string, config: Partial<EmbedC
 }
 
 export { configureEmbed, getEmbedConfig, isEmbedded } from './config/embed'
-export { createReconRouter } from './router'
+export { createPickupExpressRouter } from './router'
 export { eventBus, EVENTS } from './utils/event-bus'
