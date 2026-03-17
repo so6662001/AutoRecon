@@ -37,8 +37,8 @@ instance.interceptors.response.use(
   }
 )
 
-export const get = <T = unknown>(url: string, params?: object): Promise<T> =>
-  instance.get(url, { params }) as Promise<T>
+export const get = <T = unknown>(url: string, params?: object, config?: object): Promise<T> =>
+  instance.get(url, { params, ...config }) as Promise<T>
 export const post = <T = unknown>(url: string, data?: object, config?: object): Promise<T> =>
   instance.post(url, data, config) as Promise<T>
 export const put = <T = unknown>(url: string, data?: object, config?: object): Promise<T> =>

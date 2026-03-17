@@ -163,7 +163,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Lock, Iphone, Message, CircleCheck, CircleClose, Download, Document, Service } from '@element-plus/icons-vue'
-import { guestViewBill, guestConfirm, verifyPhone, sendVerifyCode } from '@/api/recon'
+import { guestViewBill, guestConfirm, guestDownloadPdf, verifyPhone, sendVerifyCode } from '@/api/recon'
 
 interface BillItem {
   productName?: string
@@ -179,6 +179,7 @@ interface BillData {
   totalAmount?: number
   paidAmount?: number
   balance?: number
+  pdfUrl?: string
   items?: BillItem[]
 }
 
@@ -307,8 +308,27 @@ async function handleDispute() {
   }
 }
 
-function handleDownload() {
-  ElMessage.info('下载功能开发中')
+async function handleDownload() {
+  try {
+    const blob = await guestDownloadPdf(token.value)
+    if (blob && blob instanceof Blob) {
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `对账单-${bill.value.period ?? 'download'}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+      ElMessage.success('下载成功')
+    } else {
+      throw new Error('Invalid response')
+    }
+  } catch {
+    if (bill.value.pdfUrl) {
+      window.open(bill.value.pdfUrl, '_blank')
+    } else {
+      ElMessage.error('下载失败，请稍后重试')
+    }
+  }
 }
 
 function goRegister() {

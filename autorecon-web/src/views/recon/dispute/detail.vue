@@ -36,6 +36,7 @@
             <div class="message-time">{{ msg.createdAt }}</div>
             <div v-if="msg.contentType === 'text'" class="message-content">{{ msg.content }}</div>
             <img v-else-if="msg.contentType === 'image'" :src="msg.content" class="message-image" alt="图片" />
+            <a v-else-if="msg.contentType === 'file'" :href="msg.content" target="_blank" rel="noopener" class="message-file">下载附件</a>
             <div v-if="msg.read" class="message-read">已读</div>
           </div>
         </div>
@@ -54,10 +55,17 @@
           @keydown.ctrl.enter="handleSend"
         />
         <div class="input-actions">
-          <el-button text @click="handleAttach">
-            <el-icon><Paperclip /></el-icon>
-            附件
-          </el-button>
+          <el-upload
+            :auto-upload="false"
+            :show-file-list="false"
+            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+            @change="handleFileSelect"
+          >
+            <el-button text>
+              <el-icon><Paperclip /></el-icon>
+              附件
+            </el-button>
+          </el-upload>
           <el-button type="primary" :loading="sending" :disabled="!inputContent.trim()" @click="handleSend">
             发送
           </el-button>
@@ -102,9 +110,16 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Paperclip, Loading } from '@element-plus/icons-vue'
-import { getDisputeDetail, getDisputeMessages, sendDisputeMessage, resolveDispute } from '@/api/recon'
+import {
+  getDisputeDetail,
+  getDisputeMessages,
+  sendDisputeMessage,
+  resolveDispute,
+  escalateDispute,
+  uploadDisputeAttachment,
+} from '@/api/recon'
 
 interface DisputeInfo {
   id: number
@@ -209,8 +224,37 @@ function scrollToBottom() {
   }
 }
 
-function handleAttach() {
-  ElMessage.info('附件功能开发中')
+async function handleFileSelect(uploadFile: { raw?: File }) {
+  const file = uploadFile?.raw
+  if (!file) return
+  const isImage = file.type.startsWith('image/')
+  const contentType = isImage ? 'image' : 'file'
+  sending.value = true
+  try {
+    let attachmentUrl: string
+    try {
+      const res = await uploadDisputeAttachment(disputeId(), file)
+      attachmentUrl = (res as { url?: string; attachmentUrl?: string })?.attachmentUrl ?? (res as { url?: string })?.url ?? ''
+    } catch {
+      if (isImage) {
+        attachmentUrl = URL.createObjectURL(file)
+      } else {
+        throw new Error('上传失败')
+      }
+    }
+    if (!attachmentUrl) throw new Error('未获取到附件地址')
+    await sendDisputeMessage(disputeId(), {
+      messageType: isImage ? 2 : 3,
+      contentType,
+      content: attachmentUrl,
+      attachmentUrl,
+    })
+    await fetchMessages()
+  } catch {
+    ElMessage.error('上传或发送失败')
+  } finally {
+    sending.value = false
+  }
 }
 
 async function handleSend() {
@@ -244,8 +288,17 @@ async function handleResolve() {
   }
 }
 
-function handleEscalate() {
-  ElMessage.info('升级处理功能开发中')
+async function handleEscalate() {
+  try {
+    await ElMessageBox.confirm('确定升级此异议？升级后将通知平台运营介入处理', '确认升级', {
+      type: 'warning',
+    })
+    await escalateDispute(disputeId())
+    ElMessage.success('已升级')
+    Object.assign(dispute, { status: 'ESCALATED' })
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('操作失败')
+  }
 }
 
 onMounted(() => {
@@ -362,6 +415,16 @@ onMounted(() => {
       max-width: 200px;
       max-height: 200px;
       border-radius: 4px;
+    }
+
+    .message-file {
+      color: #409eff;
+      text-decoration: none;
+      font-size: 14px;
+
+      &:hover {
+        text-decoration: underline;
+      }
     }
 
     .message-read {

@@ -57,7 +57,7 @@
     <div class="operators-section">
       <div class="section-header">
         <h3 class="section-title">经办人</h3>
-        <el-button type="primary" size="small" @click="showAddOperatorDialog = true">
+        <el-button type="primary" size="small" @click="handleAddOperator">
           添加经办人
         </el-button>
       </div>
@@ -121,7 +121,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="showAddOperatorDialog" title="添加经办人" width="480px" destroy-on-close>
+    <el-dialog v-model="showAddOperatorDialog" :title="editingOperatorId ? '编辑经办人' : '添加经办人'" width="480px" destroy-on-close @close="closeOperatorDialog">
       <el-form :model="operatorForm" label-width="100px">
         <el-form-item label="姓名" required>
           <el-input v-model="operatorForm.name" placeholder="请输入经办人姓名" />
@@ -148,7 +148,7 @@
       </el-form>
       <template #footer>
         <el-button @click="showAddOperatorDialog = false">取消</el-button>
-        <el-button type="primary" :loading="operatorSubmitting" @click="handleAddOperator">确定</el-button>
+        <el-button type="primary" :loading="operatorSubmitting" @click="handleSaveOperator">{{ editingOperatorId ? '保存' : '确定' }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -158,7 +158,17 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import { listSeals, createSeal, disableSeal, enableSeal, listOperators, createOperator } from '@/api/recon'
+import {
+  listSeals,
+  createSeal,
+  disableSeal,
+  enableSeal,
+  revokeSeal,
+  listOperators,
+  createOperator,
+  updateOperator,
+  disableOperator,
+} from '@/api/recon'
 
 interface SealItem {
   id: number
@@ -172,7 +182,8 @@ interface OperatorItem {
   id: number
   name: string
   phone: string
-  seals?: { name: string }[]
+  seals?: { id: number; name: string }[]
+  sealIds?: number[]
   amountLimit?: number
   needApproval?: boolean
   status: string
@@ -185,6 +196,7 @@ const showAddSealDialog = ref(false)
 const showAddOperatorDialog = ref(false)
 const sealSubmitting = ref(false)
 const operatorSubmitting = ref(false)
+const editingOperatorId = ref<number | null>(null)
 
 const sealForm = reactive({
   name: '',
@@ -239,12 +251,17 @@ async function handleEnable(seal: SealItem) {
   }
 }
 
-function handleRevoke(seal: SealItem) {
-  ElMessageBox.confirm(`确定要注销印章「${seal.name}」吗？此操作不可恢复。`, '警告', {
-    type: 'warning',
-  }).then(() => {
-    ElMessage.info('注销功能开发中')
-  }).catch(() => {})
+async function handleRevoke(seal: SealItem) {
+  try {
+    await ElMessageBox.confirm('注销后不可恢复，确定注销？', '确认注销', {
+      type: 'warning',
+    })
+    await revokeSeal(seal.id)
+    ElMessage.success('已注销')
+    fetchSeals()
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('操作失败')
+  }
 }
 
 async function handleAddSeal() {
@@ -270,41 +287,74 @@ async function handleAddSeal() {
   }
 }
 
-function handleEditOperator(_row: OperatorItem) {
-  ElMessage.info('编辑功能开发中')
+function handleEditOperator(row: OperatorItem) {
+  editingOperatorId.value = row.id
+  operatorForm.name = row.name
+  operatorForm.phone = row.phone
+  operatorForm.sealIds = Array.isArray(row.seals)
+    ? row.seals.map((s) => s.id)
+    : (row as OperatorItem & { sealIds?: number[] }).sealIds ?? []
+  operatorForm.amountLimit = row.amountLimit
+  operatorForm.needApproval = row.needApproval ?? false
+  showAddOperatorDialog.value = true
 }
 
-function handleDeleteOperator(_row: OperatorItem) {
-  ElMessage.info('删除功能开发中')
+function closeOperatorDialog() {
+  editingOperatorId.value = null
+  operatorForm.name = ''
+  operatorForm.phone = ''
+  operatorForm.sealIds = []
+  operatorForm.amountLimit = undefined
+  operatorForm.needApproval = false
 }
 
-async function handleAddOperator() {
+async function handleDeleteOperator(row: OperatorItem) {
+  try {
+    await ElMessageBox.confirm(`确定要停用经办人「${row.name}」吗？`, '确认停用', {
+      type: 'warning',
+    })
+    await disableOperator(row.id)
+    ElMessage.success('已停用')
+    fetchOperators()
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('操作失败')
+  }
+}
+
+async function handleSaveOperator() {
   if (!operatorForm.name.trim() || !operatorForm.phone.trim()) {
     ElMessage.warning('请填写姓名和手机号')
     return
   }
   operatorSubmitting.value = true
   try {
-    await createOperator({
+    const payload = {
       name: operatorForm.name,
       phone: operatorForm.phone,
       sealIds: operatorForm.sealIds,
       amountLimit: operatorForm.amountLimit,
       needApproval: operatorForm.needApproval,
-    })
-    ElMessage.success('添加成功')
+    }
+    if (editingOperatorId.value) {
+      await updateOperator(editingOperatorId.value, payload)
+      ElMessage.success('保存成功')
+    } else {
+      await createOperator(payload)
+      ElMessage.success('添加成功')
+    }
     showAddOperatorDialog.value = false
-    operatorForm.name = ''
-    operatorForm.phone = ''
-    operatorForm.sealIds = []
-    operatorForm.amountLimit = undefined
-    operatorForm.needApproval = false
+    closeOperatorDialog()
     fetchOperators()
   } catch {
-    ElMessage.error('添加失败')
+    ElMessage.error(editingOperatorId.value ? '保存失败' : '添加失败')
   } finally {
     operatorSubmitting.value = false
   }
+}
+
+async function handleAddOperator() {
+  closeOperatorDialog()
+  showAddOperatorDialog.value = true
 }
 
 async function fetchSeals() {
