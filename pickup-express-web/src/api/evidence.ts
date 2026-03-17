@@ -122,6 +122,12 @@ export const getTradingHabitReport = (buyerId: number) =>
 // 客户/买方
 export const queryBuyers = (params?: any) => get('/v1/evidence/buyers', params)
 
+// 买方H5公开查看（无需登录，通过短信链接token访问）
+export const getGuestPickupDetail = (token: string) =>
+  get(`/v1/guest/pickup/${token}`)
+export const confirmGuestPickup = (token: string, phone: string) =>
+  post(`/v1/guest/pickup/${token}/confirm`, { phone })
+
 // 证据包下载
 export const downloadEvidenceZip = (pickupOrderId: number) =>
   get<Blob>(`/v1/evidence/archive/${pickupOrderId}/download`, undefined, { responseType: 'blob' })
