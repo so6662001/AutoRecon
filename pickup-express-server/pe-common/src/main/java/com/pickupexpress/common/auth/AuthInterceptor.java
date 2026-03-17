@@ -9,7 +9,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.servlet.HandlerInterceptor;
 
+import java.util.Arrays;
+import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Auth interceptor - extracts token and sets auth context.
@@ -21,6 +24,7 @@ import java.util.Set;
 public class AuthInterceptor implements HandlerInterceptor {
 
     private final PickupExpressProperties pickupExpressProperties;
+    private final Optional<AuthTokenResolver> authTokenResolver;
 
     private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
 
@@ -60,11 +64,37 @@ public class AuthInterceptor implements HandlerInterceptor {
             return false;
         }
 
-        // In production, host platform should provide AuthTokenResolver bean to resolve token
-        // For default, we don't have token resolution - host must implement
-        DefaultAuthContext.setAuthInfo(null, null, null, null, null);
+        if (authTokenResolver.isEmpty()) {
+            log.warn("Token present but no AuthTokenResolver bean configured - host must implement AuthTokenResolver");
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            return false;
+        }
+
+        AuthTokenResolver.AuthInfo info = authTokenResolver.get().resolve(token);
+        if (info != null && info.getUserId() != null) {
+            Set<String> roles = parseRoles(info.getRoles());
+            DefaultAuthContext.setAuthInfo(
+                    info.getUserId(),
+                    info.getEnterpriseId(),
+                    info.getUsername(),
+                    info.getEnterpriseName(),
+                    roles
+            );
+            return true;
+        }
+
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         return false;
+    }
+
+    private Set<String> parseRoles(String rolesStr) {
+        if (rolesStr == null || rolesStr.isBlank()) {
+            return Set.of();
+        }
+        return Arrays.stream(rolesStr.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toSet());
     }
 
     @Override

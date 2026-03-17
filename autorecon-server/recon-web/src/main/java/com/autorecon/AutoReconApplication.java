@@ -1,15 +1,16 @@
 package com.autorecon;
 
-import org.mybatis.spring.annotation.MapperScan;
+import com.autorecon.common.config.AutoReconProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 /**
  * AutoRecon - Steel Industry Reconciliation Platform
  * Application entry point.
  */
 @SpringBootApplication(scanBasePackages = "com.autorecon")
-@MapperScan("com.autorecon.mapper")
+@EnableConfigurationProperties(AutoReconProperties.class)
 public class AutoReconApplication {
 
     public static void main(String[] args) {

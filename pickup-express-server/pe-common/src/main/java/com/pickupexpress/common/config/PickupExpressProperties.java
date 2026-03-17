@@ -12,6 +12,7 @@ import java.util.List;
 @Data
 public class PickupExpressProperties {
 
+    private boolean enabled = true;
     private String apiPrefix = "/api";
     private boolean demoMode = false;
 
