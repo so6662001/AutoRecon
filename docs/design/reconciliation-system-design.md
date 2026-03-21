@@ -1,9 +1,9 @@
 # 钢铁行业线上对账系统 — 产品与技术设计方案
 
-> 版本: v2.0  
-> 日期: 2026-03-17  
-> 项目代号: AutoRecon  
-> 变更说明: v2.0 新增万人在线高并发架构、买方无ERP多模式数据提交、对账周期内部分付款处理、12项高级功能完整设计
+> 版本: v3.0  
+> 日期: 2026-03-21  
+> 项目代号: AutoRecon (对账通)  
+> v3.0 变更: 新增安全审计/模块嵌入/Demo系统/实现统计
 
 ---
 
@@ -3516,6 +3516,149 @@ Phase 5 (持续优化)
 | 保理融资合规风险 | 法律纠纷 | 与合规律师合作，确保签章效力 |
 | 超时自动确认争议 | 买方投诉 | 充分提前告知 + 事后申诉通道 |
 | 移动端安全风险 | 信息泄露 | 设备指纹 + 操作水印 + 敏感操作二次验证 |
+
+---
+
+## 十九、安全审计与修复记录
+
+### 19.1 审计概览
+
+系统经历了两轮安全审计，累计发现并修复 62 个安全漏洞：
+
+| 严重级别 | 发现数 | 修复数 | 状态 |
+|---------|--------|--------|------|
+| CRITICAL | 8 | 8 | 全部修复 |
+| HIGH | 22 | 22 | 全部修复 |
+| MEDIUM | 19 | 已修复关键项 | 持续优化 |
+| LOW | 13 | 记录跟踪 | 低优先级 |
+
+### 19.2 关键修复清单
+
+#### 后端修复
+
+| 类别 | 修复项 | 说明 |
+|------|--------|------|
+| **租户数据隔离** | 全部 Service 增加 TenantUtil 校验 | 防止跨企业数据访问(IDOR) |
+| **密码安全** | MD5 → BCrypt | 防彩虹表攻击 |
+| **签章授权** | 验证签章方身份+印章归属 | 防止越权签章 |
+| **付款校验** | 金额正数+关系校验+总额不超 | 防止财务数据篡改 |
+| **Demo安全** | 移除任意用户伪造Token | 仅接受预定义Token |
+| **API限流** | 登录10次/分钟，免注册30次/分钟 | 防暴力破解 |
+| **文件上传** | 类型+大小+扩展名验证 | 防恶意文件 |
+| **输入验证** | 全部 Controller 补全 @Valid | 防注入和异常 |
+| **安全头** | X-Content-Type-Options 等 | 防XSS/点击劫持 |
+| **CORS** | 可配置 allowed-origins | 生产环境限制跨域 |
+
+#### 前端修复
+
+| 类别 | 修复项 | 说明 |
+|------|--------|------|
+| **角色路由守卫** | meta.roles 配置+导航拦截 | 防越权访问页面 |
+| **嵌入模式认证** | showLogin=false 仍校验 Token | 防嵌入模式绕过 |
+| **PII脱敏** | 手机号/身份证/邮箱脱敏显示 | 保护个人隐私 |
+| **URL净化** | 动态 href/src 仅允许 http(s) | 防 XSS |
+| **错误脱敏** | HTTP状态码映射为安全提示 | 防信息泄露 |
+| **Demo防护** | 生产模式禁止开启 Demo | 防配置错误 |
+
+---
+
+## 二十、模块嵌入与集成设计
+
+### 20.1 Spring Boot Starter 化
+
+对账通已封装为标准 Spring Boot Starter，宿主平台添加 Maven 依赖即可自动加载：
+
+**自动配置机制:**
+- `AutoReconAutoConfiguration` 类通过 `META-INF/spring/AutoConfiguration.imports` 自动注册
+- `@ConditionalOnProperty(prefix = "autorecon", name = "enabled")` 控制模块开关
+- `@ComponentScan + @MapperScan` 自动扫描所有 Bean
+
+**认证对接:**
+- 定义 `AuthTokenResolver` 接口，宿主实现并注册为 Bean
+- `DefaultAuthContext` 使用 `@ConditionalOnMissingBean`，可被宿主替换
+- `AuthInterceptor` 自动提取 Token 并调用 Resolver
+
+**配置参数:**
+```yaml
+autorecon:
+  enabled: true                    # 模块总开关
+  demo-mode: false                 # Demo 模式
+  api-prefix: /api                 # API 前缀
+  cors-allowed-origins: "*"        # CORS 域名
+  auth:
+    enabled: true                  # 认证开关
+    token-header: Authorization
+    exclude-paths:                 # 免认证路径
+      - /api/v1/guest/**
+      - /api/v1/users/login
+```
+
+### 20.2 前端 Plugin 化
+
+前端可作为 Vue3 插件嵌入宿主应用：
+
+```typescript
+import { createAutoRecon } from 'autorecon-web'
+app.use(createAutoRecon({
+  embedded: true,
+  showSidebar: false,
+  authToken: hostToken,
+  apiBaseUrl: '/api',
+  onLogout: () => hostLogout()
+}))
+```
+
+### 20.3 跨模块通信
+
+与提货通通过 EventBus 进行事件驱动通信：
+- `PICKUP_SETTLEMENT_CREATED` → 提货通结算完成 → 对账通接收
+- `RECON_BILL_CONFIRMED` → 对账确认完成 → 提货通更新
+
+---
+
+## 二十一、实现统计与 Demo 系统
+
+### 21.1 后端实现统计
+
+| 指标 | 数量 |
+|------|------|
+| Java 文件 | 245 |
+| 代码行数 | 12,539 |
+| Entity 实体 | 32 |
+| Enum 枚举 | 13 |
+| DTO 请求对象 | 32 |
+| VO 响应对象 | 18 |
+| Mapper 数据访问 | 32 |
+| Service (接口+实现) | 65 |
+| Controller REST 接口 | 29 (28 模块) |
+| 单元测试 | 33 (100% 通过) |
+| 集成测试 | 10 (100% 通过) |
+| SQL 建表脚本 | 32 张表 |
+
+### 21.2 前端实现统计
+
+| 指标 | 数量 |
+|------|------|
+| Vue 文件 | 35 |
+| TypeScript 文件 | 14 |
+| 代码行数 | 13,291 |
+| 页面组件 | 30 |
+| API 函数 | 70+ |
+
+### 21.3 Demo 模式
+
+零外部依赖启动(H2 内存数据库)：
+
+```bash
+# 后端
+./mvnw -pl recon-web spring-boot:run -Dspring-boot.run.profiles=demo
+# 前端
+npm run dev:demo
+```
+
+预置数据: 3 企业, 4 用户, 8 份对账单(覆盖全部状态), 23 条明细, 5 笔付款, 5 条异议
+
+Demo 账号: admin/admin123, seller1/123456, buyer1/123456, buyer2/123456
 
 ---
 
