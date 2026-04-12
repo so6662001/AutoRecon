@@ -18,4 +18,6 @@ public interface SupplementService extends IService<SupplementRecord> {
     void reject(Long id, String comment);
 
     List<SupplementRecord> listPending(Long enterpriseId);
+
+    void appendDocumentUrl(Long id, String fileUrl);
 }

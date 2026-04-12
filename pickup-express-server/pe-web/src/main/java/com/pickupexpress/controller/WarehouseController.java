@@ -12,7 +12,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Tag(name = "仓库管理")
 @RestController
@@ -46,5 +48,20 @@ public class WarehouseController {
         }
         List<Warehouse> list = warehouseService.listWarehouses(enterpriseId);
         return R.ok(list);
+    }
+
+    @Operation(summary = "查询仓库发货模式")
+    @GetMapping("/{id}/mode")
+    public R<Map<String, Object>> getWarehouseMode(@PathVariable Long id) {
+        Warehouse wh = warehouseService.getById(id);
+        if (wh == null) {
+            return R.fail("仓库不存在");
+        }
+        Map<String, Object> mode = new HashMap<>();
+        Integer defaultMode = wh.getDefaultDeliveryMode() != null ? wh.getDefaultDeliveryMode() : wh.getDeliveryMode();
+        mode.put("defaultMode", defaultMode);
+        mode.put("backupMode", wh.getBackupDeliveryMode());
+        mode.put("hasWms", wh.getHasWms());
+        return R.ok(mode);
     }
 }

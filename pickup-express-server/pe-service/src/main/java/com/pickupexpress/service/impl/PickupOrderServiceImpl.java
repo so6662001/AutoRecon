@@ -18,10 +18,10 @@ import com.pickupexpress.domain.enums.PickupCodeStatusEnum;
 import com.pickupexpress.domain.enums.PickupOrderStatusEnum;
 import com.pickupexpress.domain.vo.PickupOrderDetailVO;
 import com.pickupexpress.domain.vo.PickupOrderVO;
-import com.pickupexpress.domain.entity.Contract;
 import com.pickupexpress.mapper.*;
 import com.pickupexpress.service.ContractService;
 import com.pickupexpress.service.PickupOrderService;
+import com.pickupexpress.service.ProgressEventService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -55,6 +55,7 @@ public class PickupOrderServiceImpl extends ServiceImpl<PickupOrderMapper, Picku
     private final SettlementOrderMapper settlementOrderMapper;
     private final PickupVerificationMapper pickupVerificationMapper;
     private final EvidencePackageMapper evidencePackageMapper;
+    private final ProgressEventService progressEventService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -181,9 +182,19 @@ public class PickupOrderServiceImpl extends ServiceImpl<PickupOrderMapper, Picku
         if (order == null) {
             throw new BizException(ErrorCode.PICKUP_ORDER_NOT_FOUND);
         }
-        order.setCustomerConfirmed(dto.getConfirmed() ? 1 : 0);
-        order.setCustomerConfirmedAt(dto.getConfirmed() ? LocalDateTime.now() : null);
-        order.setStatus(dto.getConfirmed() ? PickupOrderStatusEnum.READY.getValue() : order.getStatus());
+        if (!dto.getConfirmed()) {
+            order.setCustomerConfirmed(0);
+            order.setCustomerConfirmedAt(null);
+            order.setDispatchStatus(3);
+            order.setStatus(PickupOrderStatusEnum.CANCELLED.getValue());
+            updateById(order);
+            progressEventService.recordEvent(order.getId(), order.getContractId(),
+                    "DISPATCH_REJECTED", "派车被拒绝", null, "buyer");
+            return;
+        }
+        order.setCustomerConfirmed(1);
+        order.setCustomerConfirmedAt(LocalDateTime.now());
+        order.setStatus(PickupOrderStatusEnum.READY.getValue());
         updateById(order);
     }
 

@@ -30,7 +30,14 @@ public class Warehouse {
     private String address;
     private String contactName;
     private String contactPhone;
+    /** Legacy column; prefer {@link #defaultDeliveryMode} when present in DB. */
     private Integer deliveryMode;
+    @TableField("default_delivery_mode")
+    private Integer defaultDeliveryMode;
+    @TableField("backup_delivery_mode")
+    private Integer backupDeliveryMode;
+    @TableField("has_wms")
+    private Integer hasWms;
     private String wmsConfig;
     private Integer status;
     @TableField(fill = FieldFill.INSERT)

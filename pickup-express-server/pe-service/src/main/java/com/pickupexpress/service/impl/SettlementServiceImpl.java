@@ -1,10 +1,14 @@
 package com.pickupexpress.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.pickupexpress.common.exception.BizException;
 import com.pickupexpress.common.exception.ErrorCode;
+import com.pickupexpress.common.result.PageResult;
 import com.pickupexpress.common.util.TenantUtil;
+import com.pickupexpress.common.util.SecurityUtil;
 import com.pickupexpress.domain.entity.Contract;
 import com.pickupexpress.domain.entity.LiftRecord;
 import com.pickupexpress.domain.entity.PickupOrder;
@@ -26,6 +30,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 结算服务实现
@@ -133,5 +138,42 @@ public class SettlementServiceImpl extends ServiceImpl<SettlementOrderMapper, Se
     @Override
     public List<SettlementOrder> listByContract(Long contractId) {
         return list(new LambdaQueryWrapper<SettlementOrder>().eq(SettlementOrder::getContractId, contractId));
+    }
+
+    @Override
+    public PageResult<SettlementVO> listSettlements(String settlementNo, Long contractId, Integer status,
+            Integer pageNum, Integer pageSize) {
+        LambdaQueryWrapper<SettlementOrder> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(settlementNo != null && !settlementNo.isBlank(), SettlementOrder::getSettlementNo, settlementNo);
+        wrapper.eq(contractId != null, SettlementOrder::getContractId, contractId);
+        wrapper.eq(status != null, SettlementOrder::getStatus, status);
+
+        Long currentEnterpriseId = SecurityUtil.getCurrentEnterpriseId();
+        if (currentEnterpriseId != null) {
+            List<Long> contractIds = contractMapper.selectList(
+                    new LambdaQueryWrapper<Contract>()
+                            .eq(Contract::getSellerId, currentEnterpriseId)
+                            .or()
+                            .eq(Contract::getBuyerId, currentEnterpriseId))
+                    .stream().map(Contract::getId).toList();
+            if (!contractIds.isEmpty()) {
+                wrapper.in(SettlementOrder::getContractId, contractIds);
+            } else {
+                wrapper.eq(SettlementOrder::getId, -1L);
+            }
+        }
+
+        wrapper.orderByDesc(SettlementOrder::getCreatedAt);
+        int pn = pageNum != null && pageNum > 0 ? pageNum : 1;
+        int ps = pageSize != null && pageSize > 0 ? pageSize : 20;
+        IPage<SettlementOrder> page = page(new Page<>(pn, ps), wrapper);
+
+        List<SettlementVO> voList = page.getRecords().stream().map(s -> {
+            SettlementVO vo = new SettlementVO();
+            BeanUtils.copyProperties(s, vo);
+            return vo;
+        }).collect(Collectors.toList());
+
+        return new PageResult<>(voList, page.getTotal(), page.getSize(), page.getCurrent(), page.getPages());
     }
 }

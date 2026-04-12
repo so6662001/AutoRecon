@@ -52,7 +52,7 @@ class ContractControllerTest {
     @Test
     void testVerifyPickupCode_invalidCode() throws Exception {
         org.springframework.http.ResponseEntity<String> response = restTemplate.exchange(
-                "/api/v1/evidence/delivery/verify-code?code=INVALID&vehiclePlate=沪A12345",
+                "/api/v1/evidence/delivery/verify-code?pickupCode=INVALID&vehiclePlate=沪A12345",
                 org.springframework.http.HttpMethod.POST, authHeaders(), String.class);
         org.junit.jupiter.api.Assertions.assertEquals(200, response.getStatusCode().value());
     }

@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -53,5 +54,14 @@ public class SupplementController {
         }
         List<SupplementRecord> list = supplementService.listPending(enterpriseId);
         return R.ok(list);
+    }
+
+    @Operation(summary = "补录上传纸质单据")
+    @PostMapping("/{id}/upload")
+    public R<Void> uploadDocument(@PathVariable Long id, @RequestParam("file") MultipartFile file) {
+        String fileUrl = "/uploads/supplement/" + id + "/" + file.getOriginalFilename();
+        supplementService.appendDocumentUrl(id, fileUrl);
+        log.info("Uploaded supplement document: {}", fileUrl);
+        return R.ok();
     }
 }

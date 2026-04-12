@@ -1,6 +1,7 @@
 package com.pickupexpress.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.pickupexpress.common.result.PageResult;
 import com.pickupexpress.domain.entity.SettlementOrder;
 import com.pickupexpress.domain.vo.SettlementVO;
 
@@ -18,4 +19,6 @@ public interface SettlementService extends IService<SettlementOrder> {
     void markCustomerViewed(Long settlementId);
 
     List<SettlementOrder> listByContract(Long contractId);
+
+    PageResult<SettlementVO> listSettlements(String settlementNo, Long contractId, Integer status, Integer pageNum, Integer pageSize);
 }

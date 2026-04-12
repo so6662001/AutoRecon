@@ -40,6 +40,8 @@ public class WarehouseServiceImpl extends ServiceImpl<WarehouseMapper, Warehouse
                 .contactName(dto.getContactName())
                 .contactPhone(dto.getContactPhone())
                 .deliveryMode(dto.getDefaultDeliveryMode())
+                .defaultDeliveryMode(dto.getDefaultDeliveryMode())
+                .hasWms(dto.getHasWms())
                 .wmsConfig(dto.getHasWms() != null && dto.getHasWms() == 1 ? "{}" : null)
                 .status(1)
                 .build();
@@ -61,6 +63,8 @@ public class WarehouseServiceImpl extends ServiceImpl<WarehouseMapper, Warehouse
         warehouse.setContactName(dto.getContactName());
         warehouse.setContactPhone(dto.getContactPhone());
         warehouse.setDeliveryMode(dto.getDefaultDeliveryMode());
+        warehouse.setDefaultDeliveryMode(dto.getDefaultDeliveryMode());
+        warehouse.setHasWms(dto.getHasWms());
         warehouse.setWmsConfig(dto.getHasWms() != null && dto.getHasWms() == 1 ? "{}" : warehouse.getWmsConfig());
         updateById(warehouse);
     }

@@ -32,13 +32,13 @@ public class DeliveryController {
     @Operation(summary = "验证提货码")
     @PostMapping("/verify-code")
     public R<PickupOrderVO> verifyPickupCode(
-            @RequestParam String code,
+            @RequestParam("pickupCode") String pickupCode,
             @RequestParam(required = false) String vehiclePlate) {
-        boolean valid = deliveryService.verifyPickupCode(code, vehiclePlate);
+        boolean valid = deliveryService.verifyPickupCode(pickupCode, vehiclePlate);
         if (!valid) {
             return R.fail("验证失败");
         }
-        PickupOrder order = pickupOrderService.getByPickupCode(code);
+        PickupOrder order = pickupOrderService.getByPickupCode(pickupCode);
         if (order == null) {
             return R.fail("提货单不存在");
         }

@@ -2,6 +2,7 @@ package com.pickupexpress.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pickupexpress.common.exception.BizException;
@@ -25,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -114,6 +116,34 @@ public class SupplementServiceImpl extends ServiceImpl<SupplementRecordMapper, S
                 .in(SupplementRecord::getContractId, contractIds)
                 .eq(SupplementRecord::getApprovalStatus, ApprovalStatusEnum.PENDING.getValue())
                 .orderByDesc(SupplementRecord::getCreatedAt));
+    }
+
+    @Override
+    public void appendDocumentUrl(Long id, String fileUrl) {
+        SupplementRecord record = getById(id);
+        if (record == null) {
+            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "补录记录不存在");
+        }
+        Contract contract = contractMapper.selectById(record.getContractId());
+        if (contract != null) {
+            TenantUtil.checkContractAccess(contract.getSellerId(), contract.getBuyerId());
+        }
+        List<String> urls = new ArrayList<>();
+        String existing = record.getDocumentUrls();
+        if (existing != null && !existing.isBlank()) {
+            try {
+                urls.addAll(objectMapper.readValue(existing, new TypeReference<List<String>>() {}));
+            } catch (JsonProcessingException e) {
+                log.warn("Failed to parse document_urls JSON, replacing with new list: {}", e.getMessage());
+            }
+        }
+        urls.add(fileUrl);
+        try {
+            record.setDocumentUrls(objectMapper.writeValueAsString(urls));
+        } catch (JsonProcessingException e) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), ErrorCode.SYSTEM_ERROR.getMessage());
+        }
+        updateById(record);
     }
 
     private void processSupplementToLiftRecords(SupplementRecord record) {

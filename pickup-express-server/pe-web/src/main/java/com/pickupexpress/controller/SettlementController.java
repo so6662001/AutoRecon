@@ -1,5 +1,6 @@
 package com.pickupexpress.controller;
 
+import com.pickupexpress.common.result.PageResult;
 import com.pickupexpress.common.result.R;
 import com.pickupexpress.domain.dto.SettlementGenerateDTO;
 import com.pickupexpress.domain.entity.SettlementOrder;
@@ -22,6 +23,18 @@ import java.util.List;
 public class SettlementController {
 
     private final SettlementService settlementService;
+
+    @Operation(summary = "结算单列表")
+    @GetMapping({"", "/"})
+    public R<PageResult<SettlementVO>> listSettlements(
+            @RequestParam(required = false) String settlementNo,
+            @RequestParam(required = false) Long contractId,
+            @RequestParam(required = false) Integer status,
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "20") Integer pageSize) {
+        PageResult<SettlementVO> page = settlementService.listSettlements(settlementNo, contractId, status, pageNum, pageSize);
+        return R.ok(page);
+    }
 
     @Operation(summary = "生成结算单")
     @PostMapping("/generate")
