@@ -7,6 +7,7 @@ import com.autorecon.domain.dto.ErpConnectionCreateDTO;
 import com.autorecon.domain.entity.ErpConnection;
 import com.autorecon.mapper.ErpConnectionMapper;
 import com.autorecon.service.ErpConnectionService;
+import com.autorecon.service.erp.ErpPullService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ import java.util.List;
 public class ErpConnectionServiceImpl extends ServiceImpl<ErpConnectionMapper, ErpConnection> implements ErpConnectionService {
 
     private final ErpConnectionMapper erpConnectionMapper;
+    private final ErpPullService erpPullService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -103,15 +105,6 @@ public class ErpConnectionServiceImpl extends ServiceImpl<ErpConnectionMapper, E
 
     @Override
     public boolean testConnection(Long id) {
-        ErpConnection conn = erpConnectionMapper.selectById(id);
-        if (conn == null) {
-            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "ERP连接不存在");
-        }
-        Long enterpriseId = SecurityUtil.getCurrentEnterpriseId();
-        if (enterpriseId == null || !enterpriseId.equals(conn.getEnterpriseId())) {
-            throw new BizException(ErrorCode.UNAUTHORIZED);
-        }
-        log.info("connection test passed: id={}", id);
-        return true;
+        return erpPullService.testConnection(id);
     }
 }

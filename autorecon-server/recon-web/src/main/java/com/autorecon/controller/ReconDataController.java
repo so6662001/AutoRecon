@@ -6,6 +6,7 @@ import com.autorecon.domain.dto.ReconBillItemDTO;
 import com.autorecon.domain.entity.ReconBillItem;
 import com.autorecon.domain.vo.ExcelAnalysisVO;
 import com.autorecon.service.ReconDataService;
+import com.autorecon.service.erp.ErpPullService;
 import com.autorecon.common.exception.BizException;
 import com.autorecon.common.exception.ErrorCode;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -18,6 +19,7 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -32,7 +34,36 @@ import java.util.Map;
 public class ReconDataController {
 
     private final ReconDataService reconDataService;
+    private final ErpPullService erpPullService;
     private final ObjectMapper objectMapper;
+
+    @Operation(summary = "从ERP拉取对账数据")
+    @PostMapping("/erp-pull")
+    public R<List<Map<String, Object>>> pullFromErp(
+            @RequestParam Long connectionId,
+            @RequestParam String dataType,
+            @RequestParam(required = false) String periodStart,
+            @RequestParam(required = false) String periodEnd) {
+        Map<String, String> params = new HashMap<>();
+        if (periodStart != null) {
+            params.put("periodStart", periodStart);
+        }
+        if (periodEnd != null) {
+            params.put("periodEnd", periodEnd);
+        }
+        List<Map<String, Object>> data = erpPullService.pullData(connectionId, dataType, params);
+        return R.ok(data);
+    }
+
+    @Operation(summary = "从ERP拉取并导入到对账单")
+    @PostMapping("/erp-import")
+    public R<Integer> importFromErp(
+            @RequestParam Long connectionId,
+            @RequestParam Long billId,
+            @RequestParam(defaultValue = "order") String dataType) {
+        int count = erpPullService.importFromErp(connectionId, billId, dataType);
+        return R.ok(count);
+    }
 
     @PostMapping("/upload-excel")
     @Operation(summary = "上传 Excel 导入买方数据")

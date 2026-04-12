@@ -9,6 +9,21 @@ export const updateErpConnection = (id: number, data: Record<string, unknown>) =
 export const deleteErpConnection = (id: number) => del(`/v1/erp/connections/${id}`)
 export const testErpConnection = (id: number) => post(`/v1/erp/connections/${id}/test`)
 
+export const pullErpData = (
+  connectionId: number,
+  dataType: string,
+  periodStart?: string,
+  periodEnd?: string
+) =>
+  post('/v1/recon/data/erp-pull', undefined, {
+    params: { connectionId, dataType, periodStart, periodEnd },
+  })
+
+export const importErpData = (connectionId: number, billId: number, dataType?: string) =>
+  post('/v1/recon/data/erp-import', undefined, {
+    params: { connectionId, billId, dataType: dataType || 'order' },
+  })
+
 // 买方配置
 export const getBuyerConfig = () => get('/v1/buyer/config')
 export const saveBuyerConfig = (data: Record<string, unknown>) => put('/v1/buyer/config', data)

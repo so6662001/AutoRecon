@@ -10,8 +10,8 @@
       <el-col v-for="conn in connections" :key="conn.id" :xs="24" :sm="12" :lg="8">
         <el-card class="connection-card" shadow="hover">
           <div class="card-header">
-            <span class="conn-name">{{ conn.name }}</span>
-            <el-tag :type="getTypeTag(conn.type) as 'success' | 'primary' | 'warning' | 'info' | 'danger'" size="small">{{ getTypeText(conn.type) }}</el-tag>
+            <span class="conn-name">{{ conn.connectionName }}</span>
+            <el-tag :type="getTypeTag(connectionTypeKey(conn.connectionType)) as 'success' | 'primary' | 'warning' | 'info' | 'danger'" size="small">{{ getTypeText(connectionTypeKey(conn.connectionType)) }}</el-tag>
             <span class="status-dot" :class="{ online: conn.status === 'online' }" />
           </div>
           <div class="conn-url">{{ conn.baseUrl || conn.endpoint || '-' }}</div>
@@ -92,11 +92,61 @@ import {
 
 interface ErpConnection {
   id: number
-  name: string
-  type: string
+  connectionName: string
+  connectionType: number
   status?: string
   baseUrl?: string
   endpoint?: string
+  authType?: number
+  authConfig?: string | Record<string, unknown>
+  fieldMapping?: string | Record<string, unknown>
+  pullStrategy?: number
+  cronExpression?: string
+}
+
+const CONNECTION_TYPE_TO_KEY: Record<number, string> = {
+  1: 'REST',
+  2: 'WEBSERVICE',
+  3: 'DB',
+  4: 'FILE',
+}
+
+const KEY_TO_CONNECTION_TYPE: Record<string, number> = {
+  REST: 1,
+  WEBSERVICE: 2,
+  DB: 3,
+  FILE: 4,
+}
+
+const AUTH_KEY_TO_CODE: Record<string, number> = {
+  API_KEY: 1,
+  OAUTH2: 2,
+  BASIC: 3,
+  CERT: 4,
+}
+
+const AUTH_CODE_TO_KEY: Record<number, string> = {
+  1: 'API_KEY',
+  2: 'OAUTH2',
+  3: 'BASIC',
+  4: 'CERT',
+}
+
+const PULL_KEY_TO_CODE: Record<string, number> = {
+  REALTIME: 1,
+  SCHEDULED: 2,
+  MANUAL: 3,
+}
+
+const PULL_CODE_TO_KEY: Record<number, 'REALTIME' | 'SCHEDULED' | 'MANUAL'> = {
+  1: 'REALTIME',
+  2: 'SCHEDULED',
+  3: 'MANUAL',
+}
+
+function connectionTypeKey(connectionType: number | undefined): string {
+  if (connectionType == null) return 'REST'
+  return CONNECTION_TYPE_TO_KEY[connectionType] ?? 'REST'
 }
 
 const loading = ref(false)
@@ -174,18 +224,21 @@ function handleAdd() {
 function handleEdit(conn: ErpConnection) {
   const c = conn as unknown as Record<string, string | number | boolean | object | null | undefined>
   editingId.value = conn.id
-  form.name = conn.name
-  form.type = (c.type as string) ?? 'REST'
+  form.name = conn.connectionName ?? ''
+  form.type = connectionTypeKey(conn.connectionType)
   form.address = (c.baseUrl as string) ?? (c.endpoint as string) ?? ''
-  form.authType = (c.authType as string) ?? 'API_KEY'
+  const authCode = c.authType as number | undefined
+  form.authType = authCode != null ? (AUTH_CODE_TO_KEY[authCode] ?? 'API_KEY') : 'API_KEY'
   form.authConfig = typeof c.authConfig === 'string'
     ? (c.authConfig as string)
     : JSON.stringify(c.authConfig ?? {}, null, 2)
   form.fieldMapping = typeof c.fieldMapping === 'string'
     ? (c.fieldMapping as string)
     : JSON.stringify(c.fieldMapping ?? {}, null, 2)
-  form.pullStrategy = (c.pullStrategy as 'REALTIME' | 'SCHEDULED' | 'MANUAL') ?? 'MANUAL'
-  form.cron = (c.cron as string) ?? ''
+  const pullCode = c.pullStrategy as number | undefined
+  form.pullStrategy =
+    pullCode != null ? (PULL_CODE_TO_KEY[pullCode] ?? 'MANUAL') : 'MANUAL'
+  form.cron = (c.cronExpression as string) ?? ''
   formVisible.value = true
 }
 
@@ -225,30 +278,24 @@ async function handleSubmit() {
   await formRef.value?.validate()
   try {
     const data: Record<string, unknown> = {
-      name: form.name,
-      type: form.type,
-      authType: form.authType,
-      pullStrategy: form.pullStrategy,
+      connectionName: form.name,
+      connectionType: KEY_TO_CONNECTION_TYPE[form.type] ?? 1,
+      authType: AUTH_KEY_TO_CODE[form.authType] ?? 1,
+      pullStrategy: PULL_KEY_TO_CODE[form.pullStrategy] ?? 3,
     }
-    if (form.type === 'REST' || form.type === 'WEBSERVICE') {
-      data.baseUrl = form.address
-    } else if (form.type === 'DB') {
-      data.connectionString = form.address
-    } else {
-      data.endpoint = form.address
+    data.baseUrl = form.address
+    try {
+      data.authConfig = JSON.stringify(JSON.parse(form.authConfig || '{}'))
+    } catch {
+      data.authConfig = '{}'
     }
     try {
-      data.authConfig = JSON.parse(form.authConfig || '{}')
+      data.fieldMapping = JSON.stringify(JSON.parse(form.fieldMapping || '{}'))
     } catch {
-      data.authConfig = {}
-    }
-    try {
-      data.fieldMapping = JSON.parse(form.fieldMapping || '{}')
-    } catch {
-      data.fieldMapping = {}
+      data.fieldMapping = '{}'
     }
     if (form.pullStrategy === 'SCHEDULED') {
-      data.cron = form.cron
+      data.cronExpression = form.cron
     }
     if (editingId.value) {
       await updateErpConnection(editingId.value, data)
