@@ -20,4 +20,6 @@ public interface ReconTemplateService extends IService<ReconTemplate> {
     List<ReconTemplate> listTemplates(Long enterpriseId);
 
     ReconTemplate getDefaultTemplate(Long enterpriseId);
+
+    Long copyTemplate(Long id);
 }

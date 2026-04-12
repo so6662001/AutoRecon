@@ -18,6 +18,7 @@ import com.autorecon.mapper.ReconBillItemMapper;
 import com.autorecon.mapper.ReconBillMapper;
 import com.autorecon.mapper.ReconTemplateMapper;
 import com.autorecon.service.impl.ReconBillServiceImpl;
+import com.autorecon.service.impl.TemplateRenderService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -67,6 +68,9 @@ class ReconBillServiceTest {
 
     @Mock
     private com.autorecon.common.config.AutoReconProperties autoReconProperties;
+
+    @Mock
+    private TemplateRenderService templateRenderService;
 
     private static final Long TEST_ENTERPRISE_ID = 1L;
 

@@ -16,11 +16,14 @@ export const getDashboard = () => get('/v1/recon/dashboard')
 
 // 模板
 export const listTemplates = () => get('/v1/recon/templates')
+export const getTemplate = (id: number) => get(`/v1/recon/templates/${id}`)
 export const getDefaultTemplate = () => get('/v1/recon/templates/default')
 export const createTemplate = (data: Record<string, unknown>) => post('/v1/recon/templates', data)
 export const updateTemplate = (id: number, data: Record<string, unknown>) =>
   put(`/v1/recon/templates/${id}`, data)
 export const deleteTemplate = (id: number) => del(`/v1/recon/templates/${id}`)
+export const copyTemplate = (id: number) => post(`/v1/recon/templates/${id}/copy`)
+export const previewTemplate = (id: number) => get(`/v1/recon/templates/${id}/preview`)
 
 // 比对
 export const executeMatch = (billId: number) => post(`/v1/recon/match/${billId}/execute`)

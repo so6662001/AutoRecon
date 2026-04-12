@@ -22,6 +22,7 @@ import com.autorecon.domain.vo.PaymentVO;
 import com.autorecon.domain.vo.ReconBillDetailVO;
 import com.autorecon.domain.vo.ReconBillItemVO;
 import com.autorecon.domain.vo.ReconBillVO;
+import com.autorecon.domain.vo.TemplatePreviewVO;
 import com.autorecon.mapper.DisputeMapper;
 import com.autorecon.mapper.EnterpriseMapper;
 import com.autorecon.mapper.PaymentAllocationMapper;
@@ -72,6 +73,7 @@ public class ReconBillServiceImpl extends ServiceImpl<ReconBillMapper, ReconBill
     private final EnterpriseMapper enterpriseMapper;
     private final DisputeMapper disputeMapper;
     private final AutoReconProperties autoReconProperties;
+    private final TemplateRenderService templateRenderService;
 
     @Autowired(required = false)
     private StringRedisTemplate stringRedisTemplate;
@@ -80,7 +82,8 @@ public class ReconBillServiceImpl extends ServiceImpl<ReconBillMapper, ReconBill
                                  ReconTemplateMapper reconTemplateMapper, PaymentMapper paymentMapper,
                                  PaymentAllocationMapper paymentAllocationMapper,
                                  EnterpriseMapper enterpriseMapper, DisputeMapper disputeMapper,
-                                 AutoReconProperties autoReconProperties) {
+                                 AutoReconProperties autoReconProperties,
+                                 TemplateRenderService templateRenderService) {
         this.reconBillItemMapper = reconBillItemMapper;
         this.reconTemplateMapper = reconTemplateMapper;
         this.paymentMapper = paymentMapper;
@@ -88,6 +91,7 @@ public class ReconBillServiceImpl extends ServiceImpl<ReconBillMapper, ReconBill
         this.enterpriseMapper = enterpriseMapper;
         this.disputeMapper = disputeMapper;
         this.autoReconProperties = autoReconProperties;
+        this.templateRenderService = templateRenderService;
     }
 
     private static final AtomicLong BILL_SEQ = new AtomicLong(0);
@@ -497,8 +501,18 @@ public class ReconBillServiceImpl extends ServiceImpl<ReconBillMapper, ReconBill
             throw new BizException(ErrorCode.BILL_NOT_FOUND);
         }
         TenantUtil.checkBillAccess(bill.getSellerId(), bill.getBuyerId());
-        log.info("PDF generation queued for billId={}", billId);
-        return "pdf generation queued";
+
+        List<ReconBillItem> items = reconBillItemMapper.selectList(
+                new LambdaQueryWrapper<ReconBillItem>().eq(ReconBillItem::getBillId, billId));
+
+        TemplatePreviewVO rendered = templateRenderService.renderBill(bill, items);
+
+        log.info("PDF rendered for billId={}, template={}, items={}, groups={}",
+                billId, rendered.getTemplateName(),
+                rendered.getSampleItems() != null ? rendered.getSampleItems().size() : 0,
+                rendered.getGroupedItems() != null ? rendered.getGroupedItems().size() : 0);
+
+        return "pdf generation queued (template: " + rendered.getTemplateName() + ")";
     }
 
     @Override

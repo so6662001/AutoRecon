@@ -104,4 +104,29 @@ public class ReconTemplateServiceImpl extends ServiceImpl<ReconTemplateMapper, R
                 .last("LIMIT 1");
         return baseMapper.selectOne(wrapper);
     }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long copyTemplate(Long id) {
+        ReconTemplate source = getById(id);
+        if (source == null) {
+            throw new BizException(ErrorCode.TEMPLATE_NOT_FOUND);
+        }
+        TenantUtil.checkOwnership(source.getEnterpriseId());
+        ReconTemplate copy = ReconTemplate.builder()
+                .enterpriseId(source.getEnterpriseId())
+                .templateName(source.getTemplateName() + " (副本)")
+                .templateType(source.getTemplateType())
+                .headerConfig(source.getHeaderConfig())
+                .columnConfig(source.getColumnConfig())
+                .footerConfig(source.getFooterConfig())
+                .styleConfig(source.getStyleConfig())
+                .groupBy(source.getGroupBy())
+                .sortBy(source.getSortBy())
+                .isDefault(0)
+                .status(1)
+                .build();
+        save(copy);
+        return copy.getId();
+    }
 }
