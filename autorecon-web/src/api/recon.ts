@@ -81,6 +81,18 @@ export const sendVerifyCode = (data: { phone: string }) =>
 export const listPayments = (params: Record<string, unknown>) => get('/v1/recon/payments', params)
 export const createPayment = (data: Record<string, unknown>) => post('/v1/recon/payments', data)
 
+// Payment allocation
+export const allocatePayment = (id: number, data: Record<string, unknown>) =>
+  post(`/v1/recon/payments/${id}/allocate`, data)
+export const autoAllocateFIFO = (id: number) =>
+  post(`/v1/recon/payments/${id}/auto-allocate`, undefined, { params: { strategy: 1 } })
+export const autoAllocateProportional = (id: number) =>
+  post(`/v1/recon/payments/${id}/auto-allocate`, undefined, { params: { strategy: 3 } })
+export const batchAutoAllocate = (strategy: number) =>
+  post('/v1/recon/payments/auto-allocate', undefined, { params: { strategy } })
+export const getPaymentBalance = (sellerId: number, buyerId: number) =>
+  get('/v1/recon/payments/balance', { sellerId, buyerId })
+
 // 催收
 export const listCollectionPlans = (params: Record<string, unknown>) =>
   get('/v1/recon/collection/plans', params)

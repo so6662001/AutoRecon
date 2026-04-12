@@ -39,6 +39,13 @@
 
     <div class="action-bar">
       <el-button type="primary" @click="handleCreate">登记付款</el-button>
+      <el-select v-model="batchStrategy" style="width: 120px; margin-left: 12px" placeholder="策略">
+        <el-option label="FIFO" :value="1" />
+        <el-option label="按比例" :value="3" />
+      </el-select>
+      <el-button type="primary" plain style="margin-left: 8px" @click="handleBatchAutoAllocate">
+        批量自动抵扣
+      </el-button>
     </div>
 
     <el-table v-loading="loading" :data="tableData" stripe style="width: 100%">
@@ -68,16 +75,23 @@
           ¥{{ formatAmount(row.unallocatedAmount) }}
         </template>
       </el-table-column>
-      <el-table-column prop="status" label="状态" width="90">
+      <el-table-column prop="status" label="状态" width="110">
         <template #default="{ row }">
-          <el-tag :type="(getStatusTagType(row.status) as 'success' | 'warning' | 'info')" size="small">
-            {{ getStatusText(row.status) }}
+          <el-tag
+            :type="(getPaymentStatusTagType(row) as 'success' | 'warning' | 'info' | 'primary')"
+            size="small"
+          >
+            {{ getPaymentStatusText(row) }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="160" fixed="right">
+      <el-table-column label="操作" width="280" fixed="right">
         <template #default="{ row }">
-          <el-button type="primary" link size="small" @click="handleAllocate(row)">分配</el-button>
+          <el-button type="primary" link size="small" @click="openAllocateDialog(row)">手动分配</el-button>
+          <template v-if="Number(row.unallocatedAmount) > 0">
+            <el-button type="primary" link size="small" @click="handleRowAutoFifo(row)">FIFO抵扣</el-button>
+            <el-button type="primary" link size="small" @click="handleRowAutoProportional(row)">按比例抵扣</el-button>
+          </template>
           <el-button type="primary" link size="small" @click="handleView(row)">查看</el-button>
         </template>
       </el-table-column>
@@ -136,6 +150,58 @@
         <el-button type="primary" @click="handleCreateSubmit">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- Manual allocation dialog -->
+    <el-dialog
+      v-model="allocateVisible"
+      title="手动分配"
+      width="720px"
+      destroy-on-close
+      @close="resetAllocateDialog"
+    >
+      <div v-loading="allocateLoading" class="allocate-dialog-body">
+        <div v-if="allocatePaymentRef" class="allocate-payment-info">
+          <div><strong>付款方：</strong>{{ allocatePaymentRef.payer }}</div>
+          <div><strong>付款金额：</strong>¥{{ formatAmount(allocatePaymentRef.amount) }}</div>
+          <div><strong>未分配：</strong>¥{{ formatAmount(allocatePaymentRef.unallocatedAmount) }}</div>
+        </div>
+        <el-table :data="allocateRows" border max-height="360" style="width: 100%">
+          <el-table-column width="48" align="center">
+            <template #header>
+              <span />
+            </template>
+            <template #default="{ row }">
+              <el-checkbox v-model="row.checked" />
+            </template>
+          </el-table-column>
+          <el-table-column prop="billNo" label="对账单号" min-width="120" />
+          <el-table-column prop="productName" label="品名" min-width="100" />
+          <el-table-column prop="spec" label="规格" width="90" />
+          <el-table-column label="未付金额" width="120" align="right">
+            <template #default="{ row }">¥{{ formatAmount(row.unpaidAmount) }}</template>
+          </el-table-column>
+          <el-table-column label="分配金额" width="140" align="right">
+            <template #default="{ row }">
+              <el-input-number
+                v-model="row.allocateAmount"
+                :min="0"
+                :max="row.unpaidAmount"
+                :precision="2"
+                size="small"
+                controls-position="right"
+                style="width: 120px"
+                :disabled="!row.checked"
+              />
+            </template>
+          </el-table-column>
+        </el-table>
+        <p v-if="!allocateRows.length && !allocateLoading" class="allocate-empty">未找到未付明细，请确认买卖双方下存在未结清对账单。</p>
+      </div>
+      <template #footer>
+        <el-button @click="allocateVisible = false">取消</el-button>
+        <el-button type="primary" :loading="allocateSubmitting" @click="submitAllocate">提交分配</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -143,7 +209,16 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { listPayments, createPayment } from '@/api/recon'
+import {
+  listPayments,
+  createPayment,
+  allocatePayment,
+  autoAllocateFIFO,
+  autoAllocateProportional,
+  batchAutoAllocate,
+  queryBills,
+  getBillDetail,
+} from '@/api/recon'
 
 interface PaymentItem {
   id: number
@@ -156,12 +231,32 @@ interface PaymentItem {
   allocatedAmount: number
   unallocatedAmount: number
   status: string
+  payerId?: number
+  payeeId?: number
+}
+
+interface AllocateRow {
+  billId: number
+  billNo: string
+  billItemId?: number
+  productName: string
+  spec: string
+  unpaidAmount: number
+  checked: boolean
+  allocateAmount: number
 }
 
 const loading = ref(false)
 const tableData = ref<PaymentItem[]>([])
 const createVisible = ref(false)
 const createFormRef = ref<FormInstance>()
+const batchStrategy = ref(1)
+
+const allocateVisible = ref(false)
+const allocateLoading = ref(false)
+const allocateSubmitting = ref(false)
+const allocatePaymentRef = ref<PaymentItem | null>(null)
+const allocateRows = ref<AllocateRow[]>([])
 
 const searchForm = reactive({
   party: '',
@@ -218,22 +313,35 @@ function getMethodText(method: string) {
   return map[method] ?? method
 }
 
-function getStatusTagType(status: string) {
-  const map: Record<string, string> = {
-    PENDING: 'warning',
-    PARTIAL: '',
-    ALLOCATED: 'success',
-  }
-  return map[status] ?? 'info'
+type DerivedPayStatus = 'PENDING' | 'PARTIAL' | 'ALLOCATED_FULL'
+
+function resolvePaymentStatus(row: PaymentItem): DerivedPayStatus {
+  const unallocated = Number(row.unallocatedAmount)
+  const total = Number(row.amount)
+  const allocated = total - unallocated
+  if (unallocated <= 0 || total <= 0) return 'ALLOCATED_FULL'
+  if (allocated <= 0) return 'PENDING'
+  return 'PARTIAL'
 }
 
-function getStatusText(status: string) {
-  const map: Record<string, string> = {
+function getPaymentStatusTagType(row: PaymentItem) {
+  const s = resolvePaymentStatus(row)
+  const map: Record<DerivedPayStatus, string> = {
+    PENDING: 'warning',
+    PARTIAL: 'primary',
+    ALLOCATED_FULL: 'success',
+  }
+  return map[s] ?? 'info'
+}
+
+function getPaymentStatusText(row: PaymentItem) {
+  const s = resolvePaymentStatus(row)
+  const map: Record<DerivedPayStatus, string> = {
     PENDING: '待分配',
     PARTIAL: '部分分配',
-    ALLOCATED: '已分配',
+    ALLOCATED_FULL: '已全部分配',
   }
-  return map[status] ?? status
+  return map[s] ?? row.status
 }
 
 function buildParams() {
@@ -248,12 +356,57 @@ function buildParams() {
   return params
 }
 
+function unwrapListPayload(res: unknown): { list: Record<string, unknown>[]; total: number } {
+  if (res == null) return { list: [], total: 0 }
+  if (Array.isArray(res)) {
+    return { list: res as Record<string, unknown>[], total: res.length }
+  }
+  const r = res as Record<string, unknown>
+  const inner = (r.data as Record<string, unknown> | undefined) ?? r
+  const rawList = inner.list ?? inner.records ?? inner.data
+  const list = Array.isArray(rawList) ? (rawList as Record<string, unknown>[]) : []
+  const total = Number(inner.total ?? inner.totalCount ?? list.length)
+  return { list, total }
+}
+
+const methodNumToCode: Record<number, string> = {
+  1: 'BANK',
+  2: 'ACCEPTANCE',
+  3: 'CASH',
+  4: 'OTHER',
+}
+
+function normalizePaymentRow(raw: Record<string, unknown>): PaymentItem {
+  const amount = Number(raw.paymentAmount ?? raw.amount ?? 0)
+  const allocated = Number(raw.allocatedAmount ?? 0)
+  const unallocated = Number(raw.unallocatedAmount ?? amount - allocated)
+  let method = raw.method as string
+  if (typeof raw.paymentMethod === 'number') {
+    method = methodNumToCode[raw.paymentMethod] ?? String(raw.paymentMethod)
+  }
+  return {
+    id: Number(raw.id),
+    paymentNo: String(raw.paymentNo ?? ''),
+    payer: String(raw.payerName ?? raw.payer ?? ''),
+    payee: String(raw.payeeName ?? raw.payee ?? ''),
+    paymentDate: String(raw.paymentDate ?? ''),
+    amount,
+    method,
+    allocatedAmount: allocated,
+    unallocatedAmount: unallocated,
+    status: String(raw.status ?? ''),
+    payerId: raw.payerId != null ? Number(raw.payerId) : undefined,
+    payeeId: raw.payeeId != null ? Number(raw.payeeId) : undefined,
+  }
+}
+
 async function fetchPayments() {
   loading.value = true
   try {
-    const res = await listPayments(buildParams()) as { list?: PaymentItem[]; total?: number }
-    tableData.value = res?.list ?? []
-    pagination.total = res?.total ?? 0
+    const res = await listPayments(buildParams())
+    const { list, total } = unwrapListPayload(res)
+    tableData.value = list.map(normalizePaymentRow)
+    pagination.total = total
     if (tableData.value.length === 0 && pagination.total === 0) {
       tableData.value = [
         {
@@ -261,6 +414,8 @@ async function fetchPayments() {
           paymentNo: 'PM202503170001',
           payer: '某某贸易有限公司',
           payee: '某某钢铁有限公司',
+          payerId: 101,
+          payeeId: 201,
           paymentDate: '2025-03-15',
           amount: 125800,
           method: 'BANK',
@@ -325,8 +480,136 @@ async function handleCreateSubmit() {
   }
 }
 
-function handleAllocate(_row: PaymentItem) {
-  ElMessage.info('分配功能：选择对账单进行分配')
+async function loadUnpaidRowsForPayment(payment: PaymentItem): Promise<AllocateRow[]> {
+  const buyerId = payment.payerId
+  const sellerId = payment.payeeId
+  if (buyerId == null || sellerId == null) {
+    ElMessage.warning('缺少买卖双方ID，无法加载未付明细')
+    return []
+  }
+  const qRes = await queryBills({
+    buyerId,
+    sellerId,
+    pageNum: 1,
+    pageSize: 50,
+  } as Record<string, unknown>)
+  const { list: billRows } = unwrapListPayload(qRes)
+  const rows: AllocateRow[] = []
+  for (const br of billRows) {
+    const billId = Number(br.id)
+    const billNo = String(br.billNo ?? '')
+    if (!billId) continue
+    try {
+      const detail = await getBillDetail(billId) as {
+        items?: Array<{
+          id?: number
+          productName?: string
+          spec?: string
+          unpaidAmount?: number
+        }>
+      }
+      const items = detail?.items ?? []
+      for (const it of items) {
+        const unpaid = Number(it.unpaidAmount ?? 0)
+        if (unpaid <= 0) continue
+        rows.push({
+          billId,
+          billNo,
+          billItemId: it.id,
+          productName: String(it.productName ?? ''),
+          spec: String(it.spec ?? ''),
+          unpaidAmount: unpaid,
+          checked: false,
+          allocateAmount: 0,
+        })
+      }
+    } catch {
+      // skip bill
+    }
+  }
+  return rows
+}
+
+function resetAllocateDialog() {
+  allocatePaymentRef.value = null
+  allocateRows.value = []
+}
+
+async function openAllocateDialog(row: PaymentItem) {
+  allocatePaymentRef.value = row
+  allocateVisible.value = true
+  allocateLoading.value = true
+  allocateRows.value = []
+  try {
+    allocateRows.value = await loadUnpaidRowsForPayment(row)
+  } catch {
+    allocateRows.value = []
+    ElMessage.error('加载未付明细失败')
+  } finally {
+    allocateLoading.value = false
+  }
+}
+
+async function submitAllocate() {
+  const payment = allocatePaymentRef.value
+  if (!payment) return
+  const selected = allocateRows.value.filter((r) => r.checked && Number(r.allocateAmount) > 0)
+  if (selected.length === 0) {
+    ElMessage.warning('请勾选并填写分配金额')
+    return
+  }
+  const totalAlloc = selected.reduce((s, r) => s + Number(r.allocateAmount), 0)
+  if (totalAlloc > Number(payment.unallocatedAmount) + 0.01) {
+    ElMessage.warning('分配金额合计不能超过未分配金额')
+    return
+  }
+  allocateSubmitting.value = true
+  try {
+    await allocatePayment(payment.id, {
+      allocations: selected.map((r) => ({
+        billId: r.billId,
+        billItemId: r.billItemId,
+        amount: Number(r.allocateAmount),
+      })),
+    })
+    ElMessage.success('分配成功')
+    allocateVisible.value = false
+    fetchPayments()
+  } catch {
+    // interceptor
+  } finally {
+    allocateSubmitting.value = false
+  }
+}
+
+async function handleBatchAutoAllocate() {
+  try {
+    await batchAutoAllocate(batchStrategy.value)
+    ElMessage.success('批量自动抵扣已提交')
+    fetchPayments()
+  } catch {
+    // interceptor
+  }
+}
+
+async function handleRowAutoFifo(row: PaymentItem) {
+  try {
+    await autoAllocateFIFO(row.id)
+    ElMessage.success('FIFO抵扣已执行')
+    fetchPayments()
+  } catch {
+    // interceptor
+  }
+}
+
+async function handleRowAutoProportional(row: PaymentItem) {
+  try {
+    await autoAllocateProportional(row.id)
+    ElMessage.success('按比例抵扣已执行')
+    fetchPayments()
+  } catch {
+    // interceptor
+  }
 }
 
 function handleView(item: PaymentItem) {
@@ -357,6 +640,29 @@ onMounted(() => {
 
   .action-bar {
     margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .allocate-dialog-body {
+    min-height: 120px;
+  }
+
+  .allocate-payment-info {
+    margin-bottom: 16px;
+    padding: 12px;
+    background: #f5f7fa;
+    border-radius: 6px;
+    font-size: 14px;
+    line-height: 1.8;
+  }
+
+  .allocate-empty {
+    margin: 16px 0 0;
+    color: #909399;
+    font-size: 14px;
   }
 
   .pagination-wrap {

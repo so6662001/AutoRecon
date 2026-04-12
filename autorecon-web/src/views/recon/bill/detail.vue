@@ -31,20 +31,20 @@
       <div class="balance-card">
         <div class="balance-row">
           <span class="label">上期结转</span>
-          <span class="value">¥{{ formatAmount(bill.carryOverAmount) }}</span>
+          <span class="value">¥{{ formatAmount(bill.prevBalance) }}</span>
         </div>
         <div class="balance-row">
           <span class="label">+ 本期交易</span>
-          <span class="value">¥{{ formatAmount(bill.totalAmount) }}</span>
+          <span class="value">¥{{ formatAmount(bill.currentTradeAmount ?? bill.totalAmount) }}</span>
         </div>
         <div class="balance-row">
           <span class="label">- 本期已付</span>
-          <span class="value">¥{{ formatAmount(bill.paidAmount) }}</span>
+          <span class="value">¥{{ formatAmount(bill.currentPaymentAmount) }}</span>
         </div>
         <el-divider />
         <div class="balance-row total">
           <span class="label">= 应付余额</span>
-          <span class="value">¥{{ formatAmount(bill.balanceAmount) }}</span>
+          <span class="value">¥{{ formatAmount(bill.currentBalance) }}</span>
         </div>
       </div>
 
@@ -87,18 +87,54 @@
         </el-tab-pane>
 
         <el-tab-pane label="付款信息" name="payments">
-          <el-table :data="payments" border style="width: 100%">
+          <div class="payment-tab-summary">
+            <div class="payment-summary-card">
+              <div class="summary-line">
+                <span class="summary-label">上期结转应付:</span>
+                <span class="summary-value">¥{{ formatAmount(bill.prevBalance) }}</span>
+              </div>
+              <div class="summary-line">
+                <span class="summary-label">本期新增交易额:</span>
+                <span class="summary-value">¥{{ formatAmount(bill.currentTradeAmount ?? bill.totalAmount) }}</span>
+              </div>
+              <el-divider class="summary-divider" />
+              <div class="summary-line highlight">
+                <span class="summary-label">本期应付合计:</span>
+                <span class="summary-value">¥{{ formatAmount(periodPayableTotal) }}</span>
+              </div>
+              <div class="summary-block-title">本期已付款明细:</div>
+              <div v-for="(p, idx) in payments" :key="idx" class="payment-detail-line">
+                <span class="pay-date">{{ p.paymentDate }}</span>
+                <span class="pay-method">{{ getPaymentMethodText(p.paymentMethod) }}</span>
+                <span class="pay-amt">¥{{ formatAmount(p.paymentAmount ?? p.amount) }}</span>
+                <span v-if="p.bankSerialNo" class="pay-ref">(流水:{{ p.bankSerialNo }})</span>
+              </div>
+              <div v-if="!payments.length" class="payment-detail-empty">暂无付款记录</div>
+              <div class="summary-line">
+                <span class="summary-label">本期已付款小计:</span>
+                <span class="summary-value">¥{{ formatAmount(bill.currentPaymentAmount) }}</span>
+              </div>
+              <el-divider class="summary-divider" />
+              <div class="summary-line highlight">
+                <span class="summary-label">本期应付余额:</span>
+                <span class="summary-value">¥{{ formatAmount(bill.currentBalance) }}</span>
+              </div>
+            </div>
+          </div>
+          <el-table :data="payments" border style="width: 100%" class="payment-items-table">
             <el-table-column prop="paymentNo" label="付款单号" min-width="140" />
-            <el-table-column prop="amount" label="金额" width="120" align="right">
-              <template #default="{ row }">¥{{ formatAmount(row.amount) }}</template>
+            <el-table-column prop="paymentAmount" label="金额" width="120" align="right">
+              <template #default="{ row }">¥{{ formatAmount(row.paymentAmount ?? row.amount) }}</template>
             </el-table-column>
             <el-table-column prop="paymentDate" label="付款日期" width="120" />
+            <el-table-column label="付款方式" width="120">
+              <template #default="{ row }">{{ getPaymentMethodText(row.paymentMethod) }}</template>
+            </el-table-column>
+            <el-table-column prop="bankSerialNo" label="银行流水号" min-width="140">
+              <template #default="{ row }">{{ row.bankSerialNo ?? '-' }}</template>
+            </el-table-column>
             <el-table-column prop="status" label="状态" width="100" />
           </el-table>
-          <div class="payment-summary">
-            <span>已付款合计: ¥{{ formatAmount(bill.paidAmount) }}</span>
-            <span>应付余额: ¥{{ formatAmount(bill.balanceAmount) }}</span>
-          </div>
         </el-tab-pane>
 
         <el-tab-pane label="异议记录" name="disputes">
@@ -284,6 +320,15 @@ interface BillDetail {
   templateId?: number
   templateName?: string
   createdAt?: string
+  /** API: 上期结转应付 */
+  prevBalance?: number
+  /** API: 本期新增交易额 */
+  currentTradeAmount?: number
+  /** API: 本期已付款 */
+  currentPaymentAmount?: number
+  /** API: 本期应付余额 */
+  currentBalance?: number
+  /** Legacy / mock */
   carryOverAmount?: number
   totalAmount?: number
   paidAmount?: number
@@ -323,9 +368,12 @@ interface Template {
 
 interface Payment {
   paymentNo: string
-  amount: number
+  amount?: number
+  paymentAmount?: number
   paymentDate: string
   status: string
+  paymentMethod?: number
+  bankSerialNo?: string
 }
 
 interface OperationLog {
@@ -353,6 +401,13 @@ const activeTab = ref('items')
 
 const billItems = computed(() => bill.value.items ?? [])
 const payments = computed(() => bill.value.payments ?? [])
+
+/** 本期应付合计 = 上期结转 + 本期新增交易额 */
+const periodPayableTotal = computed(() => {
+  const prev = bill.value.prevBalance ?? bill.value.carryOverAmount ?? 0
+  const trade = bill.value.currentTradeAmount ?? bill.value.totalAmount ?? 0
+  return Number(prev) + Number(trade)
+})
 const disputes = ref<{ id: number; subject: string; status: string; createdAt: string }[]>([])
 const signStatus = ref<SignStatus | null>(null)
 const operationLogs = computed(() => bill.value.operationLogs ?? [])
@@ -416,6 +471,18 @@ function formatAmount(val: number | undefined) {
   return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2 })
 }
 
+/** 付款方式 integer → 文案 */
+function getPaymentMethodText(method: number | undefined) {
+  const map: Record<number, string> = {
+    1: '银行转账',
+    2: '承兑汇票',
+    3: '现金',
+    4: '其他',
+  }
+  if (method == null) return '-'
+  return map[method] ?? String(method)
+}
+
 function getStatusTagType(status: string) {
   const map: Record<string, string> = {
     CREATED: 'info',
@@ -473,6 +540,10 @@ async function fetchDetail() {
         period: '2025-02-01 ~ 2025-02-28',
         createdAt: '2025-03-17 10:30:00',
         templateName: '标准对账模板',
+        prevBalance: 0,
+        currentTradeAmount: 125800.5,
+        currentPaymentAmount: 50000,
+        currentBalance: 75800.5,
         carryOverAmount: 0,
         totalAmount: 125800.5,
         paidAmount: 50000,
@@ -504,7 +575,15 @@ async function fetchDetail() {
           },
         ],
         payments: [
-          { paymentNo: 'FK202503001', amount: 50000, paymentDate: '2025-03-10', status: '已确认' },
+          {
+            paymentNo: 'FK202503001',
+            paymentAmount: 50000,
+            amount: 50000,
+            paymentDate: '2025-03-10',
+            paymentMethod: 1,
+            bankSerialNo: 'BK00123',
+            status: '已确认',
+          },
         ],
         operationLogs: [
           { id: 1, action: '创建对账单', createdAt: '2025-03-17 10:30:00' },
@@ -524,6 +603,10 @@ async function fetchDetail() {
       period: '2025-02-01 ~ 2025-02-28',
       createdAt: '2025-03-17 10:30:00',
       templateName: '标准对账模板',
+      prevBalance: 0,
+      currentTradeAmount: 125800.5,
+      currentPaymentAmount: 50000,
+      currentBalance: 75800.5,
       carryOverAmount: 0,
       totalAmount: 125800.5,
       paidAmount: 50000,
@@ -789,14 +872,72 @@ onMounted(() => {
     font-size: 14px;
   }
 
-  .payment-summary {
-    margin-top: 16px;
-    padding: 12px;
+  .payment-tab-summary {
+    margin-bottom: 20px;
+  }
+
+  .payment-summary-card {
+    max-width: 520px;
+    padding: 16px 20px;
     background: #f5f7fa;
-    border-radius: 4px;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .payment-summary-card .summary-line {
     display: flex;
-    gap: 24px;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 2px 0;
+  }
+
+  .payment-summary-card .summary-line.highlight {
+    font-weight: 600;
+    color: #303133;
+  }
+
+  .payment-summary-card .summary-label {
+    color: #606266;
+  }
+
+  .payment-summary-card .summary-value {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .summary-divider {
+    margin: 12px 0;
+  }
+
+  .summary-block-title {
+    margin: 12px 0 8px;
+    font-weight: 600;
+    color: #303133;
+  }
+
+  .payment-detail-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px 12px;
+    padding: 4px 0;
+    color: #606266;
+    font-size: 13px;
+  }
+
+  .payment-detail-line .pay-amt {
     font-weight: 500;
+    color: #303133;
+  }
+
+  .payment-detail-empty {
+    color: #909399;
+    font-size: 13px;
+    padding: 8px 0;
+  }
+
+  .payment-items-table {
+    margin-top: 8px;
   }
 
   .log-remark {
