@@ -35,6 +35,16 @@ public class AutoReconProperties {
 
     private Auth auth = new Auth();
 
+    /**
+     * Auto-confirm deadline when a bill is sent (PENDING). Configurable default in days.
+     */
+    private AutoConfirm autoConfirm = new AutoConfirm();
+
+    @Data
+    public static class AutoConfirm {
+        private int defaultTimeoutDays = 3;
+    }
+
     @Data
     public static class Auth {
         private boolean enabled = true;

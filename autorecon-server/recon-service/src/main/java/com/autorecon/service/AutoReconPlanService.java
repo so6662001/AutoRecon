@@ -32,6 +32,11 @@ public interface AutoReconPlanService extends IService<AutoReconPlan> {
     void triggerPlan(Long id);
 
     /**
+     * 系统触发（如定时任务），跳过租户归属校验。
+     */
+    void triggerPlanInternal(Long id);
+
+    /**
      * 列出计划
      */
     List<AutoReconPlan> listPlans(Long sellerId);

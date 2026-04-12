@@ -62,6 +62,10 @@ public class MatchEngineServiceImpl implements MatchEngineService {
         for (ReconBillItem item : items) {
             int status = computeMatchStatus(item);
             item.setMatchStatus(status);
+            if (item.getBuyerWeight() != null && item.getWeight() != null
+                    && item.getBuyerWeight().subtract(item.getWeight()).abs().compareTo(BigDecimal.ZERO) > 0) {
+                item.setWeightDiffCause(attributeWeightDiff(item));
+            }
             reconBillItemMapper.updateById(item);
 
             switch (status) {
@@ -193,6 +197,46 @@ public class MatchEngineServiceImpl implements MatchEngineService {
         }
 
         return (weightOk && amountOk && quantityOk) ? MATCHED : DIFF;
+    }
+
+    private String attributeWeightDiff(ReconBillItem item) {
+        if (item.getWeight() == null || item.getBuyerWeight() == null) {
+            return null;
+        }
+
+        BigDecimal diff = item.getBuyerWeight().subtract(item.getWeight());
+        BigDecimal absDiff = diff.abs();
+        BigDecimal diffRate = absDiff.divide(item.getWeight(), 4, RoundingMode.HALF_UP);
+
+        if (diffRate.compareTo(BigDecimal.valueOf(0.003)) <= 0) {
+            return "正常过磅误差(偏差" + diffRate.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP) + "%)，在允许范围内";
+        }
+
+        if (item.getQuantity() != null && item.getQuantity().compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal avgPieceWeight = item.getWeight().divide(item.getQuantity(), 4, RoundingMode.HALF_UP);
+            if (avgPieceWeight.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal pieceDiff = absDiff.divide(avgPieceWeight, 0, RoundingMode.HALF_UP);
+                if (pieceDiff.compareTo(BigDecimal.ONE) >= 0 && pieceDiff.compareTo(BigDecimal.valueOf(5)) <= 0) {
+                    return "疑似" + (diff.compareTo(BigDecimal.ZERO) < 0 ? "漏发" : "多发")
+                            + pieceDiff.intValue() + "件(偏差" + absDiff.setScale(2, RoundingMode.HALF_UP) + "吨)";
+                }
+            }
+        }
+
+        if (diffRate.compareTo(BigDecimal.valueOf(0.01)) <= 0) {
+            return "实际重量与理论重量偏差属正常公差范围(偏差" + diffRate.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP) + "%)";
+        }
+
+        if (diffRate.compareTo(BigDecimal.valueOf(0.02)) <= 0) {
+            return "疑似磅秤校准差异(偏差" + diffRate.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP) + "%)，建议双方校准磅秤";
+        }
+
+        if (diff.compareTo(BigDecimal.ZERO) < 0 && diffRate.compareTo(BigDecimal.valueOf(0.03)) <= 0) {
+            return "运输途中正常损耗(损耗率" + diffRate.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP) + "%)";
+        }
+
+        return "差异异常(偏差" + absDiff.setScale(2, RoundingMode.HALF_UP) + "吨/"
+                + diffRate.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP) + "%)，需人工核查";
     }
 
     private MatchResultVO buildMatchResultVO(Long billId, List<ReconBillItem> items,

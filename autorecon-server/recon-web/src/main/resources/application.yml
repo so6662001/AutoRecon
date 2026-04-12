@@ -102,6 +102,8 @@ knife4j:
 autorecon:
   # CORS: default "*" for dev; set to frontend domain(s) in production, e.g. "https://app.example.com"
   cors-allowed-origins: "*"
+  auto-confirm:
+    default-timeout-days: 3
 
 # Logging
 logging:

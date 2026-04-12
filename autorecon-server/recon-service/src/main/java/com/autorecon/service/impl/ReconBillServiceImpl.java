@@ -1,5 +1,6 @@
 package com.autorecon.service.impl;
 
+import com.autorecon.common.config.AutoReconProperties;
 import com.autorecon.common.exception.BizException;
 import com.autorecon.common.exception.ErrorCode;
 import com.autorecon.common.result.PageResult;
@@ -70,6 +71,7 @@ public class ReconBillServiceImpl extends ServiceImpl<ReconBillMapper, ReconBill
     private final PaymentAllocationMapper paymentAllocationMapper;
     private final EnterpriseMapper enterpriseMapper;
     private final DisputeMapper disputeMapper;
+    private final AutoReconProperties autoReconProperties;
 
     @Autowired(required = false)
     private StringRedisTemplate stringRedisTemplate;
@@ -77,13 +79,15 @@ public class ReconBillServiceImpl extends ServiceImpl<ReconBillMapper, ReconBill
     public ReconBillServiceImpl(ReconBillItemMapper reconBillItemMapper,
                                  ReconTemplateMapper reconTemplateMapper, PaymentMapper paymentMapper,
                                  PaymentAllocationMapper paymentAllocationMapper,
-                                 EnterpriseMapper enterpriseMapper, DisputeMapper disputeMapper) {
+                                 EnterpriseMapper enterpriseMapper, DisputeMapper disputeMapper,
+                                 AutoReconProperties autoReconProperties) {
         this.reconBillItemMapper = reconBillItemMapper;
         this.reconTemplateMapper = reconTemplateMapper;
         this.paymentMapper = paymentMapper;
         this.paymentAllocationMapper = paymentAllocationMapper;
         this.enterpriseMapper = enterpriseMapper;
         this.disputeMapper = disputeMapper;
+        this.autoReconProperties = autoReconProperties;
     }
 
     private static final AtomicLong BILL_SEQ = new AtomicLong(0);
@@ -407,7 +411,9 @@ public class ReconBillServiceImpl extends ServiceImpl<ReconBillMapper, ReconBill
         validateStatusTransition(bill.getStatus(),
                 BillStatusEnum.CREATED.getCode(), BillStatusEnum.GENERATED.getCode());
         bill.setStatus(BillStatusEnum.PENDING.getCode());
-        int timeoutDays = 3; // TODO: read from enterprise config
+        int timeoutDays = autoReconProperties.getAutoConfirm() != null
+                ? autoReconProperties.getAutoConfirm().getDefaultTimeoutDays()
+                : 3;
         bill.setAutoConfirmDeadline(LocalDateTime.now().plusDays(timeoutDays));
         bill.setAutoConfirmed(0);
         baseMapper.updateById(bill);

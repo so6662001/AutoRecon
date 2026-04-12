@@ -60,6 +60,7 @@ public class AutoReconPlanServiceImpl extends ServiceImpl<AutoReconPlanMapper, A
                 .includePayment(dto.getIncludePayment())
                 .status(STATUS_ACTIVE)
                 .cronExpression(cronExpression)
+                .nextExecuteAt(LocalDateTime.now())
                 .build();
 
         baseMapper.insert(plan);
@@ -112,6 +113,20 @@ public class AutoReconPlanServiceImpl extends ServiceImpl<AutoReconPlanMapper, A
             throw new BizException(ErrorCode.NOT_FOUND.getCode(), "计划不存在");
         }
         TenantUtil.checkOwnership(plan.getSellerId());
+        executeTrigger(plan);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void triggerPlanInternal(Long id) {
+        AutoReconPlan plan = baseMapper.selectById(id);
+        if (plan == null) {
+            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "计划不存在");
+        }
+        executeTrigger(plan);
+    }
+
+    private void executeTrigger(AutoReconPlan plan) {
         if (plan.getTemplateId() == null) {
             throw new BizException(ErrorCode.BAD_REQUEST.getCode(), "计划未配置模板");
         }
@@ -152,7 +167,7 @@ public class AutoReconPlanServiceImpl extends ServiceImpl<AutoReconPlanMapper, A
         reconBillService.batchCreateBills(buyerIds, periodStart, periodEnd, plan.getTemplateId());
         plan.setLastExecutedAt(LocalDateTime.now());
         baseMapper.updateById(plan);
-        log.info("Triggered auto recon plan: id={}", id);
+        log.info("Triggered auto recon plan: id={}", plan.getId());
     }
 
     @Override
