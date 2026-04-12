@@ -17,6 +17,8 @@ import com.pickupexpress.domain.vo.ContractVO;
 import com.pickupexpress.mapper.ContractItemMapper;
 import com.pickupexpress.mapper.ContractMapper;
 import com.pickupexpress.mapper.PickupOrderMapper;
+import com.pickupexpress.mapper.ProgressEventMapper;
+import com.pickupexpress.mapper.SettlementOrderMapper;
 import com.pickupexpress.service.impl.ContractServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,6 +48,12 @@ class ContractServiceTest {
 
     @Mock
     private PickupOrderMapper pickupOrderMapper;
+
+    @Mock
+    private SettlementOrderMapper settlementOrderMapper;
+
+    @Mock
+    private ProgressEventMapper progressEventMapper;
 
     @InjectMocks
     private ContractServiceImpl contractService;
@@ -146,6 +154,9 @@ class ContractServiceTest {
 
         when(contractMapper.selectById(1L)).thenReturn(contract);
         when(contractItemMapper.selectList(any())).thenReturn(List.of(item));
+        when(pickupOrderMapper.selectList(any())).thenReturn(Collections.emptyList());
+        when(settlementOrderMapper.selectList(any())).thenReturn(Collections.emptyList());
+        when(progressEventMapper.selectList(any())).thenReturn(Collections.emptyList());
 
         ContractDetailVO vo = contractService.getContractDetail(1L);
 

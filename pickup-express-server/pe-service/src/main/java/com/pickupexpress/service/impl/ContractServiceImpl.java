@@ -11,14 +11,20 @@ import com.pickupexpress.common.util.TenantUtil;
 import com.pickupexpress.domain.dto.ContractQueryDTO;
 import com.pickupexpress.domain.entity.Contract;
 import com.pickupexpress.domain.entity.ContractItem;
+import com.pickupexpress.domain.entity.PickupOrder;
+import com.pickupexpress.domain.entity.ProgressEvent;
+import com.pickupexpress.domain.entity.SettlementOrder;
 import com.pickupexpress.domain.enums.ContractStatusEnum;
 import com.pickupexpress.domain.enums.ContractTypeEnum;
 import com.pickupexpress.domain.enums.SignStatusEnum;
 import com.pickupexpress.domain.vo.ContractDetailVO;
 import com.pickupexpress.domain.vo.ContractVO;
+import com.pickupexpress.domain.vo.PickupOrderVO;
 import com.pickupexpress.mapper.ContractItemMapper;
 import com.pickupexpress.mapper.ContractMapper;
 import com.pickupexpress.mapper.PickupOrderMapper;
+import com.pickupexpress.mapper.ProgressEventMapper;
+import com.pickupexpress.mapper.SettlementOrderMapper;
 import com.pickupexpress.service.ContractService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +34,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -42,6 +47,8 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
 
     private final ContractItemMapper contractItemMapper;
     private final PickupOrderMapper pickupOrderMapper;
+    private final SettlementOrderMapper settlementOrderMapper;
+    private final ProgressEventMapper progressEventMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -118,10 +125,36 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
         ContractDetailVO vo = new ContractDetailVO();
         BeanUtils.copyProperties(contract, vo);
         vo.setItems(contractItemMapper.selectList(new LambdaQueryWrapper<ContractItem>().eq(ContractItem::getContractId, contractId)));
-        vo.setPickupOrders(new ArrayList<>());
-        vo.setSettlements(new ArrayList<>());
-        vo.setProgressEvents(new ArrayList<>());
+
+        String erpBuyerName = parseErpBuyerName(contract);
+        List<PickupOrder> orders = pickupOrderMapper.selectList(
+                new LambdaQueryWrapper<PickupOrder>().eq(PickupOrder::getContractId, contractId).orderByDesc(PickupOrder::getCreatedAt));
+        List<PickupOrderVO> pickupVos = orders.stream().map(o -> {
+            PickupOrderVO pvo = new PickupOrderVO();
+            BeanUtils.copyProperties(o, pvo);
+            pvo.setContractNo(contract.getContractNo());
+            pvo.setBuyerName(erpBuyerName);
+            return pvo;
+        }).collect(Collectors.toList());
+        vo.setPickupOrders(pickupVos);
+
+        vo.setSettlements(settlementOrderMapper.selectList(
+                new LambdaQueryWrapper<SettlementOrder>().eq(SettlementOrder::getContractId, contractId).orderByDesc(SettlementOrder::getCreatedAt)));
+        vo.setProgressEvents(progressEventMapper.selectList(
+                new LambdaQueryWrapper<ProgressEvent>().eq(ProgressEvent::getContractId, contractId).orderByDesc(ProgressEvent::getCreatedAt)));
         return vo;
+    }
+
+    private static String parseErpBuyerName(Contract contract) {
+        if (contract == null || contract.getCustomClauses() == null) {
+            return null;
+        }
+        String prefix = "erpBuyerName=";
+        String clauses = contract.getCustomClauses();
+        if (clauses.startsWith(prefix)) {
+            return clauses.substring(prefix.length());
+        }
+        return null;
     }
 
     @Override

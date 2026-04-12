@@ -40,4 +40,11 @@ public class CarrierController {
         List<Carrier> list = carrierService.listCarriers(enterpriseId);
         return R.ok(list);
     }
+
+    @Operation(summary = "更新承运公司")
+    @PutMapping("/{id}")
+    public R<Void> updateCarrier(@PathVariable Long id, @Valid @RequestBody CarrierCreateDTO dto) {
+        carrierService.updateCarrier(id, dto.getName(), dto.getContactName(), dto.getContactPhone());
+        return R.ok();
+    }
 }

@@ -46,6 +46,23 @@ public class CarrierServiceImpl extends ServiceImpl<CarrierMapper, Carrier>
     }
 
     @Override
+    public void updateCarrier(Long id, String carrierName, String contactName, String contactPhone) {
+        Long enterpriseId = SecurityUtil.getCurrentEnterpriseId();
+        if (enterpriseId == null) {
+            throw new com.pickupexpress.common.exception.BizException(com.pickupexpress.common.exception.ErrorCode.UNAUTHORIZED);
+        }
+        Carrier carrier = getById(id);
+        if (carrier == null) {
+            throw new com.pickupexpress.common.exception.BizException(com.pickupexpress.common.exception.ErrorCode.NOT_FOUND);
+        }
+        TenantUtil.checkOwnership(carrier.getEnterpriseId());
+        carrier.setCarrierName(carrierName);
+        carrier.setContactName(contactName);
+        carrier.setContactPhone(contactPhone);
+        updateById(carrier);
+    }
+
+    @Override
     public List<Carrier> listCarriers(Long enterpriseId) {
         TenantUtil.checkOwnership(enterpriseId);
         return list(new LambdaQueryWrapper<Carrier>()

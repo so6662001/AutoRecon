@@ -23,6 +23,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
         registry.addInterceptor(authInterceptor)
                 .addPathPatterns("/api/**")
                 .excludePathPatterns(
+                        "/api/v1/guest/**",
                         "/api/v1/guest/view/**",
                         "/api/v1/guest/verify-phone",
                         "/api/v1/guest/confirm/**",
