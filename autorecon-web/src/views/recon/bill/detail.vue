@@ -6,6 +6,7 @@
         <div class="header-left">
           <h2 class="bill-no">{{ bill.billNo ?? '-' }}</h2>
           <el-tag :type="(getStatusTagType(bill.status) as 'success' | 'warning' | 'info' | 'danger')" size="large">{{ getStatusText(bill.status) }}</el-tag>
+          <el-tag v-if="bill.autoConfirmed === 1" type="warning" style="margin-left: 8px">超时自动确认</el-tag>
         </div>
         <div class="header-actions">
           <template v-if="['CREATED', 'GENERATED'].includes(bill.status)">
@@ -56,6 +57,41 @@
         <el-descriptions-item label="创建时间">{{ bill.createdAt ?? '-' }}</el-descriptions-item>
         <el-descriptions-item label="模板">{{ bill.templateName ?? '-' }}</el-descriptions-item>
       </el-descriptions>
+
+      <el-alert
+        v-if="prediction && prediction.overallScore > 50 && ['PENDING', 'CREATED', 'GENERATED'].includes(bill.status)"
+        :title="`异议预测: ${prediction.riskLevel}风险 (评分${prediction.overallScore})`"
+        :type="prediction.overallScore > 70 ? 'error' : 'warning'"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 16px"
+      >
+        <template #default>
+          <div v-if="prediction.highRiskItems && prediction.highRiskItems.length > 0">
+            <p style="margin: 4px 0" v-for="item in prediction.highRiskItems.slice(0, 3)" :key="item.itemId">
+              #{{ item.lineNo }} {{ item.productName }} {{ item.spec }}: {{ item.riskReason }}
+            </p>
+          </div>
+        </template>
+      </el-alert>
+
+      <el-alert
+        v-if="bill.status === 'PENDING' && bill.autoConfirmDeadline && !bill.autoConfirmed"
+        type="info"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 16px"
+      >
+        <template #default>
+          <span>
+            超时自动确认倒计时:
+            <strong>{{ formatDeadline(bill.autoConfirmDeadline) }}</strong>
+            <span v-if="isExpiringSoon(bill.autoConfirmDeadline)" style="color: #E6A23C; margin-left: 8px">
+              (即将到期)
+            </span>
+          </span>
+        </template>
+      </el-alert>
 
       <!-- Tabs -->
       <el-tabs v-model="activeTab" class="detail-tabs">
@@ -307,6 +343,7 @@ import {
   listTemplates,
   initiateSign,
   getInvoiceLinks,
+  getDisputePrediction,
 } from '@/api/recon'
 
 interface BillDetail {
@@ -336,6 +373,8 @@ interface BillDetail {
   items?: BillItem[]
   payments?: Payment[]
   operationLogs?: OperationLog[]
+  autoConfirmDeadline?: string
+  autoConfirmed?: number | boolean
 }
 
 interface BillItem {
@@ -435,6 +474,14 @@ const disputeForm = reactive({
 const invoiceLinksDialogVisible = ref(false)
 const invoiceLinks = ref<InvoiceLink[]>([])
 
+interface DisputePrediction {
+  overallScore: number
+  riskLevel?: string
+  highRiskItems?: { itemId?: number; lineNo?: number; productName?: string; spec?: string; riskReason?: string }[]
+}
+
+const prediction = ref<DisputePrediction | null>(null)
+
 function getInvoiceStatusText(status?: string) {
   const map: Record<string, string> = {
     NONE: '未开票',
@@ -469,6 +516,26 @@ async function loadInvoiceLinks() {
 function formatAmount(val: number | undefined) {
   if (val == null) return '0.00'
   return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2 })
+}
+
+function formatDeadline(deadline: string): string {
+  if (!deadline) return ''
+  const d = new Date(deadline)
+  const now = new Date()
+  const diff = d.getTime() - now.getTime()
+  if (diff <= 0) return '已到期'
+  const hours = Math.floor(diff / (1000 * 60 * 60))
+  const days = Math.floor(hours / 24)
+  const remainHours = hours % 24
+  if (days > 0) return `${days}天${remainHours}小时`
+  return `${hours}小时`
+}
+
+function isExpiringSoon(deadline: string): boolean {
+  if (!deadline) return false
+  const d = new Date(deadline)
+  const diff = d.getTime() - new Date().getTime()
+  return diff > 0 && diff < 24 * 60 * 60 * 1000
 }
 
 /** 付款方式 integer → 文案 */
@@ -617,6 +684,18 @@ async function fetchDetail() {
     }
   } finally {
     loading.value = false
+  }
+}
+
+async function loadPrediction() {
+  try {
+    const res = (await getDisputePrediction(billId.value)) as { data?: DisputePrediction } | DisputePrediction
+    const payload = res && typeof res === 'object' && 'data' in res && res.data != null
+      ? res.data
+      : (res as DisputePrediction)
+    prediction.value = payload ?? null
+  } catch {
+    prediction.value = null
   }
 }
 
@@ -788,9 +867,10 @@ watch(activeTab, (tab) => {
   if (tab === 'sign') loadSignStatus()
 })
 
-onMounted(() => {
-  fetchDetail()
+onMounted(async () => {
+  await fetchDetail()
   loadTemplates()
+  loadPrediction()
 })
 </script>
 

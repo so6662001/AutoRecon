@@ -137,6 +137,10 @@ export const getEligibleBills = () => get('/v1/recon/finance/eligible-bills')
 // 三单匹配
 export const getTriMatch = (billId: number) => get(`/v1/recon/tri-match/${billId}`)
 
+// 异议预测
+export const getDisputePrediction = (billId: number) => get(`/v1/recon/prediction/${billId}`)
+
 // 批量对账
 export const batchCreate = (data: Record<string, unknown>) => post('/v1/recon/batch/create', data)
 export const getBatchBills = (batchId: string) => get(`/v1/recon/batch/${batchId}/bills`)
+export const batchSendAll = (batchId: string) => post(`/v1/recon/batch/${batchId}/send-all`)

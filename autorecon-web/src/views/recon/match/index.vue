@@ -98,6 +98,16 @@
             <span :class="{ 'diff-highlight': row.weightDiff !== 0 }">{{ formatDiff(row.weightDiff) }}</span>
           </template>
         </el-table-column>
+        <el-table-column label="差异归因" prop="weightDiffCause" min-width="180">
+          <template #default="{ row }">
+            <el-tooltip v-if="row.weightDiffCause" :content="row.weightDiffCause" placement="top">
+              <el-tag :type="getAttributionTagType(row.weightDiffCause)" size="small">
+                {{ row.weightDiffCause.length > 15 ? row.weightDiffCause.substring(0, 15) + '...' : row.weightDiffCause }}
+              </el-tag>
+            </el-tooltip>
+            <span v-else>—</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="sellerAmount" label="卖方金额" width="110" align="right">
           <template #default="{ row }">
             <span :class="{ 'diff-highlight': row.amountDiff !== 0 }">{{ formatAmount(row.sellerAmount) }}</span>
@@ -196,6 +206,7 @@ interface MatchItem {
   sellerWeight?: number
   buyerWeight?: number
   weightDiff?: number
+  weightDiffCause?: string
   sellerAmount?: number
   buyerAmount?: number
   amountDiff?: number
@@ -265,6 +276,14 @@ function formatAmount(val?: number): string {
   return `¥${Number(val).toLocaleString()}`
 }
 
+function getAttributionTagType(cause: string): 'success' | 'warning' | 'danger' | 'info' {
+  if (!cause) return 'info'
+  if (cause.includes('正常')) return 'success'
+  if (cause.includes('疑似')) return 'warning'
+  if (cause.includes('异常')) return 'danger'
+  return 'info'
+}
+
 function getStatusText(status: string): string {
   const map: Record<string, string> = {
     matched: '匹配',
@@ -295,13 +314,17 @@ async function fetchData() {
       buyerExtra: resultRes?.buyerExtra ?? 0,
       total: resultRes?.total ?? 0,
     }
-    items.value = (diffRes && Array.isArray(diffRes) ? diffRes : resultRes?.items ?? []).map((item) => ({
-      ...item,
-      weightDiff: item.weightDiff ?? (item.sellerWeight != null && item.buyerWeight != null
-        ? (item.sellerWeight - item.buyerWeight) : 0),
-      amountDiff: item.amountDiff ?? (item.sellerAmount != null && item.buyerAmount != null
-        ? (item.sellerAmount - item.buyerAmount) : 0),
-    }))
+    items.value = (diffRes && Array.isArray(diffRes) ? diffRes : resultRes?.items ?? []).map((item) => {
+      const raw = item as MatchItem & { weight_diff_cause?: string }
+      return {
+        ...item,
+        weightDiffCause: raw.weightDiffCause ?? raw.weight_diff_cause,
+        weightDiff: item.weightDiff ?? (item.sellerWeight != null && item.buyerWeight != null
+          ? (item.sellerWeight - item.buyerWeight) : 0),
+        amountDiff: item.amountDiff ?? (item.sellerAmount != null && item.buyerAmount != null
+          ? (item.sellerAmount - item.buyerAmount) : 0),
+      }
+    })
   } catch {
     items.value = []
     stats.value = { matched: 0, diff: 0, sellerExtra: 0, buyerExtra: 0, total: 0 }

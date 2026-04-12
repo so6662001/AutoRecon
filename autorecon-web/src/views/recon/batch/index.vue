@@ -69,7 +69,7 @@
       <div class="result-table-wrap">
         <div class="table-header">
           <span>已生成 {{ batchBills.length }} 份对账单</span>
-          <el-button type="primary" @click="handleSendAll">一键发送全部</el-button>
+          <el-button type="primary" :loading="sendingAll" @click="handleSendAll">一键发送全部</el-button>
         </div>
         <el-table :data="batchBills" stripe>
           <el-table-column prop="billNo" label="对账单号" min-width="130" />
@@ -97,7 +97,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { batchCreate, getBatchBills } from '@/api/recon'
+import { batchCreate, getBatchBills, batchSendAll, queryBills } from '@/api/recon'
 
 interface BuyerItem {
   id: number
@@ -121,6 +121,7 @@ const selectedBuyers = ref<BuyerItem[]>([])
 const generating = ref(false)
 const progressPercent = ref(0)
 const batchId = ref<string | null>(null)
+const sendingAll = ref(false)
 
 const step1Form = reactive({
   periodRange: null as [string, string] | null,
@@ -228,9 +229,19 @@ async function fetchBatchBills() {
   }
 }
 
-function handleSendAll() {
-  ElMessage.success('已发送全部对账单')
-  batchBills.value = batchBills.value.map((b) => ({ ...b, sendStatus: 'SENT' }))
+async function handleSendAll() {
+  if (!batchId.value) return
+  try {
+    sendingAll.value = true
+    const res = (await batchSendAll(batchId.value)) as { data?: number } | number
+    const sentCount = typeof res === 'number' ? res : (res?.data ?? 0)
+    ElMessage.success(`成功发送 ${sentCount} 份对账单`)
+    await fetchBatchBills()
+  } catch {
+    ElMessage.error('批量发送失败')
+  } finally {
+    sendingAll.value = false
+  }
 }
 
 function handleReset() {
@@ -244,13 +255,34 @@ function handleReset() {
 }
 
 async function fetchBuyers() {
-  buyerList.value = [
-    { id: 1, buyerName: '某某贸易有限公司', tradeCount: 15, totalAmount: 125800 },
-    { id: 2, buyerName: '某某制造有限公司', tradeCount: 8, totalAmount: 256000 },
-    { id: 3, buyerName: '某某科技股份有限公司', tradeCount: 22, totalAmount: 458000 },
-    { id: 4, buyerName: '某某建材有限公司', tradeCount: 6, totalAmount: 89000 },
-    { id: 5, buyerName: '某某物流有限公司', tradeCount: 12, totalAmount: 178000 },
-  ]
+  try {
+    const res = (await queryBills({ pageNum: 1, pageSize: 1000 })) as {
+      records?: { buyerId?: number; buyerName?: string; totalAmount?: number }[]
+      list?: { buyerId?: number; buyerName?: string; totalAmount?: number }[]
+    }
+    const bills = res?.records ?? res?.list ?? []
+    const buyerMap = new Map<number, BuyerItem>()
+    bills.forEach((b) => {
+      if (b.buyerId != null && b.buyerName) {
+        const existing = buyerMap.get(b.buyerId)
+        const amt = typeof b.totalAmount === 'number' ? b.totalAmount : 0
+        if (existing) {
+          existing.tradeCount += 1
+          existing.totalAmount += amt
+        } else {
+          buyerMap.set(b.buyerId, {
+            id: b.buyerId,
+            buyerName: b.buyerName,
+            tradeCount: 1,
+            totalAmount: amt,
+          })
+        }
+      }
+    })
+    buyerList.value = Array.from(buyerMap.values())
+  } catch {
+    buyerList.value = []
+  }
 }
 
 onMounted(() => {

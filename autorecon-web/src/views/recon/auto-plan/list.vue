@@ -26,6 +26,7 @@
               @change="() => handleToggle(plan)"
             />
             <el-button type="primary" link size="small" @click="handleEdit(plan)">编辑</el-button>
+            <el-button type="primary" link size="small" @click="showHistory(plan)">执行历史</el-button>
             <el-button type="primary" link size="small" @click="handleTrigger(plan)">立即执行</el-button>
             <el-button type="danger" link size="small" @click="handleDelete(plan)">删除</el-button>
           </div>
@@ -98,6 +99,23 @@
         <el-button type="primary" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
+
+    <el-drawer v-model="historyVisible" title="执行历史" size="500px">
+      <el-timeline v-if="historyLogs.length > 0">
+        <el-timeline-item
+          v-for="log in historyLogs"
+          :key="log.id"
+          :timestamp="log.createdAt"
+          placement="top"
+        >
+          <el-card shadow="hover">
+            <p>{{ log.action || '自动对账执行' }}</p>
+            <p v-if="log.detail" style="color: #999; font-size: 12px">{{ log.detail }}</p>
+          </el-card>
+        </el-timeline-item>
+      </el-timeline>
+      <el-empty v-else description="暂无执行记录" />
+    </el-drawer>
   </div>
 </template>
 
@@ -112,6 +130,7 @@ import {
   toggleAutoPlan,
   triggerAutoPlan,
   deleteAutoPlan,
+  getAutoPlanLogs,
 } from '@/api/system'
 import { listTemplates } from '@/api/recon'
 
@@ -137,6 +156,8 @@ const templates = ref<Template[]>([])
 const formVisible = ref(false)
 const formRef = ref<FormInstance>()
 const editingId = ref<number | null>(null)
+const historyVisible = ref(false)
+const historyLogs = ref<{ id: number; action?: string; detail?: string; createdAt?: string }[]>([])
 
 const form = reactive({
   name: '',
@@ -203,6 +224,19 @@ async function handleTrigger(plan: AutoPlan) {
   } catch {
     ElMessage.error('触发失败')
   }
+}
+
+async function showHistory(plan: AutoPlan) {
+  try {
+    const res = (await getAutoPlanLogs(plan.id)) as
+      | { data?: { id: number; action?: string; detail?: string; createdAt?: string }[] }
+      | { id: number; action?: string; detail?: string; createdAt?: string }[]
+    const list = Array.isArray(res) ? res : (res?.data ?? [])
+    historyLogs.value = list
+  } catch {
+    historyLogs.value = []
+  }
+  historyVisible.value = true
 }
 
 async function handleDelete(plan: AutoPlan) {

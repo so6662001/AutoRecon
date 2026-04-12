@@ -51,6 +51,7 @@ export const updateAutoPlan = (id: number, data: Record<string, unknown>) =>
 export const toggleAutoPlan = (id: number) => put(`/v1/recon/auto-plans/${id}/toggle`)
 export const triggerAutoPlan = (id: number) => post(`/v1/recon/auto-plans/${id}/trigger`)
 export const deleteAutoPlan = (id: number) => del(`/v1/recon/auto-plans/${id}`)
+export const getAutoPlanLogs = (id: number) => get(`/v1/recon/auto-plans/${id}/logs`)
 
 // 对账日历
 export const getCalendarEvents = (params: Record<string, unknown>) =>
