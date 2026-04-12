@@ -672,3 +672,21 @@ CREATE TABLE IF NOT EXISTS audit_log (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   deleted TINYINT NOT NULL DEFAULT 0
 );
+
+-- 33. enterprise_settings (timeout / templates / recon rules JSON)
+CREATE TABLE IF NOT EXISTS enterprise_settings (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  enterprise_id BIGINT NOT NULL,
+  no_diff_days INT,
+  spec_change_hours INT,
+  over_diff_hours INT,
+  settle_days INT,
+  reminder_hours INT,
+  timeout_customers_json CLOB,
+  notification_templates_json CLOB,
+  recon_rules_json CLOB,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  deleted TINYINT NOT NULL DEFAULT 0
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_enterprise_settings_eid ON enterprise_settings(enterprise_id);

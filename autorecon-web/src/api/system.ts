@@ -80,3 +80,23 @@ export const listEngagementBuyers = (params: Record<string, unknown>) =>
 export const getEngagementFunnel = () => get('/v1/engagement/funnel')
 export const sendEngagementInvite = (engagementId: number) =>
   post('/v1/engagement/invite', {}, { params: { engagementId } })
+export const getEngagementScripts = () => get('/v1/engagement/scripts')
+export const getEngagementMaterials = () => get('/v1/engagement/materials')
+
+// 数据安全
+export const getSecurityStatus = () => get('/v1/security/status')
+export const getSecurityAccessLog = (params?: Record<string, unknown>) =>
+  get('/v1/security/access-log', params)
+export const exportAllSecurityData = () => post('/v1/security/export-all')
+export const getSecurityUsageReport = () => get('/v1/security/usage-report')
+
+// 超时确认 / 通知模板 / 对账规则（企业级设置）
+export const getTimeoutConfig = () => get('/v1/system/timeout-config')
+export const saveTimeoutConfig = (data: Record<string, unknown>) =>
+  put('/v1/system/timeout-config', data)
+export const getNotificationTemplates = () => get('/v1/system/notification-templates')
+export const saveNotificationTemplates = (data: Record<string, unknown>) =>
+  put('/v1/system/notification-templates', data)
+export const getReconRulesConfig = () => get('/v1/system/recon-rules')
+export const saveReconRulesConfig = (data: Record<string, unknown>) =>
+  put('/v1/system/recon-rules', data)

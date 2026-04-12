@@ -877,3 +877,24 @@ CREATE TABLE audit_log (
   INDEX idx_audit_log_module (module),
   INDEX idx_audit_log_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='审计日志';
+
+-- =============================================================================
+-- 33. enterprise_settings - 企业扩展设置（超时规则、通知模板、对账规则 JSON）
+-- =============================================================================
+CREATE TABLE enterprise_settings (
+  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  enterprise_id BIGINT NOT NULL COMMENT 'FK enterprise.id',
+  no_diff_days INT COMMENT '无差异确认天数',
+  spec_change_hours INT COMMENT '品规变更确认小时',
+  over_diff_hours INT COMMENT '数量超差确认小时',
+  settle_days INT COMMENT '结算单确认天数',
+  reminder_hours INT COMMENT '到期前提醒小时',
+  timeout_customers_json JSON COMMENT '按客户单独配置 JSON',
+  notification_templates_json JSON COMMENT '通知模板列表 JSON',
+  recon_rules_json JSON COMMENT '对账规则 JSON',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted TINYINT(1) NOT NULL DEFAULT 0 COMMENT '逻辑删除',
+  UNIQUE KEY uk_enterprise_settings_enterprise_id (enterprise_id),
+  INDEX idx_enterprise_settings_deleted (deleted)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='企业扩展设置';

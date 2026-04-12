@@ -29,6 +29,7 @@
           <el-menu-item index="/recon/bills">对账单列表</el-menu-item>
           <el-menu-item index="/recon/bills/create">发起对账</el-menu-item>
           <el-menu-item index="/recon/batch">批量对账</el-menu-item>
+          <el-menu-item index="/recon/data/upload">买方数据上传</el-menu-item>
           <el-menu-item index="/recon/match/0">比对引擎</el-menu-item>
         </el-sub-menu>
 
@@ -92,10 +93,14 @@
         </el-sub-menu>
 
         <!-- 买方引导 -->
-        <el-menu-item index="/engagement">
-          <el-icon><Guide /></el-icon>
-          <template #title>买方引导</template>
-        </el-menu-item>
+        <el-sub-menu index="engagement">
+          <template #title>
+            <el-icon><Guide /></el-icon>
+            <span>买方引导</span>
+          </template>
+          <el-menu-item index="/engagement">引导概览</el-menu-item>
+          <el-menu-item index="/engagement/materials">话术与物料</el-menu-item>
+        </el-sub-menu>
 
         <!-- 系统设置 -->
         <el-sub-menu index="system">
@@ -105,6 +110,11 @@
           </template>
           <el-menu-item index="/system/erp">ERP配置</el-menu-item>
           <el-menu-item index="/system/buyer-config">买方配置</el-menu-item>
+          <el-menu-item index="/system/timeout-rules">超时确认规则</el-menu-item>
+          <el-menu-item index="/system/tolerance">容差优化</el-menu-item>
+          <el-menu-item index="/system/recon-rules">对账规则</el-menu-item>
+          <el-menu-item index="/system/notifications">通知模板</el-menu-item>
+          <el-menu-item index="/system/security">数据安全</el-menu-item>
           <el-menu-item index="/system/users">用户管理</el-menu-item>
           <el-menu-item index="/system/billing">计费管理</el-menu-item>
           <el-menu-item index="/system/enterprise">企业信息</el-menu-item>
@@ -150,6 +160,9 @@ const activeMenu = computed(() => {
   }
   if (path.startsWith('/recon/tri-match/')) {
     return '/recon/tri-match/0'
+  }
+  if (path.startsWith('/engagement/')) {
+    return path
   }
   return path
 })

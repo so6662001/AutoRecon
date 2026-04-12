@@ -14,6 +14,11 @@ export const generatePdf = (id: number) => post(`/v1/recon/bills/${id}/pdf`)
 // 工作台
 export const getDashboard = () => get('/v1/recon/dashboard')
 
+// 容差学习建议
+export const getToleranceSuggestions = () => get('/v1/recon/tolerance')
+export const adoptToleranceSuggestion = (id: number) => put(`/v1/recon/tolerance/${id}/adopt`)
+export const rejectToleranceSuggestion = (id: number) => put(`/v1/recon/tolerance/${id}/reject`)
+
 // 模板
 export const listTemplates = () => get('/v1/recon/templates')
 export const getTemplate = (id: number) => get(`/v1/recon/templates/${id}`)
@@ -34,6 +39,38 @@ export const uploadExcelForBill = (billId: number, file: File) => {
   fd.append('file', file)
   return post(`/v1/recon/data/upload-excel?billId=${billId}`, fd)
 }
+
+export const analyzeExcelHeaders = (buyerId: number, file: File) => {
+  const fd = new FormData()
+  fd.append('file', file)
+  return post(`/v1/recon/data/analyze-headers?buyerId=${buyerId}`, fd)
+}
+
+export const uploadExcelWithMapping = (
+  billId: number,
+  file: File,
+  mappingJson?: string,
+  saveMapping?: boolean,
+  buyerId?: number
+) => {
+  const fd = new FormData()
+  fd.append('file', file)
+  const params = new URLSearchParams()
+  params.set('billId', String(billId))
+  if (mappingJson != null && mappingJson !== '') {
+    params.set('mappingJson', mappingJson)
+  }
+  if (saveMapping != null) {
+    params.set('saveMapping', String(saveMapping))
+  }
+  if (buyerId != null) {
+    params.set('buyerId', String(buyerId))
+  }
+  return post(`/v1/recon/data/upload-excel-with-mapping?${params.toString()}`, fd)
+}
+
+export const onlineSubmitBuyerData = (data: Record<string, unknown>) =>
+  post('/v1/recon/data/online-submit', data)
 
 // 异议
 export const createDispute = (data: Record<string, unknown>) => post('/v1/recon/disputes', data)

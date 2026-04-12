@@ -24,7 +24,18 @@ public class ToleranceLearnController {
 
     private final ToleranceLearnService toleranceLearnService;
 
-    @GetMapping("/")
+    @GetMapping
+    @Operation(summary = "获取待处理容差建议（GET /v1/recon/tolerance）")
+    public R<List<ToleranceLearn>> listPendingSuggestions() {
+        Long sellerId = SecurityUtil.getCurrentEnterpriseId();
+        List<ToleranceLearn> list = toleranceLearnService.listAll(sellerId);
+        list = list.stream()
+                .filter(l -> l.getAdopted() == null || l.getAdopted() == 0)
+                .toList();
+        return R.ok(list);
+    }
+
+    @GetMapping("/all")
     @Operation(summary = "获取全部容差学习记录")
     public R<List<ToleranceLearn>> listAll() {
         Long sellerId = SecurityUtil.getCurrentEnterpriseId();

@@ -160,12 +160,24 @@ const routes = [
           component: () => import('@/views/recon/calendar/index.vue'),
           meta: { title: '对账日历', icon: 'Calendar' },
         },
+        {
+          path: 'recon/data/upload',
+          name: 'buyerDataUpload',
+          component: () => import('@/views/recon/data/upload.vue'),
+          meta: { title: '买方数据上传' },
+        },
         // 买方引导
         {
           path: 'engagement',
           name: 'engagementList',
           component: () => import('@/views/engagement/list.vue'),
           meta: { title: '买方引导', icon: 'Guide', roles: [1, 2, 3] },
+        },
+        {
+          path: 'engagement/materials',
+          name: 'engagementMaterials',
+          component: () => import('@/views/engagement/materials.vue'),
+          meta: { title: '话术与物料', roles: [1, 2, 3] },
         },
         // 系统设置
         {
@@ -203,6 +215,36 @@ const routes = [
           name: 'enterpriseInfo',
           component: () => import('@/views/system/enterprise.vue'),
           meta: { title: '企业信息', roles: [1, 4, 6] },
+        },
+        {
+          path: 'system/timeout-rules',
+          name: 'timeoutRules',
+          component: () => import('@/views/system/timeout-rules.vue'),
+          meta: { title: '超时确认规则' },
+        },
+        {
+          path: 'system/tolerance',
+          name: 'toleranceSuggestions',
+          component: () => import('@/views/system/tolerance.vue'),
+          meta: { title: '容差优化' },
+        },
+        {
+          path: 'system/recon-rules',
+          name: 'reconRules',
+          component: () => import('@/views/system/recon-rules.vue'),
+          meta: { title: '对账规则' },
+        },
+        {
+          path: 'system/notifications',
+          name: 'notificationTemplates',
+          component: () => import('@/views/system/notifications.vue'),
+          meta: { title: '通知模板' },
+        },
+        {
+          path: 'system/security',
+          name: 'securityStatus',
+          component: () => import('@/views/system/security.vue'),
+          meta: { title: '数据安全' },
         },
       ],
     },
