@@ -12,6 +12,7 @@ import com.autorecon.domain.enums.BillStatusEnum;
 import com.autorecon.domain.vo.DashboardVO;
 import com.autorecon.mapper.DisputeMapper;
 import com.autorecon.mapper.EnterpriseMapper;
+import com.autorecon.mapper.PaymentAllocationMapper;
 import com.autorecon.mapper.PaymentMapper;
 import com.autorecon.mapper.ReconBillItemMapper;
 import com.autorecon.mapper.ReconBillMapper;
@@ -57,6 +58,9 @@ class ReconBillServiceTest {
 
     @Mock
     private PaymentMapper paymentMapper;
+
+    @Mock
+    private PaymentAllocationMapper paymentAllocationMapper;
 
     @Mock
     private DisputeMapper disputeMapper;

@@ -30,6 +30,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Base64;
+import java.util.List;
 
 /**
  * 访客访问服务实现
@@ -133,10 +134,10 @@ public class GuestAccessServiceImpl implements GuestAccessService {
         vo.setConfirmed(accessToken.getConfirmed() != null && accessToken.getConfirmed() == 1);
         vo.setExpired(accessToken.getExpireAt() != null && accessToken.getExpireAt().isBefore(LocalDateTime.now()));
 
-        LambdaQueryWrapper<ReconBillItem> itemWrapper = new LambdaQueryWrapper<>();
-        itemWrapper.eq(ReconBillItem::getBillId, bill.getId());
-        Long itemCount = reconBillItemMapper.selectCount(itemWrapper);
-        vo.setItemCount(itemCount != null ? itemCount.intValue() : 0);
+        List<ReconBillItem> items = reconBillItemMapper.selectList(
+                new LambdaQueryWrapper<ReconBillItem>().eq(ReconBillItem::getBillId, bill.getId()));
+        vo.setItemCount(items != null ? items.size() : 0);
+        vo.setItems(items != null ? items : List.of());
 
         return vo;
     }

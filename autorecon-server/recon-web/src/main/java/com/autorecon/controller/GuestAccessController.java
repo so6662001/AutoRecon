@@ -7,10 +7,14 @@ import com.autorecon.domain.vo.GuestBillVO;
 import com.autorecon.service.GuestAccessService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+
+import java.io.IOException;
+import java.util.Map;
 
 /**
  * 免注册访问 REST Controller
@@ -40,8 +44,17 @@ public class GuestAccessController {
 
     @PostMapping("/confirm/{token}")
     @Operation(summary = "访客确认")
-    public R<Void> guestConfirm(@PathVariable String token, @Valid @RequestBody GuestConfirmDTO dto) {
+    public R<Void> guestConfirm(@PathVariable String token, @RequestBody Map<String, Object> body) {
+        GuestConfirmDTO dto = new GuestConfirmDTO();
         dto.setToken(token);
+        if (body != null && body.containsKey("action")) {
+            dto.setConfirmed("confirm".equals(body.get("action")));
+            dto.setDisputeMessage((String) body.get("message"));
+        } else if (body != null) {
+            Object confirmed = body.get("confirmed");
+            dto.setConfirmed(confirmed != null && Boolean.TRUE.equals(confirmed));
+            dto.setDisputeMessage((String) body.get("disputeMessage"));
+        }
         guestAccessService.guestConfirm(dto);
         return R.ok();
     }
@@ -51,5 +64,22 @@ public class GuestAccessController {
     public R<String> generateGuestToken(@Valid @RequestBody GuestTokenGenerateDTO dto) {
         String token = guestAccessService.generateGuestToken(dto.getBillId(), dto.getBuyerPhone());
         return R.ok(token);
+    }
+
+    @Operation(summary = "免注册下载PDF")
+    @GetMapping("/pdf/{token}")
+    public void guestDownloadPdf(@PathVariable String token, HttpServletResponse response) throws IOException {
+        GuestBillVO bill = guestAccessService.viewBill(token);
+        if (bill == null) {
+            response.sendError(404);
+            return;
+        }
+        if (bill.getPdfUrl() != null && !bill.getPdfUrl().isEmpty()) {
+            response.sendRedirect(bill.getPdfUrl());
+            return;
+        }
+        response.setContentType("application/pdf");
+        response.setHeader("Content-Disposition", "attachment; filename=bill_" + token + ".txt");
+        response.getWriter().write("对账单详情 - 功能升级中");
     }
 }

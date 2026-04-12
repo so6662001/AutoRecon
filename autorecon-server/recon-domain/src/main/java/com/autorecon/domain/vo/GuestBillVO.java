@@ -1,9 +1,11 @@
 package com.autorecon.domain.vo;
 
+import com.autorecon.domain.entity.ReconBillItem;
 import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 /**
  * 访客对账单 VO
@@ -20,6 +22,7 @@ public class GuestBillVO {
     private BigDecimal currentPaymentAmount;
     private BigDecimal currentBalance;
     private Integer itemCount;
+    private List<ReconBillItem> items;
     private String pdfUrl;
     private Boolean confirmed;
     private Boolean expired;

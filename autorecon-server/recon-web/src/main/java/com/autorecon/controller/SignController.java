@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 签章管理 REST Controller
@@ -30,9 +31,20 @@ public class SignController {
     @PostMapping("/flows")
     @Operation(summary = "发起签章流程")
     public R<Long> initiateSignFlow(
-            @RequestParam Long billId,
-            @RequestParam(defaultValue = "1") Integer signOrderType) {
-        Long flowId = signService.initiateSignFlow(billId, signOrderType);
+            @RequestParam(required = false) Long billId,
+            @RequestParam(required = false, defaultValue = "1") Integer signOrderType,
+            @RequestBody(required = false) Map<String, Object> body) {
+        Long actualBillId = billId;
+        Integer actualOrderType = signOrderType;
+        if (body != null) {
+            if (body.containsKey("billId")) {
+                actualBillId = ((Number) body.get("billId")).longValue();
+            }
+            if (body.containsKey("signOrderType")) {
+                actualOrderType = ((Number) body.get("signOrderType")).intValue();
+            }
+        }
+        Long flowId = signService.initiateSignFlow(actualBillId, actualOrderType);
         return R.ok(flowId);
     }
 
@@ -80,6 +92,20 @@ public class SignController {
     @Operation(summary = "审批拒绝")
     public R<Void> reject(@PathVariable Long id, @RequestParam(required = false) String comment) {
         signApprovalService.reject(id, comment);
+        return R.ok();
+    }
+
+    @Operation(summary = "拒签")
+    @PostMapping("/flows/{flowId}/refuse")
+    public R<Void> refuseSign(@PathVariable Long flowId, @RequestParam(required = false) String reason) {
+        signService.refuseSignFlow(flowId, reason);
+        return R.ok();
+    }
+
+    @Operation(summary = "撤销签署流程")
+    @PostMapping("/flows/{flowId}/cancel")
+    public R<Void> cancelSign(@PathVariable Long flowId) {
+        signService.cancelSignFlow(flowId);
         return R.ok();
     }
 }

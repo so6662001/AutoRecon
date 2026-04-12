@@ -71,8 +71,14 @@ public class MatchEngineServiceImpl implements MatchEngineService {
             }
         }
 
-        int matchResult = (items.isEmpty() ? 0 : (matchedCount * 100 / items.size()));
-        bill.setMatchResult(matchResult);
+        int totalItems = items.size();
+        if (totalItems == 0) {
+            bill.setMatchResult(0); // 未比对
+        } else if (matchedCount == totalItems) {
+            bill.setMatchResult(1); // 一致
+        } else {
+            bill.setMatchResult(2); // 有差异
+        }
         reconBillMapper.updateById(bill);
 
         return buildMatchResultVO(billId, items, items.size(), matchedCount, diffCount, sellerExtraCount, buyerExtraCount);

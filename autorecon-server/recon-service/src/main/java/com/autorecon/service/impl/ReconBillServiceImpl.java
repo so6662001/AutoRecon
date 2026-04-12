@@ -10,6 +10,7 @@ import com.autorecon.domain.dto.ReconBillItemDTO;
 import com.autorecon.domain.dto.ReconBillQueryDTO;
 import com.autorecon.domain.entity.Enterprise;
 import com.autorecon.domain.entity.Payment;
+import com.autorecon.domain.entity.PaymentAllocation;
 import com.autorecon.domain.entity.ReconBill;
 import com.autorecon.domain.entity.ReconBillItem;
 import com.autorecon.domain.entity.ReconTemplate;
@@ -22,6 +23,7 @@ import com.autorecon.domain.vo.ReconBillItemVO;
 import com.autorecon.domain.vo.ReconBillVO;
 import com.autorecon.mapper.DisputeMapper;
 import com.autorecon.mapper.EnterpriseMapper;
+import com.autorecon.mapper.PaymentAllocationMapper;
 import com.autorecon.mapper.PaymentMapper;
 import com.autorecon.mapper.ReconBillItemMapper;
 import com.autorecon.mapper.ReconBillMapper;
@@ -45,6 +47,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -64,6 +67,7 @@ public class ReconBillServiceImpl extends ServiceImpl<ReconBillMapper, ReconBill
     private final ReconBillItemMapper reconBillItemMapper;
     private final ReconTemplateMapper reconTemplateMapper;
     private final PaymentMapper paymentMapper;
+    private final PaymentAllocationMapper paymentAllocationMapper;
     private final EnterpriseMapper enterpriseMapper;
     private final DisputeMapper disputeMapper;
 
@@ -72,10 +76,12 @@ public class ReconBillServiceImpl extends ServiceImpl<ReconBillMapper, ReconBill
 
     public ReconBillServiceImpl(ReconBillItemMapper reconBillItemMapper,
                                  ReconTemplateMapper reconTemplateMapper, PaymentMapper paymentMapper,
+                                 PaymentAllocationMapper paymentAllocationMapper,
                                  EnterpriseMapper enterpriseMapper, DisputeMapper disputeMapper) {
         this.reconBillItemMapper = reconBillItemMapper;
         this.reconTemplateMapper = reconTemplateMapper;
         this.paymentMapper = paymentMapper;
+        this.paymentAllocationMapper = paymentAllocationMapper;
         this.enterpriseMapper = enterpriseMapper;
         this.disputeMapper = disputeMapper;
     }
@@ -237,6 +243,22 @@ public class ReconBillServiceImpl extends ServiceImpl<ReconBillMapper, ReconBill
         if (StringUtils.hasText(query.getBillNo())) {
             wrapper.eq(ReconBill::getBillNo, query.getBillNo());
         }
+        if (StringUtils.hasText(query.getContractNo())) {
+            List<Long> billIds = reconBillItemMapper.selectList(
+                    new LambdaQueryWrapper<ReconBillItem>()
+                            .eq(ReconBillItem::getContractNo, query.getContractNo())
+                            .select(ReconBillItem::getBillId)
+            ).stream().map(ReconBillItem::getBillId).distinct().collect(Collectors.toList());
+            if (billIds.isEmpty()) {
+                int pageNum = query.getPageNum() != null ? query.getPageNum() : 1;
+                int pageSize = query.getPageSize() != null ? query.getPageSize() : 20;
+                Page<ReconBillVO> emptyPage = new Page<>(pageNum, pageSize);
+                emptyPage.setRecords(Collections.emptyList());
+                emptyPage.setTotal(0);
+                return PageResult.of(emptyPage);
+            }
+            wrapper.in(ReconBill::getId, billIds);
+        }
         if (query.getPeriodStart() != null) {
             wrapper.ge(ReconBill::getPeriodEnd, query.getPeriodStart());
         }
@@ -328,9 +350,13 @@ public class ReconBillServiceImpl extends ServiceImpl<ReconBillMapper, ReconBill
             vo.setItems(itemVOs);
         }
 
-        LambdaQueryWrapper<Payment> paymentWrapper = new LambdaQueryWrapper<>();
-        paymentWrapper.eq(Payment::getPayeeId, bill.getSellerId()).eq(Payment::getPayerId, bill.getBuyerId());
-        List<Payment> payments = paymentMapper.selectList(paymentWrapper);
+        List<PaymentAllocation> allocations = paymentAllocationMapper.selectList(
+                new LambdaQueryWrapper<PaymentAllocation>().eq(PaymentAllocation::getBillId, billId));
+        List<Long> paymentIds = allocations.stream()
+                .map(PaymentAllocation::getPaymentId)
+                .distinct()
+                .collect(Collectors.toList());
+        List<Payment> payments = paymentIds.isEmpty() ? Collections.emptyList() : paymentMapper.selectBatchIds(paymentIds);
         if (payments != null) {
             List<PaymentVO> paymentVOs = payments.stream().map(p -> {
                 PaymentVO pvo = new PaymentVO();
