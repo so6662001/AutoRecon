@@ -13,7 +13,8 @@ public enum SignStatusEnum {
     PENDING(0, "待签章"),
     SIGNING(1, "签章中"),
     SIGNED(2, "已签章"),
-    REFUSED(3, "已拒绝");
+    REFUSED(3, "已拒绝"),
+    CANCELLED(4, "已撤销");
 
     private final int value;
     private final String desc;

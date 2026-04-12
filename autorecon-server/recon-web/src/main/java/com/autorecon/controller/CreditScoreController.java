@@ -12,7 +12,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 信用评分 REST Controller
@@ -75,5 +77,24 @@ public class CreditScoreController {
         Long sellerId = SecurityUtil.getCurrentEnterpriseId();
         creditScoreService.recalculateScore(buyerId, sellerId);
         return R.ok();
+    }
+
+    @Operation(summary = "评分因子明细")
+    @GetMapping("/{buyerId}/factors")
+    public R<Map<String, Object>> getFactors(@PathVariable Long buyerId) {
+        CreditScore score = creditScoreService.getScore(buyerId, SecurityUtil.getCurrentEnterpriseId());
+        if (score == null) {
+            return R.fail("未找到信用评分");
+        }
+        Map<String, Object> factors = new HashMap<>();
+        if (score.getScoreFactors() != null) {
+            factors.put("rawFactors", score.getScoreFactors());
+        }
+        factors.put("score", score.getCreditScore());
+        factors.put("level", score.getScoreLevel());
+        factors.put("avgPaymentDays", score.getAvgPaymentDays());
+        factors.put("overdueRate", score.getOverdueRate());
+        factors.put("disputeRate", score.getDisputeRate());
+        return R.ok(factors);
     }
 }

@@ -16,4 +16,8 @@ public interface SignService {
     SignRecord getSignStatus(Long billId);
 
     List<SignRecord> listPendingSignRecords(Long enterpriseId);
+
+    void refuseSignFlow(Long signRecordId, String reason);
+
+    void cancelSignFlow(Long signRecordId);
 }

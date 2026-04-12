@@ -141,4 +141,63 @@ public class SignServiceImpl implements SignService {
                 .orderByDesc(SignRecord::getCreatedAt);
         return signRecordMapper.selectList(wrapper);
     }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void refuseSignFlow(Long signRecordId, String reason) {
+        SignRecord record = signRecordMapper.selectById(signRecordId);
+        if (record == null) {
+            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "签署记录不存在");
+        }
+        ReconBill bill = reconBillMapper.selectById(record.getBillId());
+        if (bill == null) {
+            throw new BizException(ErrorCode.BILL_NOT_FOUND);
+        }
+        TenantUtil.checkBillAccess(bill.getSellerId(), bill.getBuyerId());
+        Long currentEnterpriseId = SecurityUtil.getCurrentEnterpriseId();
+        if (currentEnterpriseId == null) {
+            throw new BizException(ErrorCode.UNAUTHORIZED);
+        }
+        boolean isSeller = currentEnterpriseId.equals(bill.getSellerId());
+        boolean isBuyer = currentEnterpriseId.equals(bill.getBuyerId());
+        if (!isSeller && !isBuyer) {
+            throw new BizException(ErrorCode.FORBIDDEN);
+        }
+        int refused = SignStatusEnum.REFUSED.getValue();
+        if (isSeller) {
+            record.setSellerSignStatus(refused);
+        } else {
+            record.setBuyerSignStatus(refused);
+        }
+        record.setOverallStatus(refused);
+        signRecordMapper.updateById(record);
+
+        bill.setStatus(BillStatusEnum.DISPUTED.getCode());
+        reconBillMapper.updateById(bill);
+        log.info("Refused sign flow: signRecordId={}, reason={}", signRecordId, reason);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void cancelSignFlow(Long signRecordId) {
+        SignRecord record = signRecordMapper.selectById(signRecordId);
+        if (record == null) {
+            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "签署记录不存在");
+        }
+        ReconBill bill = reconBillMapper.selectById(record.getBillId());
+        if (bill == null) {
+            throw new BizException(ErrorCode.BILL_NOT_FOUND);
+        }
+        TenantUtil.checkBillAccess(bill.getSellerId(), bill.getBuyerId());
+        Long currentEnterpriseId = SecurityUtil.getCurrentEnterpriseId();
+        if (currentEnterpriseId == null) {
+            throw new BizException(ErrorCode.UNAUTHORIZED);
+        }
+        if (!currentEnterpriseId.equals(bill.getSellerId())) {
+            throw new BizException(ErrorCode.FORBIDDEN.getCode(), "仅发起方可撤销签署流程");
+        }
+        record.setOverallStatus(SignStatusEnum.CANCELLED.getValue());
+        signRecordMapper.updateById(record);
+        log.info("Cancelled sign flow: signRecordId={}", signRecordId);
+    }
 }

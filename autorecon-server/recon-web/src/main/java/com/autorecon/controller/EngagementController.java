@@ -12,7 +12,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 买方参与度 REST Controller
@@ -63,5 +65,27 @@ public class EngagementController {
     public R<Void> batchInvite(@RequestBody List<Long> ids) {
         engagementService.batchInvite(ids);
         return R.ok();
+    }
+
+    @Operation(summary = "获取引导话术模板")
+    @GetMapping("/scripts")
+    public R<List<Map<String, String>>> getScripts() {
+        List<Map<String, String>> scripts = new ArrayList<>();
+        scripts.add(Map.of("scenario", "首次发送对账单", "script", "张总您好，我们公司上线了电子对账系统..."));
+        scripts.add(Map.of("scenario", "引导注册", "script", "注册后可以查看所有历史对账记录..."));
+        scripts.add(Map.of("scenario", "解释签章", "script", "电子签章是合法的，e签宝是全国最大的签章平台..."));
+        scripts.add(Map.of("scenario", "买方担心安全", "script", "数据加密存储，只有双方能看到..."));
+        return R.ok(scripts);
+    }
+
+    @Operation(summary = "获取线下辅助物料")
+    @GetMapping("/materials")
+    public R<List<Map<String, String>>> getMaterials() {
+        List<Map<String, String>> materials = new ArrayList<>();
+        materials.add(Map.of("name", "平台使用一页纸指南", "type", "pdf", "url", "/materials/quick-guide.pdf"));
+        materials.add(Map.of("name", "电子签章法律效力说明", "type", "pdf", "url", "/materials/legal-statement.pdf"));
+        materials.add(Map.of("name", "数据安全承诺函", "type", "pdf", "url", "/materials/security-commitment.pdf"));
+        materials.add(Map.of("name", "3分钟上手视频", "type", "video", "url", "/materials/tutorial-video.mp4"));
+        return R.ok(materials);
     }
 }

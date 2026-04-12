@@ -17,6 +17,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 /**
  * 审计日志服务实现
  */
@@ -69,5 +71,14 @@ public class AuditLogServiceImpl extends ServiceImpl<AuditLogMapper, AuditLog> i
         Page<AuditLog> page = new Page<>(pn, ps);
         IPage<AuditLog> result = auditLogMapper.selectPage(page, wrapper);
         return PageResult.of(result);
+    }
+
+    @Override
+    public List<AuditLog> listByTarget(String targetType, Long targetId) {
+        LambdaQueryWrapper<AuditLog> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(AuditLog::getTargetType, targetType)
+                .eq(AuditLog::getTargetId, targetId)
+                .orderByDesc(AuditLog::getCreatedAt);
+        return auditLogMapper.selectList(wrapper);
     }
 }

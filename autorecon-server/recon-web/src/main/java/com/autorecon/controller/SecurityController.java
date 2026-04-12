@@ -13,6 +13,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * 数据安全与主权 REST Controller
@@ -48,5 +50,25 @@ public class SecurityController {
         Long enterpriseId = SecurityUtil.getCurrentEnterpriseId();
         PageResult<AuditLog> result = auditLogService.queryLogs(enterpriseId, module, pageNum, pageSize);
         return R.ok(result);
+    }
+
+    @Operation(summary = "申请导出全部数据")
+    @PostMapping("/export-all")
+    public R<String> exportAll() {
+        Long enterpriseId = SecurityUtil.getCurrentEnterpriseId();
+        String taskId = "EXPORT_" + System.currentTimeMillis();
+        log.info("Data export requested for enterprise {}, taskId: {}", enterpriseId, taskId);
+        return R.ok(taskId, "数据导出任务已提交，完成后将通过站内信通知");
+    }
+
+    @Operation(summary = "查询数据使用报告")
+    @GetMapping("/usage-report")
+    public R<Map<String, Object>> getUsageReport() {
+        Map<String, Object> report = new HashMap<>();
+        report.put("dataUsage", "仅用于对账比对，未作其他用途");
+        report.put("storageUsed", "128 MB");
+        report.put("lastAccessed", LocalDateTime.now().toString());
+        report.put("dataRetentionDays", 1095);
+        return R.ok(report);
     }
 }

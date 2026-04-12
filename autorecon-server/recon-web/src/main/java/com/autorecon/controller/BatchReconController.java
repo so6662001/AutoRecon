@@ -83,4 +83,23 @@ public class BatchReconController {
         }
         return R.ok(voList);
     }
+
+    @Operation(summary = "批量发送对账单")
+    @PostMapping("/{batchId}/send-all")
+    public R<Integer> sendAllBills(@PathVariable String batchId) {
+        List<ReconBill> bills = reconBillService.list(
+                new LambdaQueryWrapper<ReconBill>()
+                        .eq(ReconBill::getBatchId, batchId)
+                        .in(ReconBill::getStatus, List.of("CREATED", "GENERATED")));
+        int sent = 0;
+        for (ReconBill bill : bills) {
+            try {
+                reconBillService.sendBill(bill.getId());
+                sent++;
+            } catch (Exception e) {
+                log.warn("Failed to send bill {}: {}", bill.getId(), e.getMessage());
+            }
+        }
+        return R.ok(sent);
+    }
 }

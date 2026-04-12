@@ -3,7 +3,10 @@ package com.autorecon.controller;
 import com.autorecon.common.result.R;
 import com.autorecon.common.util.SecurityUtil;
 import com.autorecon.domain.dto.AutoReconPlanCreateDTO;
+import com.autorecon.domain.entity.AuditLog;
 import com.autorecon.domain.entity.AutoReconPlan;
+import com.autorecon.domain.vo.ProgressEvent;
+import com.autorecon.service.AuditLogService;
 import com.autorecon.service.AutoReconPlanService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -12,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -24,7 +28,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AutoReconPlanController {
 
+    private static final String TARGET_TYPE_AUTO_RECON_PLAN = "AUTO_RECON_PLAN";
+
     private final AutoReconPlanService autoReconPlanService;
+    private final AuditLogService auditLogService;
 
     @PostMapping("/")
     @Operation(summary = "创建计划")
@@ -68,5 +75,22 @@ public class AutoReconPlanController {
     public R<AutoReconPlan> getPlanDetail(@PathVariable Long id) {
         AutoReconPlan plan = autoReconPlanService.getPlanDetail(id);
         return R.ok(plan);
+    }
+
+    @Operation(summary = "查询执行记录")
+    @GetMapping("/{id}/logs")
+    public R<List<ProgressEvent>> getPlanLogs(@PathVariable Long id) {
+        List<AuditLog> logs = auditLogService.listByTarget(TARGET_TYPE_AUTO_RECON_PLAN, id);
+        List<ProgressEvent> events = new ArrayList<>();
+        for (AuditLog logEntry : logs) {
+            events.add(ProgressEvent.builder()
+                    .id(logEntry.getId())
+                    .module(logEntry.getModule())
+                    .action(logEntry.getAction())
+                    .detail(logEntry.getDetail())
+                    .createdAt(logEntry.getCreatedAt())
+                    .build());
+        }
+        return R.ok(events);
     }
 }
