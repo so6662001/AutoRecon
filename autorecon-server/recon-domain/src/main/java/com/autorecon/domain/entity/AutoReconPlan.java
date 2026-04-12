@@ -30,6 +30,7 @@ public class AutoReconPlan {
     private String planName;
     private Integer frequency;
     private Integer executionDay;
+    /** DB TIME column; persisted as "HH:mm" string (e.g. "08:00"). */
     private String executionTime;
     private Long templateId;
     private Integer periodType;

@@ -141,3 +141,16 @@ java -jar recon-web/target/recon-web-1.0.0-SNAPSHOT.jar --spring.profiles.active
 - H2 console: http://localhost:8080/h2-console (JDBC: `jdbc:h2:mem:autorecon_demo`, User: `sa`, Password: empty)
 
 In demo mode, auth is disabled and a default user context is set. You can also pass `Authorization: Bearer demo:userId:enterpriseId` to simulate different users.
+
+## 7. Domain model notes (design vs implementation)
+
+Some design documents name entities that are intentionally modeled differently in this codebase:
+
+| Design abstraction | Implementation |
+|--------------------|----------------|
+| **TemplateField** | JSON columns on `recon_template` (`header_config`, `column_config`, etc.) for flexibility instead of a separate table. |
+| **MatchResult** | Match outcome stored on `recon_bill_item` (`match_status`, `buyer_*`, `diff_*`, etc.). |
+| **AutoReconLog** | Use `audit_log` with `target_type = 'AUTO_RECON_PLAN'`. |
+| **SealQuotaPackage** | Seal quota tracked via `service_usage`. |
+
+No separate entities are required for these; the above is the intended design.

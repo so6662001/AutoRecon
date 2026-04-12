@@ -36,6 +36,7 @@ public class SignRecord {
     private LocalDateTime sellerSignAt;
     private String sellerSignIp;
     private String sellerSignDevice;
+    private String sellerSignLocation;
     private Integer sellerSignChannel;
     private Integer buyerSignStatus;
     private Long buyerSealId;
@@ -44,6 +45,7 @@ public class SignRecord {
     private LocalDateTime buyerSignAt;
     private String buyerSignIp;
     private String buyerSignDevice;
+    private String buyerSignLocation;
     private Integer buyerSignChannel;
     private String unsignedPdfUrl;
     private String signedPdfUrl;

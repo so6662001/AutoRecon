@@ -32,7 +32,9 @@ public class NotifySubscription {
     private Integer channelEmail;
     private Integer channelWechat;
     private Integer channelApp;
+    /** DB TIME column; persisted as "HH:mm" string. */
     private String quietStart;
+    /** DB TIME column; persisted as "HH:mm" string. */
     private String quietEnd;
     private Integer frequencyLimit;
     @TableField(fill = FieldFill.INSERT)

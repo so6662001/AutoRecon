@@ -37,6 +37,8 @@ public class EnterpriseSeal {
     private LocalDateTime legalPersonConfirmAt;
     private Integer legalPersonConfirmMethod;
     private LocalDateTime disabledAt;
+    /** FK sys_user.id */
+    private Long createdBy;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
     @TableField(fill = FieldFill.INSERT_UPDATE)

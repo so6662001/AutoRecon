@@ -24,7 +24,9 @@ CREATE TABLE IF NOT EXISTS enterprise_auth (
   company_name VARCHAR(200) NOT NULL,
   unified_credit_code VARCHAR(18) NOT NULL,
   legal_person_name VARCHAR(50),
+  -- 法人身份证号(加密存储,明文18位)
   legal_person_id_no VARCHAR(100),
+  -- 法人手机号(加密存储,明文11-20位)
   legal_person_phone VARCHAR(100),
   business_license_url VARCHAR(500),
   legal_person_id_front_url VARCHAR(500),
@@ -198,7 +200,7 @@ CREATE TABLE IF NOT EXISTS payment (
 CREATE TABLE IF NOT EXISTS payment_allocation (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   payment_id BIGINT NOT NULL,
-  bill_id BIGINT NOT NULL,
+  bill_id BIGINT,
   bill_item_id BIGINT,
   source_doc_no VARCHAR(50),
   allocated_amount DECIMAL(18,2) NOT NULL,
@@ -257,6 +259,7 @@ CREATE TABLE IF NOT EXISTS enterprise_seal (
   legal_person_confirm_at TIMESTAMP,
   legal_person_confirm_method TINYINT,
   disabled_at TIMESTAMP,
+  created_by BIGINT,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   deleted TINYINT NOT NULL DEFAULT 0
@@ -268,7 +271,9 @@ CREATE TABLE IF NOT EXISTS seal_operator (
   enterprise_id BIGINT NOT NULL,
   user_id BIGINT NOT NULL,
   operator_name VARCHAR(50) NOT NULL,
+  -- 手机号(加密存储,明文11-20位)
   phone VARCHAR(100),
+  -- 身份证号(加密存储,明文18位)
   id_no VARCHAR(100),
   third_party_person_id VARCHAR(100),
   personal_auth_status TINYINT NOT NULL DEFAULT 0,
@@ -298,6 +303,7 @@ CREATE TABLE IF NOT EXISTS sign_record (
   seller_sign_at TIMESTAMP,
   seller_sign_ip VARCHAR(50),
   seller_sign_device VARCHAR(100),
+  seller_sign_location VARCHAR(200),
   seller_sign_channel TINYINT,
   buyer_sign_status TINYINT NOT NULL DEFAULT 0,
   buyer_seal_id BIGINT,
@@ -306,6 +312,7 @@ CREATE TABLE IF NOT EXISTS sign_record (
   buyer_sign_at TIMESTAMP,
   buyer_sign_ip VARCHAR(50),
   buyer_sign_device VARCHAR(100),
+  buyer_sign_location VARCHAR(200),
   buyer_sign_channel TINYINT,
   unsigned_pdf_url VARCHAR(500),
   signed_pdf_url VARCHAR(500),
@@ -455,7 +462,7 @@ CREATE TABLE IF NOT EXISTS finance_apply (
 CREATE TABLE IF NOT EXISTS auto_recon_plan (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   seller_id BIGINT NOT NULL,
-  buyer_id BIGINT NOT NULL,
+  buyer_id BIGINT,
   plan_name VARCHAR(100) NOT NULL,
   frequency TINYINT NOT NULL,
   execution_day INT,
@@ -529,7 +536,7 @@ CREATE TABLE IF NOT EXISTS notify_subscription (
 -- 26. buyer_engagement
 CREATE TABLE IF NOT EXISTS buyer_engagement (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  buyer_enterprise_id BIGINT NOT NULL,
+  buyer_enterprise_id BIGINT,
   seller_enterprise_id BIGINT NOT NULL,
   buyer_phone VARCHAR(20),
   buyer_contact_name VARCHAR(50),
