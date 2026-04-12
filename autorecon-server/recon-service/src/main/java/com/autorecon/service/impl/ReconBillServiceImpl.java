@@ -404,11 +404,12 @@ public class ReconBillServiceImpl extends ServiceImpl<ReconBillMapper, ReconBill
             throw new BizException(ErrorCode.BILL_NOT_FOUND);
         }
         TenantUtil.checkBillAccess(bill.getSellerId(), bill.getBuyerId());
-        String status = bill.getStatus();
-        if (!BillStatusEnum.GENERATED.getCode().equals(status) && !BillStatusEnum.CREATED.getCode().equals(status)) {
-            throw new BizException(ErrorCode.BILL_STATUS_ERROR);
-        }
+        validateStatusTransition(bill.getStatus(),
+                BillStatusEnum.CREATED.getCode(), BillStatusEnum.GENERATED.getCode());
         bill.setStatus(BillStatusEnum.PENDING.getCode());
+        int timeoutDays = 3; // TODO: read from enterprise config
+        bill.setAutoConfirmDeadline(LocalDateTime.now().plusDays(timeoutDays));
+        bill.setAutoConfirmed(0);
         baseMapper.updateById(bill);
         log.info("Sent bill: billId={}", billId);
         // TODO: send notification
@@ -422,9 +423,7 @@ public class ReconBillServiceImpl extends ServiceImpl<ReconBillMapper, ReconBill
             throw new BizException(ErrorCode.BILL_NOT_FOUND);
         }
         TenantUtil.checkBillAccess(bill.getSellerId(), bill.getBuyerId());
-        if (!BillStatusEnum.PENDING.getCode().equals(bill.getStatus())) {
-            throw new BizException(ErrorCode.BILL_STATUS_ERROR);
-        }
+        validateStatusTransition(bill.getStatus(), BillStatusEnum.PENDING.getCode());
         bill.setStatus(BillStatusEnum.TO_SIGN.getCode());
         baseMapper.updateById(bill);
         log.info("Confirmed bill: billId={}", billId);
@@ -438,9 +437,12 @@ public class ReconBillServiceImpl extends ServiceImpl<ReconBillMapper, ReconBill
             throw new BizException(ErrorCode.BILL_NOT_FOUND);
         }
         TenantUtil.checkBillAccess(bill.getSellerId(), bill.getBuyerId());
-        if (BillStatusEnum.SIGNED.getCode().equals(bill.getStatus())) {
-            throw new BizException(ErrorCode.BILL_STATUS_ERROR);
-        }
+        validateStatusTransition(bill.getStatus(),
+                BillStatusEnum.CREATED.getCode(),
+                BillStatusEnum.GENERATED.getCode(),
+                BillStatusEnum.PENDING.getCode(),
+                BillStatusEnum.DISPUTED.getCode(),
+                BillStatusEnum.TO_SIGN.getCode());
         bill.setStatus(BillStatusEnum.VOID.getCode());
         baseMapper.updateById(bill);
         log.info("Voided bill: billId={}", billId);
@@ -557,5 +559,18 @@ public class ReconBillServiceImpl extends ServiceImpl<ReconBillMapper, ReconBill
                 .map(Payment::getPaymentAmount)
                 .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private void validateStatusTransition(String currentStatus, String... allowedFrom) {
+        boolean valid = false;
+        for (String s : allowedFrom) {
+            if (s.equals(currentStatus)) {
+                valid = true;
+                break;
+            }
+        }
+        if (!valid) {
+            throw new BizException(ErrorCode.BILL_STATUS_ERROR);
+        }
     }
 }

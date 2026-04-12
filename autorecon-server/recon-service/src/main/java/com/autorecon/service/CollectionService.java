@@ -4,6 +4,7 @@ import com.autorecon.common.result.PageResult;
 import com.autorecon.domain.dto.CollectionPlanCreateDTO;
 import com.autorecon.domain.entity.CollectionLog;
 import com.autorecon.domain.entity.CollectionPlan;
+import com.autorecon.domain.entity.ReconBill;
 import com.autorecon.domain.vo.CollectionPlanVO;
 import com.baomidou.mybatisplus.extension.service.IService;
 
@@ -30,4 +31,6 @@ public interface CollectionService extends IService<CollectionPlan> {
     CollectionPlan getPlanByBillId(Long billId);
 
     List<CollectionLog> listLogs(Long planId);
+
+    void autoCreatePlanForBill(ReconBill bill);
 }

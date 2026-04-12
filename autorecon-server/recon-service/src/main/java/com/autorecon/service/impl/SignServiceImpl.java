@@ -12,6 +12,7 @@ import com.autorecon.domain.entity.EnterpriseSeal;
 import com.autorecon.mapper.EnterpriseSealMapper;
 import com.autorecon.mapper.ReconBillMapper;
 import com.autorecon.mapper.SignRecordMapper;
+import com.autorecon.service.CollectionService;
 import com.autorecon.service.SignService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,7 @@ public class SignServiceImpl implements SignService {
     private final SignRecordMapper signRecordMapper;
     private final ReconBillMapper reconBillMapper;
     private final EnterpriseSealMapper enterpriseSealMapper;
+    private final CollectionService collectionService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -42,6 +44,9 @@ public class SignServiceImpl implements SignService {
             throw new BizException(ErrorCode.BILL_NOT_FOUND);
         }
         TenantUtil.checkBillAccess(bill.getSellerId(), bill.getBuyerId());
+        if (!BillStatusEnum.TO_SIGN.getCode().equals(bill.getStatus())) {
+            throw new BizException(ErrorCode.BILL_STATUS_ERROR);
+        }
 
         String signFlowId = "SIGN_" + System.currentTimeMillis();
         SignRecord record = SignRecord.builder()
@@ -83,6 +88,9 @@ public class SignServiceImpl implements SignService {
         if (bill == null || currentEnterpriseId == null) {
             throw new BizException(ErrorCode.UNAUTHORIZED);
         }
+        if (!BillStatusEnum.TO_SIGN.getCode().equals(bill.getStatus())) {
+            throw new BizException(ErrorCode.BILL_STATUS_ERROR);
+        }
 
         boolean isSeller = currentEnterpriseId.equals(bill.getSellerId());
         boolean isBuyer = currentEnterpriseId.equals(bill.getBuyerId());
@@ -112,6 +120,12 @@ public class SignServiceImpl implements SignService {
             record.setOverallStatus(SignStatusEnum.SIGNED.getValue());
             record.setCompletedAt(now);
             bill.setStatus(BillStatusEnum.SIGNED.getCode());
+            try {
+                collectionService.autoCreatePlanForBill(bill);
+                bill.setStatus(BillStatusEnum.COLLECTING.getCode());
+            } catch (Exception e) {
+                log.warn("Failed to auto-create collection plan for bill {}", bill.getId(), e);
+            }
         }
         signRecordMapper.updateById(record);
         reconBillMapper.updateById(bill);

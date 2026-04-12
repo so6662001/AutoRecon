@@ -3,6 +3,7 @@ package com.autorecon.service.impl;
 import com.autorecon.common.exception.BizException;
 import com.autorecon.common.exception.ErrorCode;
 import com.autorecon.domain.entity.ReconBill;
+import com.autorecon.domain.enums.BillStatusEnum;
 import com.autorecon.domain.entity.ReconBillItem;
 import com.autorecon.domain.vo.MatchResultVO;
 import com.autorecon.mapper.ReconBillItemMapper;
@@ -78,6 +79,18 @@ public class MatchEngineServiceImpl implements MatchEngineService {
             bill.setMatchResult(1); // 一致
         } else {
             bill.setMatchResult(2); // 有差异
+        }
+
+        if (bill.getMatchResult() == 1) {
+            if (BillStatusEnum.PENDING.getCode().equals(bill.getStatus())) {
+                bill.setStatus(BillStatusEnum.TO_SIGN.getCode());
+                log.info("Bill {} auto-confirmed by match engine (all matched)", billId);
+            }
+        } else if (bill.getMatchResult() == 2) {
+            if (BillStatusEnum.PENDING.getCode().equals(bill.getStatus())) {
+                bill.setStatus(BillStatusEnum.DISPUTED.getCode());
+                log.info("Bill {} auto-disputed by match engine (differences found)", billId);
+            }
         }
         reconBillMapper.updateById(bill);
 

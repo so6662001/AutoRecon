@@ -9,12 +9,14 @@ import com.autorecon.domain.entity.CollectionLog;
 import com.autorecon.domain.entity.CollectionPlan;
 import com.autorecon.domain.entity.Enterprise;
 import com.autorecon.domain.entity.ReconBill;
+import com.autorecon.domain.enums.BillStatusEnum;
 import com.autorecon.domain.vo.CollectionPlanVO;
 import com.autorecon.mapper.CollectionLogMapper;
 import com.autorecon.mapper.CollectionPlanMapper;
 import com.autorecon.mapper.EnterpriseMapper;
 import com.autorecon.mapper.ReconBillMapper;
 import com.autorecon.service.CollectionService;
+import com.autorecon.service.CreditScoreService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -43,6 +45,7 @@ public class CollectionServiceImpl extends ServiceImpl<CollectionPlanMapper, Col
     private final CollectionLogMapper collectionLogMapper;
     private final ReconBillMapper reconBillMapper;
     private final EnterpriseMapper enterpriseMapper;
+    private final CreditScoreService creditScoreService;
 
     private static int mapActionType(String actionType) {
         if (actionType == null) return 1;
@@ -166,12 +169,56 @@ public class CollectionServiceImpl extends ServiceImpl<CollectionPlanMapper, Col
         plan.setCollectedAmount(collected);
         plan.setRemainingAmount(remaining);
 
-        if (remaining.compareTo(BigDecimal.ZERO) == 0) {
+        if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
             plan.setStatus(3);
+            ReconBill bill = reconBillMapper.selectById(plan.getBillId());
+            if (bill != null) {
+                bill.setStatus(BillStatusEnum.COMPLETED.getCode());
+                reconBillMapper.updateById(bill);
+                log.info("Bill {} completed via collection payment", bill.getId());
+            }
+
+            try {
+                creditScoreService.recalculateScore(plan.getBuyerId(), plan.getSellerId());
+            } catch (Exception e) {
+                log.warn("Failed to recalculate credit score after payment", e);
+            }
         }
 
         collectionPlanMapper.updateById(plan);
         log.info("Registered payment: planId={}, amount={}", planId, amount);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void autoCreatePlanForBill(ReconBill bill) {
+        if (bill.getCurrentBalance() == null || bill.getCurrentBalance().compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+
+        CollectionPlan existing = getOne(new LambdaQueryWrapper<CollectionPlan>()
+                .eq(CollectionPlan::getBillId, bill.getId()));
+        if (existing != null) {
+            return;
+        }
+
+        String strategy = "B";
+
+        CollectionPlan plan = CollectionPlan.builder()
+                .billId(bill.getId())
+                .sellerId(bill.getSellerId())
+                .buyerId(bill.getBuyerId())
+                .receivableAmount(bill.getCurrentBalance())
+                .collectedAmount(BigDecimal.ZERO)
+                .remainingAmount(bill.getCurrentBalance())
+                .dueDate(LocalDate.now().plusDays(30))
+                .strategyLevel(strategy)
+                .status(1)
+                .currentStage(1)
+                .nextActionDate(LocalDate.now().plusDays(7))
+                .build();
+        save(plan);
+        log.info("Auto-created collection plan for bill {}", bill.getId());
     }
 
     @Override
