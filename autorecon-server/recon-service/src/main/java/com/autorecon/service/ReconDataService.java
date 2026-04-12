@@ -2,6 +2,7 @@ package com.autorecon.service;
 
 import com.autorecon.domain.dto.ReconBillItemDTO;
 import com.autorecon.domain.entity.ReconBillItem;
+import com.autorecon.domain.vo.ExcelAnalysisVO;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -31,4 +32,15 @@ public interface ReconDataService {
      * 保存 Excel 列映射配置
      */
     void saveExcelMapping(Long buyerId, Map<String, String> mapping);
+
+    /**
+     * 分析上传文件的表头并返回智能映射建议（含买方已保存映射）
+     */
+    ExcelAnalysisVO analyzeExcelHeaders(MultipartFile file, Long buyerId);
+
+    /**
+     * 使用指定或自动推断的映射解析 Excel 并导入买方数据
+     */
+    List<ReconBillItem> uploadExcelWithMapping(Long billId, MultipartFile file, Map<String, String> mapping,
+                                                Boolean saveMapping, Long buyerId);
 }

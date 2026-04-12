@@ -4,7 +4,12 @@ import com.autorecon.common.result.R;
 import com.autorecon.domain.dto.OnlineSubmitDTO;
 import com.autorecon.domain.dto.ReconBillItemDTO;
 import com.autorecon.domain.entity.ReconBillItem;
+import com.autorecon.domain.vo.ExcelAnalysisVO;
 import com.autorecon.service.ReconDataService;
+import com.autorecon.common.exception.BizException;
+import com.autorecon.common.exception.ErrorCode;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +32,7 @@ import java.util.Map;
 public class ReconDataController {
 
     private final ReconDataService reconDataService;
+    private final ObjectMapper objectMapper;
 
     @PostMapping("/upload-excel")
     @Operation(summary = "上传 Excel 导入买方数据")
@@ -54,5 +60,33 @@ public class ReconDataController {
     public R<Void> saveExcelMapping(@PathVariable Long buyerId, @RequestBody Map<String, String> mapping) {
         reconDataService.saveExcelMapping(buyerId, mapping);
         return R.ok();
+    }
+
+    @PostMapping("/analyze-headers")
+    @Operation(summary = "分析 Excel 表头并返回映射建议")
+    public R<ExcelAnalysisVO> analyzeExcelHeaders(@RequestParam("file") MultipartFile file, @RequestParam Long buyerId) {
+        ExcelAnalysisVO vo = reconDataService.analyzeExcelHeaders(file, buyerId);
+        return R.ok(vo);
+    }
+
+    @PostMapping("/upload-excel-with-mapping")
+    @Operation(summary = "使用指定映射解析 Excel 导入买方数据")
+    public R<List<ReconBillItem>> uploadExcelWithMapping(
+            @RequestParam Long billId,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(required = false) String mappingJson,
+            @RequestParam(required = false) Boolean saveMapping,
+            @RequestParam(required = false) Long buyerId) {
+        Map<String, String> mapping = null;
+        if (mappingJson != null && !mappingJson.isBlank()) {
+            try {
+                mapping = objectMapper.readValue(mappingJson, new TypeReference<>() {});
+            } catch (Exception e) {
+                log.warn("Invalid mappingJson", e);
+                throw new BizException(ErrorCode.BAD_REQUEST.getCode(), "mappingJson 格式不正确");
+            }
+        }
+        List<ReconBillItem> items = reconDataService.uploadExcelWithMapping(billId, file, mapping, saveMapping, buyerId);
+        return R.ok(items);
     }
 }

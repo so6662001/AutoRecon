@@ -24,6 +24,8 @@ public class BillItemExcelDTO {
     private String spec;
     @ExcelProperty("材质")
     private String material;
+    @ExcelProperty("产地")
+    private String origin;
     @ExcelProperty("数量")
     private BigDecimal quantity;
     @ExcelProperty("重量")
