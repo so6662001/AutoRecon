@@ -65,6 +65,9 @@ class ReconBillServiceTest {
     @Mock
     private DisputeMapper disputeMapper;
 
+    @Mock
+    private com.autorecon.common.config.AutoReconProperties autoReconProperties;
+
     private static final Long TEST_ENTERPRISE_ID = 1L;
 
     @BeforeEach
@@ -150,6 +153,9 @@ class ReconBillServiceTest {
                 .build();
 
         when(reconBillMapper.selectById(1L)).thenReturn(bill);
+        com.autorecon.common.config.AutoReconProperties.AutoConfirm autoConfirm = new com.autorecon.common.config.AutoReconProperties.AutoConfirm();
+        autoConfirm.setDefaultTimeoutDays(3);
+        when(autoReconProperties.getAutoConfirm()).thenReturn(autoConfirm);
 
         reconBillService.sendBill(1L);
 
