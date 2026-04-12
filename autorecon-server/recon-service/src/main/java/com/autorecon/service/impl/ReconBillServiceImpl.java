@@ -190,10 +190,17 @@ public class ReconBillServiceImpl extends ServiceImpl<ReconBillMapper, ReconBill
         bill.setTotalAmount(totalAmount);
         bill.setTotalQuantity(totalQuantity);
         bill.setTotalWeight(totalWeight);
-        bill.setPrevBalance(BigDecimal.ZERO);
+        bill.setIncludePaymentDetail(dto.getIncludePayment() != null && dto.getIncludePayment() ? 1 : 0);
+
+        BigDecimal prevBalance = calculatePrevBalance(sellerId, dto.getBuyerId());
+        BigDecimal currentPaymentAmount = calculatePeriodPayments(
+                dto.getBuyerId(), sellerId, dto.getPeriodStart(), dto.getPeriodEnd());
+        BigDecimal currentBalance = prevBalance.add(totalAmount).subtract(currentPaymentAmount);
+
+        bill.setPrevBalance(prevBalance);
         bill.setCurrentTradeAmount(totalAmount);
-        bill.setCurrentPaymentAmount(BigDecimal.ZERO);
-        bill.setCurrentBalance(totalAmount);
+        bill.setCurrentPaymentAmount(currentPaymentAmount);
+        bill.setCurrentBalance(currentBalance);
 
         baseMapper.insert(bill);
         Long billId = bill.getId();
@@ -520,5 +527,35 @@ public class ReconBillServiceImpl extends ServiceImpl<ReconBillMapper, ReconBill
 
         log.info("Batch created bills: batchId={}, count={}", batchId, buyerIds.size());
         return batchId;
+    }
+
+    private BigDecimal calculatePrevBalance(Long sellerId, Long buyerId) {
+        LambdaQueryWrapper<ReconBill> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ReconBill::getSellerId, sellerId)
+                .eq(ReconBill::getBuyerId, buyerId)
+                .in(ReconBill::getStatus,
+                        BillStatusEnum.COMPLETED.getCode(),
+                        BillStatusEnum.SIGNED.getCode(),
+                        BillStatusEnum.COLLECTING.getCode())
+                .orderByDesc(ReconBill::getPeriodEnd)
+                .last("LIMIT 1");
+        ReconBill prevBill = baseMapper.selectOne(wrapper);
+        return prevBill != null && prevBill.getCurrentBalance() != null
+                ? prevBill.getCurrentBalance()
+                : BigDecimal.ZERO;
+    }
+
+    private BigDecimal calculatePeriodPayments(Long payerId, Long payeeId, LocalDate periodStart, LocalDate periodEnd) {
+        LambdaQueryWrapper<Payment> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Payment::getPayerId, payerId)
+                .eq(Payment::getPayeeId, payeeId)
+                .ge(Payment::getPaymentDate, periodStart)
+                .le(Payment::getPaymentDate, periodEnd)
+                .eq(Payment::getDeleted, 0);
+        List<Payment> payments = paymentMapper.selectList(wrapper);
+        return payments.stream()
+                .map(Payment::getPaymentAmount)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }

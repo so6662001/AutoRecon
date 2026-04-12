@@ -146,6 +146,7 @@ CREATE TABLE recon_bill (
   payment_alloc_strategy TINYINT NOT NULL DEFAULT 1 COMMENT '付款分配策略',
   status VARCHAR(20) NOT NULL COMMENT '状态',
   match_mode TINYINT COMMENT '匹配模式',
+  include_payment_detail TINYINT NOT NULL DEFAULT 0 COMMENT '是否包含付款明细',
   match_result TINYINT NOT NULL DEFAULT 0 COMMENT '匹配结果',
   dispute_prediction_score DECIMAL(5,2) COMMENT '争议预测评分',
   seller_sign_status TINYINT NOT NULL DEFAULT 0 COMMENT '卖方签章状态',

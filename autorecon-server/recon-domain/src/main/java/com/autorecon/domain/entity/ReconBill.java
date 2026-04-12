@@ -45,6 +45,7 @@ public class ReconBill {
     private Integer paymentAllocStrategy;
     private String status;
     private Integer matchMode;
+    private Integer includePaymentDetail;
     private Integer matchResult;
     private BigDecimal disputePredictionScore;
     private Integer sellerSignStatus;

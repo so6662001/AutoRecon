@@ -27,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -74,11 +75,12 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> impl
                 .bankSerialNo(dto.getBankSerialNo())
                 .allocatedAmount(BigDecimal.ZERO)
                 .unallocatedAmount(dto.getPaymentAmount())
-                .source(1)
+                .source(dto.getSource() != null ? dto.getSource() : 1)
                 .status(1)
                 .remark(dto.getRemark())
                 .build();
 
+        updatePaymentStatus(payment);
         paymentMapper.insert(payment);
         log.info("Created payment: id={}, paymentNo={}", payment.getId(), paymentNo);
         return payment.getId();
@@ -141,6 +143,7 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> impl
                     .allocatedAmount(allocateAmount)
                     .allocationType(PaymentAllocTypeEnum.MANUAL.getValue())
                     .allocatedAt(LocalDateTime.now())
+                    .allocatedBy(SecurityUtil.getCurrentUserId())
                     .build();
             paymentAllocationMapper.insert(allocation);
 
@@ -151,6 +154,7 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> impl
 
         payment.setAllocatedAmount((payment.getAllocatedAmount() != null ? payment.getAllocatedAmount() : BigDecimal.ZERO).add(totalAllocate));
         payment.setUnallocatedAmount(payment.getUnallocatedAmount().subtract(totalAllocate));
+        updatePaymentStatus(payment);
         paymentMapper.updateById(payment);
         log.info("Allocated payment: paymentId={}", dto.getPaymentId());
     }
@@ -173,23 +177,7 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> impl
             throw new BizException(ErrorCode.PAYMENT_ALREADY_ALLOCATED);
         }
 
-        LambdaQueryWrapper<ReconBill> billWrapper = new LambdaQueryWrapper<>();
-        billWrapper.eq(ReconBill::getSellerId, payment.getPayeeId())
-                .eq(ReconBill::getBuyerId, payment.getPayerId())
-                .ne(ReconBill::getStatus, "VOID");
-        List<ReconBill> bills = reconBillMapper.selectList(billWrapper);
-        List<Long> billIds = bills.stream().map(ReconBill::getId).toList();
-        if (billIds.isEmpty()) {
-            log.info("No bills for auto-allocate, paymentId={}", paymentId);
-            return;
-        }
-
-        LambdaQueryWrapper<ReconBillItem> itemWrapper = new LambdaQueryWrapper<>();
-        itemWrapper.in(ReconBillItem::getBillId, billIds)
-                .gt(ReconBillItem::getUnpaidAmount, 0)
-                .orderByAsc(ReconBillItem::getDeliveryDate);
-
-        List<ReconBillItem> items = reconBillItemMapper.selectList(itemWrapper);
+        List<ReconBillItem> items = findUnpaidItems(payment.getPayerId(), payment.getPayeeId());
         if (CollectionUtils.isEmpty(items)) {
             log.info("No unpaid items for auto-allocate, paymentId={}", paymentId);
             return;
@@ -212,6 +200,7 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> impl
                     .allocatedAmount(allocateAmount)
                     .allocationType(PaymentAllocTypeEnum.FIFO.getValue())
                     .allocatedAt(LocalDateTime.now())
+                    .allocatedBy(SecurityUtil.getCurrentUserId())
                     .build();
             paymentAllocationMapper.insert(allocation);
 
@@ -225,8 +214,121 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> impl
 
         payment.setAllocatedAmount((payment.getAllocatedAmount() != null ? payment.getAllocatedAmount() : BigDecimal.ZERO).add(totalAllocated));
         payment.setUnallocatedAmount(payment.getUnallocatedAmount().subtract(totalAllocated));
+        updatePaymentStatus(payment);
         paymentMapper.updateById(payment);
         log.info("Auto-allocated FIFO: paymentId={}, amount={}", paymentId, totalAllocated);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void autoAllocateProportional(Long paymentId) {
+        Payment payment = getById(paymentId);
+        if (payment == null) {
+            throw new BizException(ErrorCode.PAYMENT_AMOUNT_ERROR);
+        }
+
+        Long currentEnterprise = SecurityUtil.getCurrentEnterpriseId();
+        if (currentEnterprise != null) {
+            if (!currentEnterprise.equals(payment.getPayerId()) && !currentEnterprise.equals(payment.getPayeeId())) {
+                throw new BizException(ErrorCode.FORBIDDEN);
+            }
+        }
+
+        BigDecimal unallocated = payment.getUnallocatedAmount();
+        if (unallocated == null || unallocated.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BizException(ErrorCode.PAYMENT_ALREADY_ALLOCATED);
+        }
+
+        List<ReconBillItem> unpaidItems = findUnpaidItems(payment.getPayerId(), payment.getPayeeId());
+        if (unpaidItems.isEmpty()) {
+            return;
+        }
+
+        BigDecimal totalUnpaid = unpaidItems.stream()
+                .map(item -> item.getUnpaidAmount() != null ? item.getUnpaidAmount() : item.getTotalAmount())
+                .filter(amt -> amt != null && amt.compareTo(BigDecimal.ZERO) > 0)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (totalUnpaid.compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+
+        BigDecimal allocated = BigDecimal.ZERO;
+        for (int i = 0; i < unpaidItems.size(); i++) {
+            ReconBillItem item = unpaidItems.get(i);
+            BigDecimal itemUnpaid = item.getUnpaidAmount() != null ? item.getUnpaidAmount() : item.getTotalAmount();
+            if (itemUnpaid == null || itemUnpaid.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+
+            BigDecimal allocAmount;
+            if (i == unpaidItems.size() - 1) {
+                allocAmount = unallocated.subtract(allocated);
+            } else {
+                allocAmount = unallocated.multiply(itemUnpaid).divide(totalUnpaid, 2, RoundingMode.HALF_UP);
+            }
+            allocAmount = allocAmount.min(itemUnpaid);
+
+            if (allocAmount.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+
+            PaymentAllocation allocation = PaymentAllocation.builder()
+                    .paymentId(paymentId)
+                    .billId(item.getBillId())
+                    .billItemId(item.getId())
+                    .sourceDocNo(item.getDeliveryNo())
+                    .allocatedAmount(allocAmount)
+                    .allocationType(PaymentAllocTypeEnum.PROPORTIONAL.getValue())
+                    .allocatedAt(LocalDateTime.now())
+                    .allocatedBy(SecurityUtil.getCurrentUserId())
+                    .build();
+            paymentAllocationMapper.insert(allocation);
+
+            item.setPaidAmount((item.getPaidAmount() != null ? item.getPaidAmount() : BigDecimal.ZERO).add(allocAmount));
+            item.setUnpaidAmount(itemUnpaid.subtract(allocAmount));
+            reconBillItemMapper.updateById(item);
+
+            allocated = allocated.add(allocAmount);
+        }
+
+        payment.setAllocatedAmount((payment.getAllocatedAmount() != null ? payment.getAllocatedAmount() : BigDecimal.ZERO).add(allocated));
+        payment.setUnallocatedAmount(unallocated.subtract(allocated));
+        updatePaymentStatus(payment);
+        updateById(payment);
+
+        log.info("Proportional allocation: paymentId={}, allocated={}", paymentId, allocated);
+    }
+
+    private List<ReconBillItem> findUnpaidItems(Long payerId, Long payeeId) {
+        LambdaQueryWrapper<ReconBill> billWrapper = new LambdaQueryWrapper<>();
+        billWrapper.eq(ReconBill::getSellerId, payeeId)
+                .eq(ReconBill::getBuyerId, payerId)
+                .ne(ReconBill::getStatus, "VOID");
+        List<ReconBill> bills = reconBillMapper.selectList(billWrapper);
+        List<Long> billIds = bills.stream().map(ReconBill::getId).toList();
+        if (billIds.isEmpty()) {
+            log.info("No bills for auto-allocate payerId={}, payeeId={}", payerId, payeeId);
+            return List.of();
+        }
+
+        LambdaQueryWrapper<ReconBillItem> itemWrapper = new LambdaQueryWrapper<>();
+        itemWrapper.in(ReconBillItem::getBillId, billIds)
+                .gt(ReconBillItem::getUnpaidAmount, 0)
+                .orderByAsc(ReconBillItem::getDeliveryDate);
+        return reconBillItemMapper.selectList(itemWrapper);
+    }
+
+    private void updatePaymentStatus(Payment payment) {
+        BigDecimal unalloc = payment.getUnallocatedAmount() != null ? payment.getUnallocatedAmount() : BigDecimal.ZERO;
+        BigDecimal alloc = payment.getAllocatedAmount() != null ? payment.getAllocatedAmount() : BigDecimal.ZERO;
+        if (unalloc.compareTo(BigDecimal.ZERO) <= 0) {
+            payment.setStatus(3);
+        } else if (alloc.compareTo(BigDecimal.ZERO) > 0) {
+            payment.setStatus(2);
+        } else {
+            payment.setStatus(1);
+        }
     }
 
     @Override

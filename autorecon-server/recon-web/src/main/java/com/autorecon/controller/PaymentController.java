@@ -1,10 +1,12 @@
 package com.autorecon.controller;
 
 import com.autorecon.common.result.R;
+import com.autorecon.common.util.SecurityUtil;
 import com.autorecon.domain.dto.PaymentAllocateDTO;
 import com.autorecon.domain.dto.PaymentCreateDTO;
 import com.autorecon.domain.entity.Payment;
 import com.autorecon.service.PaymentService;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -43,10 +45,37 @@ public class PaymentController {
         return R.ok();
     }
 
+    @PostMapping("/auto-allocate")
+    @Operation(summary = "按策略批量自动抵扣")
+    public R<Void> batchAutoAllocate(@RequestParam(defaultValue = "1") Integer strategy) {
+        Long enterpriseId = SecurityUtil.getCurrentEnterpriseId();
+        List<Payment> payments = paymentService.list(
+                new LambdaQueryWrapper<Payment>()
+                        .eq(Payment::getPayeeId, enterpriseId)
+                        .gt(Payment::getUnallocatedAmount, 0)
+                        .eq(Payment::getDeleted, 0));
+        for (Payment p : payments) {
+            try {
+                if (strategy == 3) {
+                    paymentService.autoAllocateProportional(p.getId());
+                } else {
+                    paymentService.autoAllocateFIFO(p.getId());
+                }
+            } catch (Exception e) {
+                log.warn("Auto-allocate failed for payment {}: {}", p.getId(), e.getMessage());
+            }
+        }
+        return R.ok();
+    }
+
     @PostMapping("/{id}/auto-allocate")
-    @Operation(summary = "自动分配付款(FIFO)")
-    public R<Void> autoAllocateFIFO(@PathVariable Long id) {
-        paymentService.autoAllocateFIFO(id);
+    @Operation(summary = "按策略自动分配付款")
+    public R<Void> autoAllocate(@PathVariable Long id, @RequestParam(defaultValue = "1") Integer strategy) {
+        if (strategy == 3) {
+            paymentService.autoAllocateProportional(id);
+        } else {
+            paymentService.autoAllocateFIFO(id);
+        }
         return R.ok();
     }
 

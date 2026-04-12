@@ -29,4 +29,6 @@ public class PaymentCreateDTO {
 
     private String bankSerialNo;
     private String remark;
+    /** 来源：业务可扩展，默认由服务端处理 */
+    private Integer source;
 }

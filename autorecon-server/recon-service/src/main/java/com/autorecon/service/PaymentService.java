@@ -20,6 +20,8 @@ public interface PaymentService extends IService<Payment> {
 
     void autoAllocateFIFO(Long paymentId);
 
+    void autoAllocateProportional(Long paymentId);
+
     BigDecimal getBalance(Long sellerId, Long buyerId);
 
     List<Payment> listPayments(Long payerId, Long payeeId, LocalDate start, LocalDate end);

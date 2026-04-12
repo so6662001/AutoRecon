@@ -111,6 +111,7 @@ CREATE TABLE IF NOT EXISTS recon_bill (
   payment_alloc_strategy TINYINT NOT NULL DEFAULT 1,
   status VARCHAR(20) NOT NULL,
   match_mode TINYINT,
+  include_payment_detail TINYINT NOT NULL DEFAULT 0,
   match_result TINYINT NOT NULL DEFAULT 0,
   dispute_prediction_score DECIMAL(5,2),
   seller_sign_status TINYINT NOT NULL DEFAULT 0,
