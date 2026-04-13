@@ -246,6 +246,12 @@ const routes = [
           component: () => import('@/views/system/security.vue'),
           meta: { title: '数据安全' },
         },
+        {
+          path: 'system/agreements',
+          name: 'agreementsManage',
+          component: () => import('@/views/system/agreements.vue'),
+          meta: { title: '协议管理' },
+        },
       ],
     },
   ]

@@ -232,4 +232,15 @@ public class AgreementServiceImpl implements AgreementService {
         }
         return s.length() <= max ? s : s.substring(0, max);
     }
+
+    @Override
+    public void deprecateVersion(Long versionId) {
+        AgreementVersion version = agreementVersionMapper.selectById(versionId);
+        if (version == null) {
+            throw new BizException(ErrorCode.AGREEMENT_VERSION_NOT_FOUND);
+        }
+        version.setStatus(STATUS_DEPRECATED);
+        agreementVersionMapper.updateById(version);
+        log.info("Deprecated agreement version id={}", versionId);
+    }
 }

@@ -118,6 +118,7 @@
           <el-menu-item index="/system/users">用户管理</el-menu-item>
           <el-menu-item index="/system/billing">计费管理</el-menu-item>
           <el-menu-item index="/system/enterprise">企业信息</el-menu-item>
+          <el-menu-item index="/system/agreements">协议管理</el-menu-item>
         </el-sub-menu>
       </el-menu>
     </el-scrollbar>

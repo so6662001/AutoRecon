@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -49,6 +50,13 @@ public class AgreementController {
     @GetMapping("/versions/{id}")
     public R<AgreementVersion> getVersion(@PathVariable Long id) {
         return R.ok(agreementService.getVersion(id));
+    }
+
+    @Operation(summary = "废弃协议版本(管理员)")
+    @PutMapping("/versions/{id}/deprecate")
+    public R<Void> deprecateVersion(@PathVariable Long id) {
+        agreementService.deprecateVersion(id);
+        return R.ok();
     }
 
     @Operation(summary = "获取当前生效版本")

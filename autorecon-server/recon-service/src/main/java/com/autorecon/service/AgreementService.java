@@ -25,4 +25,6 @@ public interface AgreementService {
     List<AgreementConfirmation> getUserConfirmations(Long userId);
 
     String archiveToOss(Long versionId, String content);
+
+    void deprecateVersion(Long versionId);
 }

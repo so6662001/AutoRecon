@@ -11,6 +11,11 @@
         </router-view>
       </main>
     </div>
+    <AgreementDialog
+      v-model="showAgreementDialog"
+      :agreements="pendingAgreements"
+      @all-confirmed="showAgreementDialog = false"
+    />
   </div>
 </template>
 
@@ -18,16 +23,51 @@
 import { ref, onMounted, computed } from 'vue'
 import Sidebar from './components/Sidebar.vue'
 import Header from './components/Header.vue'
+import AgreementDialog from '@/components/AgreementDialog.vue'
 import { useUserStore } from '@/stores/user'
 import { getEmbedConfig } from '@/config/embed'
+import { checkAgreementStatus } from '@/api/system'
 
 const embedConfig = computed(() => getEmbedConfig())
 const collapsed = ref(false)
 const userStore = useUserStore()
 
-onMounted(() => {
+const showAgreementDialog = ref(false)
+const pendingAgreements = ref<
+  {
+    id: number
+    agreementType: number
+    versionNo: string
+    title: string
+    content: string
+    summary: string
+  }[]
+>([])
+
+onMounted(async () => {
   if (userStore.token && !userStore.userInfo) {
-    userStore.getUserInfo().catch(() => {})
+    try {
+      await userStore.getUserInfo()
+    } catch {
+      // ignore
+    }
+  }
+
+  if (userStore.token) {
+    try {
+      type AgreementStatus = {
+        needConfirm?: boolean
+        unconfirmedAgreements?: typeof pendingAgreements.value
+      }
+      const res = await checkAgreementStatus()
+      const status = (res as { data?: AgreementStatus }).data ?? (res as AgreementStatus)
+      if (status?.needConfirm && status.unconfirmedAgreements && status.unconfirmedAgreements.length > 0) {
+        pendingAgreements.value = status.unconfirmedAgreements
+        showAgreementDialog.value = true
+      }
+    } catch {
+      // Ignore in demo mode
+    }
   }
 })
 </script>
