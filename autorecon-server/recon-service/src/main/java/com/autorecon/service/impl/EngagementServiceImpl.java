@@ -64,13 +64,76 @@ public class EngagementServiceImpl extends ServiceImpl<BuyerEngagementMapper, Bu
         List<BuyerEngagement> all = buyerEngagementMapper.selectList(wrapper);
 
         EngagementFunnelVO vo = new EngagementFunnelVO();
-        vo.setTotalSent((int) all.stream().filter(e -> e.getFirstLinkSentAt() != null).count());
-        vo.setTotalOpened((int) all.stream().filter(e -> e.getFirstLinkOpenedAt() != null).count());
-        vo.setTotalConfirmed((int) all.stream().filter(e -> e.getEngagementLevel() != null && e.getEngagementLevel() >= 2).count());
-        vo.setTotalRegistered((int) all.stream().filter(e -> e.getRegisteredAt() != null).count());
-        vo.setTotalDataSubmit((int) all.stream().filter(e -> e.getFirstDataSubmitAt() != null).count());
-        vo.setTotalSealInit((int) all.stream().filter(e -> e.getSealInitializedAt() != null).count());
+        vo.setSent((int) all.stream().filter(e -> e.getFirstLinkSentAt() != null).count());
+        vo.setOpened((int) all.stream().filter(e -> e.getFirstLinkOpenedAt() != null).count());
+        vo.setConfirmed((int) all.stream().filter(e -> e.getEngagementLevel() != null && e.getEngagementLevel() >= 2).count());
+        vo.setRegistered((int) all.stream().filter(e -> e.getRegisteredAt() != null).count());
+        vo.setDataSubmit((int) all.stream().filter(e -> e.getFirstDataSubmitAt() != null).count());
+        vo.setSealInit((int) all.stream().filter(e -> e.getSealInitializedAt() != null).count());
         return vo;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void trackBillSent(Long buyerEnterpriseId, Long sellerEnterpriseId) {
+        BuyerEngagement engagement = getOne(new LambdaQueryWrapper<BuyerEngagement>()
+                .eq(BuyerEngagement::getBuyerEnterpriseId, buyerEnterpriseId)
+                .eq(BuyerEngagement::getSellerEnterpriseId, sellerEnterpriseId));
+
+        if (engagement == null) {
+            engagement = BuyerEngagement.builder()
+                    .buyerEnterpriseId(buyerEnterpriseId)
+                    .sellerEnterpriseId(sellerEnterpriseId)
+                    .engagementLevel(0)
+                    .totalBillsSent(1)
+                    .totalBillsConfirmed(0)
+                    .totalBillsIgnored(0)
+                    .firstLinkSentAt(LocalDateTime.now())
+                    .lastActiveAt(LocalDateTime.now())
+                    .status(1)
+                    .build();
+            save(engagement);
+        } else {
+            engagement.setTotalBillsSent(engagement.getTotalBillsSent() != null ? engagement.getTotalBillsSent() + 1 : 1);
+            engagement.setLastActiveAt(LocalDateTime.now());
+            if (engagement.getFirstLinkSentAt() == null) {
+                engagement.setFirstLinkSentAt(LocalDateTime.now());
+            }
+            updateById(engagement);
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void trackBillOpened(Long buyerEnterpriseId, Long sellerEnterpriseId) {
+        BuyerEngagement engagement = getOne(new LambdaQueryWrapper<BuyerEngagement>()
+                .eq(BuyerEngagement::getBuyerEnterpriseId, buyerEnterpriseId)
+                .eq(BuyerEngagement::getSellerEnterpriseId, sellerEnterpriseId));
+        if (engagement == null) {
+            return;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (engagement.getFirstLinkOpenedAt() == null) {
+            engagement.setFirstLinkOpenedAt(now);
+        }
+        int current = engagement.getEngagementLevel() != null ? engagement.getEngagementLevel() : 0;
+        engagement.setEngagementLevel(Math.max(current, 1));
+        engagement.setLastActiveAt(now);
+        updateById(engagement);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void trackBillConfirmed(Long buyerEnterpriseId, Long sellerEnterpriseId) {
+        BuyerEngagement engagement = getOne(new LambdaQueryWrapper<BuyerEngagement>()
+                .eq(BuyerEngagement::getBuyerEnterpriseId, buyerEnterpriseId)
+                .eq(BuyerEngagement::getSellerEnterpriseId, sellerEnterpriseId));
+        if (engagement == null) {
+            return;
+        }
+        engagement.setTotalBillsConfirmed(engagement.getTotalBillsConfirmed() != null ? engagement.getTotalBillsConfirmed() + 1 : 1);
+        engagement.setLastActiveAt(LocalDateTime.now());
+        updateById(engagement);
     }
 
     @Override

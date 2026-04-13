@@ -24,4 +24,10 @@ public interface EngagementService extends IService<BuyerEngagement> {
     void batchInvite(List<Long> engagementIds);
 
     void updateEngagementLevel(Long buyerEnterpriseId, Long sellerEnterpriseId, Integer newLevel);
+
+    void trackBillSent(Long buyerEnterpriseId, Long sellerEnterpriseId);
+
+    void trackBillOpened(Long buyerEnterpriseId, Long sellerEnterpriseId);
+
+    void trackBillConfirmed(Long buyerEnterpriseId, Long sellerEnterpriseId);
 }

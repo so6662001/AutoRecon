@@ -17,6 +17,7 @@ import com.autorecon.mapper.EnterpriseMapper;
 import com.autorecon.mapper.GuestAccessTokenMapper;
 import com.autorecon.mapper.ReconBillItemMapper;
 import com.autorecon.mapper.ReconBillMapper;
+import com.autorecon.service.EngagementService;
 import com.autorecon.service.GuestAccessService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -24,9 +25,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.DigestUtils;
 
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Base64;
@@ -48,6 +49,7 @@ public class GuestAccessServiceImpl implements GuestAccessService {
     private final ReconBillItemMapper reconBillItemMapper;
     private final EnterpriseMapper enterpriseMapper;
     private final DisputeMapper disputeMapper;
+    private final EngagementService engagementService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -89,7 +91,17 @@ public class GuestAccessServiceImpl implements GuestAccessService {
 
     private String hashPhone(String phone) {
         if (phone == null) return "";
-        return DigestUtils.md5DigestAsHex(phone.getBytes(StandardCharsets.UTF_8));
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(phone.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hash) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            return phone;
+        }
     }
 
     @Override
@@ -105,6 +117,8 @@ public class GuestAccessServiceImpl implements GuestAccessService {
             throw new BizException(ErrorCode.GUEST_TOKEN_EXPIRED);
         }
 
+        boolean firstOpen = accessToken.getOpenedCount() == null || accessToken.getOpenedCount() == 0;
+
         LambdaUpdateWrapper<GuestAccessToken> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(GuestAccessToken::getId, accessToken.getId())
                 .setSql("opened_count = opened_count + 1");
@@ -112,6 +126,17 @@ public class GuestAccessServiceImpl implements GuestAccessService {
             updateWrapper.set(GuestAccessToken::getFirstOpenedAt, LocalDateTime.now());
         }
         guestAccessTokenMapper.update(null, updateWrapper);
+
+        try {
+            if (firstOpen) {
+                ReconBill billForEngagement = reconBillMapper.selectById(accessToken.getBillId());
+                if (billForEngagement != null) {
+                    engagementService.trackBillOpened(billForEngagement.getBuyerId(), billForEngagement.getSellerId());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to update engagement on view", e);
+        }
 
         ReconBill bill = reconBillMapper.selectById(accessToken.getBillId());
         if (bill == null) {
@@ -140,6 +165,22 @@ public class GuestAccessServiceImpl implements GuestAccessService {
         vo.setItems(items != null ? items : List.of());
 
         return vo;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void recordAccess(String token, String ip, String userAgent) {
+        LambdaQueryWrapper<GuestAccessToken> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(GuestAccessToken::getToken, token);
+        GuestAccessToken accessToken = guestAccessTokenMapper.selectOne(wrapper);
+        if (accessToken == null) {
+            return;
+        }
+        LambdaUpdateWrapper<GuestAccessToken> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(GuestAccessToken::getId, accessToken.getId())
+                .set(GuestAccessToken::getIpAddress, ip)
+                .set(GuestAccessToken::getUserAgent, userAgent);
+        guestAccessTokenMapper.update(null, updateWrapper);
     }
 
     @Override
@@ -181,6 +222,13 @@ public class GuestAccessServiceImpl implements GuestAccessService {
             if (bill != null && BillStatusEnum.PENDING.getCode().equals(bill.getStatus())) {
                 bill.setStatus(BillStatusEnum.TO_SIGN.getCode());
                 reconBillMapper.updateById(bill);
+            }
+            try {
+                if (bill != null) {
+                    engagementService.trackBillConfirmed(bill.getBuyerId(), bill.getSellerId());
+                }
+            } catch (Exception e) {
+                log.warn("Failed to track confirm", e);
             }
         } else {
             LambdaUpdateWrapper<GuestAccessToken> disputeUpdateWrapper = new LambdaUpdateWrapper<>();

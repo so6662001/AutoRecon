@@ -19,6 +19,11 @@ public interface GuestAccessService {
     GuestBillVO viewBill(String token);
 
     /**
+     * 记录访客访问的 IP 与 User-Agent（由 Controller 调用）
+     */
+    void recordAccess(String token, String ip, String userAgent);
+
+    /**
      * 验证手机号（访客访问）
      */
     boolean verifyPhone(String token, String code);

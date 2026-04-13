@@ -7,6 +7,7 @@ import com.autorecon.domain.vo.GuestBillVO;
 import com.autorecon.service.GuestAccessService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -30,8 +31,9 @@ public class GuestAccessController {
 
     @GetMapping("/view/{token}")
     @Operation(summary = "通过令牌查看对账单")
-    public R<GuestBillVO> viewBill(@PathVariable String token) {
+    public R<GuestBillVO> viewBill(@PathVariable String token, HttpServletRequest request) {
         GuestBillVO vo = guestAccessService.viewBill(token);
+        guestAccessService.recordAccess(token, request.getRemoteAddr(), request.getHeader("User-Agent"));
         return R.ok(vo);
     }
 

@@ -30,6 +30,8 @@ import com.autorecon.mapper.PaymentMapper;
 import com.autorecon.mapper.ReconBillItemMapper;
 import com.autorecon.mapper.ReconBillMapper;
 import com.autorecon.mapper.ReconTemplateMapper;
+import com.autorecon.service.EngagementService;
+import com.autorecon.service.GuestAccessService;
 import com.autorecon.service.ReconBillService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -74,6 +76,8 @@ public class ReconBillServiceImpl extends ServiceImpl<ReconBillMapper, ReconBill
     private final DisputeMapper disputeMapper;
     private final AutoReconProperties autoReconProperties;
     private final TemplateRenderService templateRenderService;
+    private final GuestAccessService guestAccessService;
+    private final EngagementService engagementService;
 
     @Autowired(required = false)
     private StringRedisTemplate stringRedisTemplate;
@@ -83,7 +87,9 @@ public class ReconBillServiceImpl extends ServiceImpl<ReconBillMapper, ReconBill
                                  PaymentAllocationMapper paymentAllocationMapper,
                                  EnterpriseMapper enterpriseMapper, DisputeMapper disputeMapper,
                                  AutoReconProperties autoReconProperties,
-                                 TemplateRenderService templateRenderService) {
+                                 TemplateRenderService templateRenderService,
+                                 GuestAccessService guestAccessService,
+                                 EngagementService engagementService) {
         this.reconBillItemMapper = reconBillItemMapper;
         this.reconTemplateMapper = reconTemplateMapper;
         this.paymentMapper = paymentMapper;
@@ -92,6 +98,8 @@ public class ReconBillServiceImpl extends ServiceImpl<ReconBillMapper, ReconBill
         this.disputeMapper = disputeMapper;
         this.autoReconProperties = autoReconProperties;
         this.templateRenderService = templateRenderService;
+        this.guestAccessService = guestAccessService;
+        this.engagementService = engagementService;
     }
 
     private static final AtomicLong BILL_SEQ = new AtomicLong(0);
@@ -422,7 +430,23 @@ public class ReconBillServiceImpl extends ServiceImpl<ReconBillMapper, ReconBill
         bill.setAutoConfirmed(0);
         baseMapper.updateById(bill);
         log.info("Sent bill: billId={}", billId);
-        // TODO: send notification
+
+        try {
+            Enterprise buyer = enterpriseMapper.selectById(bill.getBuyerId());
+            if (buyer != null && buyer.getContactPhone() != null) {
+                String token = guestAccessService.generateGuestToken(bill.getId(), buyer.getContactPhone());
+                String guestLink = "/api/v1/guest/view/" + token;
+                log.info("Generated guest link for bill {}: {}", bill.getBillNo(), guestLink);
+
+                try {
+                    engagementService.trackBillSent(bill.getBuyerId(), bill.getSellerId());
+                } catch (Exception e) {
+                    log.warn("Failed to update engagement tracking", e);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to generate guest token for bill {}", billId, e);
+        }
     }
 
     @Override

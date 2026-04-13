@@ -5,6 +5,7 @@ import com.autorecon.common.exception.BizException;
 import com.autorecon.common.exception.ErrorCode;
 import com.autorecon.domain.dto.ReconBillCreateDTO;
 import com.autorecon.domain.dto.ReconBillItemDTO;
+import com.autorecon.domain.entity.Enterprise;
 import com.autorecon.domain.entity.ReconBill;
 import com.autorecon.domain.entity.ReconBillItem;
 import com.autorecon.domain.entity.ReconTemplate;
@@ -71,6 +72,12 @@ class ReconBillServiceTest {
 
     @Mock
     private TemplateRenderService templateRenderService;
+
+    @Mock
+    private GuestAccessService guestAccessService;
+
+    @Mock
+    private EngagementService engagementService;
 
     private static final Long TEST_ENTERPRISE_ID = 1L;
 
@@ -161,11 +168,17 @@ class ReconBillServiceTest {
         autoConfirm.setDefaultTimeoutDays(3);
         when(autoReconProperties.getAutoConfirm()).thenReturn(autoConfirm);
 
+        Enterprise buyer = Enterprise.builder().id(2L).contactPhone("13800138000").build();
+        when(enterpriseMapper.selectById(2L)).thenReturn(buyer);
+        when(guestAccessService.generateGuestToken(eq(1L), eq("13800138000"))).thenReturn("guest-token");
+
         reconBillService.sendBill(1L);
 
         ArgumentCaptor<ReconBill> captor = ArgumentCaptor.forClass(ReconBill.class);
         verify(reconBillMapper).updateById(captor.capture());
         assertEquals(BillStatusEnum.PENDING.getCode(), captor.getValue().getStatus());
+        verify(guestAccessService).generateGuestToken(eq(1L), eq("13800138000"));
+        verify(engagementService).trackBillSent(eq(2L), eq(TEST_ENTERPRISE_ID));
     }
 
     @Test

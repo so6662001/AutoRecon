@@ -49,6 +49,9 @@ class GuestAccessServiceTest {
     @Mock
     private DisputeMapper disputeMapper;
 
+    @Mock
+    private EngagementService engagementService;
+
     @Test
     void test_generateGuestToken_createsTokenWithCorrectExpiry() {
         ReconBill bill = ReconBill.builder().id(1L).build();
