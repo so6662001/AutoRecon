@@ -64,4 +64,12 @@ public class ToleranceLearnController {
         toleranceLearnService.rejectSuggestion(id);
         return R.ok();
     }
+
+    @PostMapping("/analyze")
+    @Operation(summary = "手动触发容差分析(管理员)")
+    public R<String> triggerAnalysis() {
+        Long sellerId = SecurityUtil.getCurrentEnterpriseId();
+        ((com.autorecon.service.impl.ToleranceLearnServiceImpl) toleranceLearnService).manualAnalyze(sellerId);
+        return R.ok("容差分析已完成，请查看建议列表");
+    }
 }
