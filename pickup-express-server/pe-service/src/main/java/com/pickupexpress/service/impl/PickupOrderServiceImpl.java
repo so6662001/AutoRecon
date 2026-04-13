@@ -159,6 +159,19 @@ public class PickupOrderServiceImpl extends ServiceImpl<PickupOrderMapper, Picku
             contractMapper.updateById(contract);
         }
 
+        // 提货码分发事件(设计文档4.4: 分发记录)
+        if (order.getDriverName() != null && !order.getDriverName().isEmpty()) {
+            progressEventService.recordEvent(order.getId(), contract.getId(),
+                    "PICKUP_CODE_SENT",
+                    "提货码已发送给驾驶员" + order.getDriverName() + "(码:" + pickupCode + "有效期48小时)",
+                    null, "system");
+        } else if (order.getCarrierName() != null && !order.getCarrierName().isEmpty()) {
+            progressEventService.recordEvent(order.getId(), contract.getId(),
+                    "PICKUP_CODE_SENT",
+                    "提货码已发送给承运公司" + order.getCarrierName() + "(待分配驾驶员)",
+                    null, "system");
+        }
+
         log.info("Created pickup order: pickupNo={}, mode={}, status={}", pickupNo, eventDetail, initialStatus);
         return order.getId();
     }

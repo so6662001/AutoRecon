@@ -80,7 +80,17 @@ public class DeliveryServiceImpl implements DeliveryService {
             return false;
         }
         order.setPickupCodeStatus(PickupCodeStatusEnum.VERIFIED.getValue());
+        order.setDeliveryStatus(1); // 发货中
+        order.setStatus(PickupOrderStatusEnum.DELIVERING.getValue());
         pickupOrderMapper.updateById(order);
+
+        // 记录验证通过事件
+        progressEventService.recordEvent(order.getId(), order.getContractId(),
+                "PICKUP_CODE_VERIFIED",
+                "提货码验证通过(车牌:" + (vehiclePlate != null ? vehiclePlate : "未填") + ")",
+                null, "warehouse");
+
+        log.info("Pickup code verified: pickupOrderId={}, code={}", order.getId(), pickupCode);
         return true;
     }
 
