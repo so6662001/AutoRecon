@@ -50,6 +50,12 @@ class PickupOrderServiceTest {
     @Mock
     private EvidencePackageMapper evidencePackageMapper;
 
+    @Mock
+    private ProgressEventService progressEventService;
+
+    @Mock
+    private ContractMapper contractMapper;
+
     @InjectMocks
     private PickupOrderServiceImpl pickupOrderService;
 
@@ -76,6 +82,8 @@ class PickupOrderServiceTest {
         Contract contract = Contract.builder()
                 .id(1L)
                 .contractNo("HT2024001")
+                .contractType(2) // ORDER type
+                .status(2) // SIGNED
                 .sellerId(1L)
                 .buyerId(2L)
                 .warehouseId(10L)
@@ -106,6 +114,8 @@ class PickupOrderServiceTest {
         Contract contract = Contract.builder()
                 .id(1L)
                 .contractNo("HT2024001")
+                .contractType(2)
+                .status(2)
                 .sellerId(1L)
                 .buyerId(2L)
                 .warehouseId(10L)
@@ -133,6 +143,7 @@ class PickupOrderServiceTest {
     void test_confirmDispatch_success() {
         PickupOrder order = PickupOrder.builder()
                 .id(1L)
+                .contractId(1L)
                 .status(PickupOrderStatusEnum.DISPATCH_PENDING.getValue())
                 .build();
 

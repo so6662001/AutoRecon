@@ -69,6 +69,44 @@ public class PickupOrderServiceImpl extends ServiceImpl<PickupOrderMapper, Picku
         }
         TenantUtil.checkContractAccess(contract.getSellerId(), contract.getBuyerId());
 
+        // ===== 按合同类型差异化处理 (设计文档4.3) =====
+        int contractType = contract.getContractType() != null ? contract.getContractType() : 2;
+        int dispatchMode = dto.getDispatchMode() != null ? dto.getDispatchMode() : 1;
+
+        if (contractType == ContractTypeEnum.ORDER.getValue()) {
+            // 订货合同: 必须已签约才能派车
+            if (contract.getStatus() != ContractStatusEnum.SIGNED.getValue()
+                    && contract.getStatus() != ContractStatusEnum.PICKING.getValue()) {
+                throw new BizException(ErrorCode.CONTRACT_STATUS_ERROR.getCode(), "订货合同需签约后才能派车");
+            }
+        }
+
+        // 校验合同可提货(已提完/已关闭则拒绝)
+        if (contract.getStatus() == ContractStatusEnum.PICKED.getValue()
+                || contract.getStatus() == ContractStatusEnum.SETTLED.getValue()
+                || contract.getStatus() == ContractStatusEnum.CLOSED.getValue()) {
+            throw new BizException(ErrorCode.CONTRACT_STATUS_ERROR.getCode(), "合同已提完或已关闭，无法派车");
+        }
+
+        // 客户自行派车(模式A): 自动审核通过→直接生成提货单
+        // 销售代派(模式B): 待客户确认
+        // 承运公司(模式C): 待分配驾驶员
+        int initialStatus;
+        int initialDispatchStatus;
+        if (dispatchMode == DispatchModeEnum.CUSTOMER.getValue()) {
+            // 模式A: 自动审核通过
+            initialStatus = PickupOrderStatusEnum.READY.getValue();
+            initialDispatchStatus = 2; // 已确认
+        } else if (dispatchMode == DispatchModeEnum.SALES.getValue()) {
+            // 模式B: 待客户确认
+            initialStatus = PickupOrderStatusEnum.DISPATCH_PENDING.getValue();
+            initialDispatchStatus = 1; // 待确认
+        } else {
+            // 模式C: 承运公司, 待分配驾驶员
+            initialStatus = PickupOrderStatusEnum.DISPATCH_PENDING.getValue();
+            initialDispatchStatus = 0; // 待分配
+        }
+
         String pickupNo = generatePickupNo();
         String pickupCode = generatePickupCode();
 
@@ -79,11 +117,15 @@ public class PickupOrderServiceImpl extends ServiceImpl<PickupOrderMapper, Picku
                 .buyerId(contract.getBuyerId())
                 .pickupCode(pickupCode)
                 .pickupCodeStatus(PickupCodeStatusEnum.UNUSED.getValue())
-                .dispatchMode(dto.getDispatchMode())
-                .dispatchStatus(DispatchModeEnum.of(dto.getDispatchMode()) != null ? 1 : 0)
+                .pickupCodeExpireAt(LocalDateTime.now().plusHours(48)) // 48小时有效期
+                .dispatchMode(dispatchMode)
+                .dispatchStatus(initialDispatchStatus)
+                .customerConfirmed(dispatchMode == DispatchModeEnum.CUSTOMER.getValue() ? 1 : 0)
                 .vehiclePlate(dto.getVehiclePlate())
                 .driverName(dto.getDriverName())
                 .driverPhone(dto.getDriverPhone())
+                .driverAssigned(dto.getDriverName() != null ? 1 : 0)
+                .driverAssignedAt(dto.getDriverName() != null ? LocalDateTime.now() : null)
                 .carrierId(dto.getCarrierId())
                 .carrierName(dto.getCarrierName())
                 .expectedArrivalAt(dto.getExpectedArrivalAt())
@@ -95,9 +137,29 @@ public class PickupOrderServiceImpl extends ServiceImpl<PickupOrderMapper, Picku
                 .totalAmount(java.math.BigDecimal.ZERO)
                 .deliveryStatus(0)
                 .settlementStatus(0)
-                .status(PickupOrderStatusEnum.DISPATCH_PENDING.getValue())
+                .status(initialStatus)
                 .build();
         save(order);
+
+        // 记录进度事件
+        String eventDetail = switch (dispatchMode) {
+            case 1 -> "客户自行派车(自动审核通过)";
+            case 2 -> "销售代派车(待客户确认)";
+            case 3 -> "承运公司派车(待分配驾驶员)";
+            default -> "派车申请";
+        };
+        progressEventService.recordEvent(order.getId(), contract.getId(),
+                "DISPATCH_REQUESTED", eventDetail, null,
+                dispatchMode == 1 ? "customer" : "seller");
+
+        // 更新合同状态
+        if (contract.getStatus() == ContractStatusEnum.READY.getValue()
+                || contract.getStatus() == ContractStatusEnum.SIGNED.getValue()) {
+            contract.setStatus(ContractStatusEnum.PICKING.getValue());
+            contractMapper.updateById(contract);
+        }
+
+        log.info("Created pickup order: pickupNo={}, mode={}, status={}", pickupNo, eventDetail, initialStatus);
         return order.getId();
     }
 
@@ -197,8 +259,13 @@ public class PickupOrderServiceImpl extends ServiceImpl<PickupOrderMapper, Picku
         }
         order.setCustomerConfirmed(1);
         order.setCustomerConfirmedAt(LocalDateTime.now());
+        order.setDispatchStatus(2); // 已确认
         order.setStatus(PickupOrderStatusEnum.READY.getValue());
         updateById(order);
+
+        // 记录客户确认事件
+        progressEventService.recordEvent(order.getId(), order.getContractId(),
+                "DISPATCH_CONFIRMED", "客户确认派车", null, "buyer");
     }
 
     @Override
@@ -213,7 +280,12 @@ public class PickupOrderServiceImpl extends ServiceImpl<PickupOrderMapper, Picku
         order.setVehiclePlate(dto.getVehiclePlate());
         order.setDriverAssigned(1);
         order.setDriverAssignedAt(LocalDateTime.now());
+        order.setStatus(PickupOrderStatusEnum.READY.getValue()); // 分配后可提货
         updateById(order);
+
+        // 记录驾驶员分配事件
+        progressEventService.recordEvent(order.getId(), order.getContractId(),
+                "DRIVER_ASSIGNED", "承运公司分配驾驶员: " + dto.getDriverName(), null, "carrier");
     }
 
     @Override
