@@ -16,7 +16,10 @@
       </el-table-column>
       <el-table-column prop="grade" label="评级" width="90">
         <template #default="{ row }">
-          <el-tag :type="(getGradeTagType(row.grade) as 'success' | 'warning' | 'info' | 'danger')" size="small">{{ row.grade }}</el-tag>
+          <el-tag
+            :type="(getGradeTagType(row.grade) as 'primary' | 'success' | 'warning' | 'info' | 'danger')"
+            size="small"
+          >{{ row.grade }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="avgPaymentDays" label="平均付款天数" width="120" align="center" />
@@ -77,7 +80,11 @@
               <template #default="{ row }">¥{{ formatAmount(row.amount) }}</template>
             </el-table-column>
             <el-table-column prop="paymentDate" label="付款日期" width="120" />
-            <el-table-column prop="days" label="付款天数" width="90" align="center" />
+            <el-table-column prop="days" label="付款天数" width="90" align="center">
+              <template #default="{ row }">
+                {{ row.days === null || row.days === undefined || row.days === '' ? '—' : row.days }}
+              </template>
+            </el-table-column>
           </el-table>
         </div>
         <div v-if="isAdmin" class="action-row">
@@ -150,12 +157,19 @@ interface RankingItem {
   trend: 'up' | 'down' | 'flat'
 }
 
+interface PaymentRow {
+  billNo: string
+  amount: number
+  paymentDate: string
+  days: number | null
+}
+
 const rankingList = ref<RankingItem[]>([])
 const detailVisible = ref(false)
 const detailBuyerId = ref<number | null>(null)
 const adjustVisible = ref(false)
 const isAdmin = ref(true)
-const paymentHistory = ref<{ billNo: string; amount: number; paymentDate: string; days: number }[]>([])
+const paymentHistory = ref<PaymentRow[]>([])
 
 const detailData = ref<{
   score?: number
@@ -173,23 +187,109 @@ function formatAmount(val: number | undefined) {
   return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2 })
 }
 
+/** Unwrap `{ data: T }` from API wrapper when present */
+function unwrapApiData<T>(res: unknown): T | undefined {
+  if (res == null) return undefined
+  if (typeof res === 'object' && res !== null && 'data' in res) {
+    return (res as { data: T }).data
+  }
+  return res as T
+}
+
+function normalizeTrend(t: unknown): 'up' | 'down' | 'flat' {
+  if (t === 'up' || t === 1 || t === '1') return 'up'
+  if (t === 'down' || t === 3 || t === '3') return 'down'
+  return 'flat'
+}
+
+function normalizeRankingRow(item: Record<string, unknown>, index: number): RankingItem {
+  const id = Number(item.enterpriseId ?? item.id ?? index + 1)
+  const rawScore = Number(item.creditScore ?? item.score ?? 0)
+  const score = Math.round(rawScore * 10) / 10
+  return {
+    id,
+    rank: index + 1,
+    buyerName: String(item.buyerName ?? `企业 #${id}`),
+    score,
+    grade: String(item.scoreLevel ?? item.grade ?? 'E'),
+    avgPaymentDays: Number(item.avgPaymentDays ?? 0),
+    overdueRate: Number(item.overdueRate ?? 0),
+    disputeRate: Number(item.disputeRate ?? 0),
+    trend: normalizeTrend(item.trend),
+  }
+}
+
 function getScoreColor(score: number) {
-  if (score >= 90) return '#67c23a'
-  if (score >= 80) return '#409eff'
-  if (score >= 70) return '#e6a23c'
-  if (score >= 60) return '#f56c6c'
-  return '#909399'
+  if (score >= 90) return '#67c23a' // A - green
+  if (score >= 75) return '#409eff' // B - blue
+  if (score >= 60) return '#e6a23c' // C - orange
+  if (score >= 40) return '#f56c6c' // D - red
+  return '#909399' // E - gray
 }
 
 function getGradeTagType(grade: string) {
   const map: Record<string, string> = {
     A: 'success',
-    B: '',
+    B: 'primary',
     C: 'warning',
     D: 'danger',
-    E: 'danger',
+    E: 'info',
   }
   return map[grade] ?? 'info'
+}
+
+interface ScoreFactorEntry {
+  score?: number
+}
+
+function parseScoreFactorsJson(
+  json: string | undefined
+): { name: string; value: number }[] | undefined {
+  if (!json?.trim()) return undefined
+  try {
+    const factors = JSON.parse(json) as Record<string, ScoreFactorEntry>
+    return [
+      { name: '付款准时率', value: factors.onTimeRate?.score ?? 50 },
+      { name: '付款天数', value: factors.avgPaymentDays?.score ?? 50 },
+      { name: '逾期率', value: factors.overdueRate?.score ?? 50 },
+      { name: '异议率', value: factors.disputeRate?.score ?? 50 },
+      { name: '合作时长', value: factors.cooperationMonths?.score ?? 50 },
+      { name: '交易规模', value: factors.tradeAmount?.score ?? 50 },
+    ]
+  } catch {
+    return undefined
+  }
+}
+
+function formatMonthFromApi(d: unknown): string {
+  if (d == null) return ''
+  if (typeof d === 'string') return d.length >= 7 ? d.slice(0, 7) : d
+  return String(d)
+}
+
+function formatPaymentDate(d: unknown): string {
+  if (d == null) return '—'
+  if (typeof d === 'string') return d.length >= 10 ? d.slice(0, 10) : d
+  return String(d)
+}
+
+function mapRecentPayments(list: unknown): PaymentRow[] {
+  if (!Array.isArray(list) || list.length === 0) return []
+  return list.map((raw) => {
+    const p = raw as Record<string, unknown>
+    const daysRaw = p.days ?? p.paymentDays
+    let days: number | null = null
+    if (daysRaw != null && daysRaw !== '') {
+      const n = Number(daysRaw)
+      days = Number.isFinite(n) ? n : null
+    }
+    return {
+      billNo: String(p.paymentNo ?? p.billNo ?? '—'),
+      amount: Number(p.paymentAmount ?? p.amount ?? 0),
+      paymentDate: formatPaymentDate(p.paymentDate),
+      days,
+    }
+  })
 }
 
 const gaugeOption = computed(() => ({
@@ -207,7 +307,13 @@ const gaugeOption = computed(() => ({
         roundCap: true,
         lineStyle: {
           width: 14,
-          color: [[0.6, '#f56c6c'], [0.8, '#e6a23c'], [1, '#67c23a']],
+          color: [
+            [0.4, '#909399'],
+            [0.6, '#f56c6c'],
+            [0.75, '#e6a23c'],
+            [0.9, '#409eff'],
+            [1, '#67c23a'],
+          ],
         },
       },
       axisTick: { show: false },
@@ -229,12 +335,12 @@ const gaugeOption = computed(() => ({
 
 const radarOption = computed(() => {
   const factors = detailData.value.factors ?? [
-    { name: '付款及时性', value: 85 },
-    { name: '异议处理', value: 78 },
-    { name: '合作时长', value: 92 },
-    { name: '交易规模', value: 88 },
-    { name: '合规性', value: 95 },
-    { name: '沟通配合', value: 82 },
+    { name: '付款准时率', value: 50 },
+    { name: '付款天数', value: 50 },
+    { name: '逾期率', value: 50 },
+    { name: '异议率', value: 50 },
+    { name: '合作时长', value: 50 },
+    { name: '交易规模', value: 50 },
   ]
   return {
     radar: {
@@ -274,35 +380,55 @@ const trendOption = computed(() => {
 function handleViewDetail(row: RankingItem) {
   detailBuyerId.value = row.id
   detailVisible.value = true
-  fetchDetail(row.id)
 }
 
 async function fetchDetail(buyerId: number) {
   try {
-    const [detailRes, trendRes] = await Promise.all([
-      getCreditDetail(buyerId) as Promise<{ score?: number; factors?: { name: string; value: number }[] }>,
-      getCreditTrend(buyerId) as Promise<{ data?: { month: string; score: number }[] }>,
+    const [detailResRaw, trendResRaw] = await Promise.all([
+      getCreditDetail(buyerId),
+      getCreditTrend(buyerId),
     ])
+    const detailRes = unwrapApiData<Record<string, unknown>>(detailResRaw) ?? {}
+    const trendListRaw = unwrapApiData<unknown[]>(trendResRaw)
+    const trendList = Array.isArray(trendListRaw) ? trendListRaw : []
+
+    const rawScore = Number(detailRes.creditScore ?? detailRes.score ?? 85)
+    const scoreRounded = Math.round(rawScore * 10) / 10
+    const factorsFromJson = parseScoreFactorsJson(
+      typeof detailRes.scoreFactors === 'string' ? detailRes.scoreFactors : undefined
+    )
+
+    const trend =
+      trendList.length > 0
+        ? [...trendList]
+            .reverse()
+            .map((t) => {
+              const row = t as Record<string, unknown>
+              return {
+                month: formatMonthFromApi(row.lastCalculatedAt ?? row.month),
+                score: Number(row.creditScore ?? row.score ?? 0),
+              }
+            })
+            .filter((x) => x.month)
+        : undefined
+
     detailData.value = {
-      score: detailRes?.score ?? 85,
-      factors: detailRes?.factors,
-      trend: trendRes?.data,
+      score: scoreRounded,
+      factors: factorsFromJson,
+      trend,
     }
-    paymentHistory.value = [
-      { billNo: 'R202503001', amount: 50000, paymentDate: '2025-03-15', days: 35 },
-      { billNo: 'R202502015', amount: 125800, paymentDate: '2025-02-28', days: 28 },
-      { billNo: 'R202502008', amount: 68000, paymentDate: '2025-02-20', days: 25 },
-    ]
+    const payments = mapRecentPayments(detailRes.recentPayments)
+    paymentHistory.value = payments.length > 0 ? payments : []
   } catch {
     detailData.value = {
       score: 85,
       factors: [
-        { name: '付款及时性', value: 85 },
-        { name: '异议处理', value: 78 },
-        { name: '合作时长', value: 92 },
-        { name: '交易规模', value: 88 },
-        { name: '合规性', value: 95 },
-        { name: '沟通配合', value: 82 },
+        { name: '付款准时率', value: 85 },
+        { name: '付款天数', value: 78 },
+        { name: '逾期率', value: 92 },
+        { name: '异议率', value: 88 },
+        { name: '合作时长', value: 95 },
+        { name: '交易规模', value: 82 },
       ],
       trend: [
         { month: '2024-09', score: 78 },
@@ -313,10 +439,7 @@ async function fetchDetail(buyerId: number) {
         { month: '2025-02', score: 86 },
       ],
     }
-    paymentHistory.value = [
-      { billNo: 'R202503001', amount: 50000, paymentDate: '2025-03-15', days: 35 },
-      { billNo: 'R202502015', amount: 125800, paymentDate: '2025-02-28', days: 28 },
-    ]
+    paymentHistory.value = []
   }
 }
 
@@ -330,7 +453,7 @@ async function handleAdjustSubmit() {
   if (!detailBuyerId.value) return
   try {
     await adjustCredit(detailBuyerId.value, {
-      score: adjustForm.score,
+      newScore: adjustForm.score,
       reason: adjustForm.reason,
     })
     ElMessage.success('调整成功')
@@ -344,8 +467,12 @@ async function handleAdjustSubmit() {
 
 async function fetchRanking() {
   try {
-    const res = await getCreditRanking(20) as RankingItem[]
-    rankingList.value = Array.isArray(res) ? res : []
+    const res = await getCreditRanking(20)
+    const rawList = unwrapApiData<unknown[]>(res)
+    const rows = Array.isArray(rawList) ? rawList : Array.isArray(res) ? (res as unknown[]) : []
+    rankingList.value = rows.map((item, i) =>
+      normalizeRankingRow(item as Record<string, unknown>, i)
+    )
     if (rankingList.value.length === 0) {
       rankingList.value = Array.from({ length: 10 }, (_, i) => ({
         id: i + 1,
