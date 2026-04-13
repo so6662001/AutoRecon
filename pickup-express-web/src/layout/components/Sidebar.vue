@@ -179,4 +179,20 @@ const activeMenu = computed(() => {
   height: 48px;
   line-height: 48px;
 }
+
+.sidebar.mobile-hidden {
+  transform: translateX(-100%);
+}
+
+.sidebar.mobile-open {
+  transform: translateX(0);
+  width: var(--sidebar-width);
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    transition: transform 0.28s ease;
+    z-index: 1001;
+  }
+}
 </style>

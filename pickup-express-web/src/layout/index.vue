@@ -1,9 +1,10 @@
 <template>
   <div class="layout-container">
-    <Sidebar v-if="embedConfig.showSidebar" :collapsed="collapsed" />
-    <div class="layout-main" :class="{ 'sidebar-collapsed': collapsed, 'no-sidebar': !embedConfig.showSidebar, 'no-header': !embedConfig.showHeader }">
-      <Header v-if="embedConfig.showHeader" v-model:collapsed="collapsed" />
-      <main class="layout-content">
+    <div v-if="isMobile && sidebarOpen && embedConfig.showSidebar" class="sidebar-overlay" @click="sidebarOpen = false" />
+    <Sidebar v-if="embedConfig.showSidebar" :collapsed="collapsed" :class="{ 'mobile-open': isMobile && sidebarOpen, 'mobile-hidden': isMobile && !sidebarOpen }" />
+    <div class="layout-main" :class="{ 'sidebar-collapsed': collapsed && !isMobile, 'no-sidebar': !embedConfig.showSidebar || isMobile, 'no-header': !embedConfig.showHeader }">
+      <Header v-if="embedConfig.showHeader" v-model:collapsed="collapsed" :is-mobile="isMobile" @toggle-sidebar="toggleMobileSidebar" />
+      <main class="layout-content" :class="{ 'mobile-content': isMobile }">
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
             <component :is="Component" />
@@ -20,7 +21,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import Sidebar from './components/Sidebar.vue'
 import Header from './components/Header.vue'
 import AgreementDialog from '@/components/AgreementDialog.vue'
@@ -30,7 +32,30 @@ import { checkAgreementStatus } from '@/api/system'
 
 const embedConfig = computed(() => getEmbedConfig())
 const collapsed = ref(false)
+const isMobile = ref(false)
+const sidebarOpen = ref(false)
+const route = useRoute()
 const userStore = useUserStore()
+
+function checkMobile() {
+  isMobile.value = typeof window !== 'undefined' && window.innerWidth <= 768
+  if (isMobile.value) {
+    collapsed.value = false
+    sidebarOpen.value = false
+  }
+}
+
+function toggleMobileSidebar() {
+  if (isMobile.value) {
+    sidebarOpen.value = !sidebarOpen.value
+  } else {
+    collapsed.value = !collapsed.value
+  }
+}
+
+watch(() => route.path, () => {
+  if (isMobile.value) sidebarOpen.value = false
+})
 
 const showAgreementDialog = ref(false)
 const pendingAgreements = ref<
@@ -45,6 +70,9 @@ const pendingAgreements = ref<
 >([])
 
 onMounted(async () => {
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
+
   if (userStore.token && !userStore.userInfo) {
     try {
       await userStore.getUserInfo()
@@ -70,6 +98,10 @@ onMounted(async () => {
     }
   }
 })
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile)
+})
 </script>
 
 <style lang="scss" scoped>
@@ -77,6 +109,13 @@ onMounted(async () => {
   display: flex;
   height: 100vh;
   overflow: hidden;
+}
+
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1000;
 }
 
 .layout-main {
@@ -101,6 +140,10 @@ onMounted(async () => {
   overflow: auto;
   padding: 20px;
   background: #f5f7fa;
+
+  &.mobile-content {
+    padding: 12px;
+  }
 }
 
 .fade-enter-active,

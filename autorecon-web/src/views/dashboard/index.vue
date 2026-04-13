@@ -467,4 +467,41 @@ onMounted(() => {
     }
   }
 }
+
+@media (max-width: 768px) {
+  .dashboard-page {
+    .stat-card {
+      padding: 14px;
+
+      .stat-icon {
+        width: 42px;
+        height: 42px;
+        margin-right: 12px;
+
+        :deep(.el-icon) {
+          font-size: 22px !important;
+        }
+      }
+
+      .stat-value {
+        font-size: 22px;
+      }
+    }
+
+    .chart-card {
+      padding: 12px;
+
+      .chart-gauge,
+      .chart-bar {
+        height: 180px;
+      }
+    }
+
+    .todos-section {
+      padding: 12px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+  }
+}
 </style>

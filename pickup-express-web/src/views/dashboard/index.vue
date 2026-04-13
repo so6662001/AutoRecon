@@ -317,4 +317,24 @@ onMounted(loadDashboard)
   .mr-2 { margin-right: 8px; }
   .ml-2 { margin-left: 8px; }
 }
+
+@media (max-width: 768px) {
+  .dashboard {
+    .stat-card {
+      padding: 12px 0;
+
+      .stat-value {
+        font-size: 20px;
+      }
+    }
+
+    .chart-card .chart {
+      height: 200px;
+    }
+
+    .chart-card .chart-placeholder {
+      height: 200px;
+    }
+  }
+}
 </style>

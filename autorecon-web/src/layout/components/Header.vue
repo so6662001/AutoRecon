@@ -1,13 +1,13 @@
 <template>
-  <header class="header">
+  <header class="header" :class="{ 'mobile-header': isMobile }">
     <div class="header-left">
       <el-button
         :icon="collapsed ? Expand : Fold"
         text
         class="collapse-btn"
-        @click="toggleCollapse"
+        @click="handleToggle"
       />
-      <el-breadcrumb separator="/">
+      <el-breadcrumb v-if="!isMobile" separator="/">
         <el-breadcrumb-item
           v-for="(item, index) in breadcrumbs"
           :key="index"
@@ -16,9 +16,10 @@
           {{ item.title }}
         </el-breadcrumb-item>
       </el-breadcrumb>
+      <span v-else class="mobile-title">{{ currentTitle }}</span>
     </div>
     <div class="header-right">
-      <span class="enterprise-name" v-if="userStore.userInfo?.enterpriseName">
+      <span class="enterprise-name" v-if="!isMobile && userStore.userInfo?.enterpriseName">
         {{ userStore.userInfo.enterpriseName }}
       </span>
       <el-dropdown trigger="click" @command="handleCommand">
@@ -59,10 +60,12 @@ import { getEmbedConfig } from '@/config/embed'
 
 const props = defineProps<{
   collapsed: boolean
+  isMobile?: boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'update:collapsed', value: boolean): void
+  (e: 'toggle-sidebar'): void
 }>()
 
 const route = useRoute()
@@ -72,6 +75,11 @@ const userStore = useUserStore()
 const collapsed = computed({
   get: () => props.collapsed,
   set: (v) => emit('update:collapsed', v),
+})
+
+const currentTitle = computed(() => {
+  const matched = route.matched.filter((r) => r.meta?.title)
+  return matched.length > 0 ? (matched[matched.length - 1].meta.title as string) : '自动对账'
 })
 
 const userDisplayName = computed(() => {
@@ -88,8 +96,12 @@ const breadcrumbs = computed(() => {
   }))
 })
 
-function toggleCollapse() {
-  collapsed.value = !collapsed.value
+function handleToggle() {
+  if (props.isMobile) {
+    emit('toggle-sidebar')
+  } else {
+    collapsed.value = !collapsed.value
+  }
 }
 
 function handleCommand(cmd: string) {
@@ -159,5 +171,26 @@ function handleCommand(cmd: string) {
 .user-name {
   font-size: 14px;
   color: #333;
+}
+
+.mobile-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+@media (max-width: 768px) {
+  .header {
+    padding: 0 12px;
+  }
+
+  .user-name {
+    display: none;
+  }
+
+  .collapse-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
 }
 </style>

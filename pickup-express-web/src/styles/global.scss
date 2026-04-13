@@ -79,5 +79,68 @@ body {
 @media (max-width: 768px) {
   .page-container {
     padding: 12px !important;
+    border-radius: 4px;
+
+    h2 {
+      font-size: 18px;
+    }
+  }
+
+  .el-table {
+    font-size: 13px;
+  }
+
+  .el-table-column .cell {
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+  }
+
+  .el-descriptions {
+    font-size: 13px;
+  }
+
+  .el-dialog {
+    width: 95% !important;
+    margin: 8px auto !important;
+  }
+
+  .el-card {
+    margin-bottom: 12px;
+  }
+
+  .el-form--inline .el-form-item {
+    display: block;
+    margin-right: 0;
+    margin-bottom: 12px;
+    width: 100%;
+  }
+
+  .el-form--inline .el-form-item .el-input,
+  .el-form--inline .el-form-item .el-select {
+    width: 100% !important;
+  }
+
+  .el-row {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .el-pagination {
+    flex-wrap: wrap;
+    justify-content: center;
+
+    .el-pagination__sizes,
+    .el-pagination__jump {
+      display: none;
+    }
+  }
+
+  .el-tabs__header {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .el-button + .el-button {
+    margin-left: 4px;
   }
 }
