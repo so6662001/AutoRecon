@@ -52,6 +52,7 @@
               :loading="verifying"
               :disabled="!verifyForm.phone || !verifyForm.code"
               class="verify-btn"
+              data-track-event="guest_verify" data-track-category="guest_operation"
               @click="handleVerify"
             >
               验证
@@ -122,11 +123,11 @@
           </div>
 
           <div v-if="!disputeMode" class="action-buttons">
-            <el-button type="success" size="large" class="confirm-btn" :loading="confirming" @click="handleConfirm">
+            <el-button type="success" size="large" class="confirm-btn" :loading="confirming" data-track-event="guest_confirm" data-track-category="guest_operation" @click="handleConfirm">
               <el-icon><CircleCheck /></el-icon>
               确认无异议
             </el-button>
-            <el-button type="danger" size="large" plain @click="disputeMode = true">
+            <el-button type="danger" size="large" plain data-track-event="guest_dispute" data-track-category="guest_operation" @click="disputeMode = true">
               <el-icon><CircleClose /></el-icon>
               我有异议
             </el-button>

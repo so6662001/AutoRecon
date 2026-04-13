@@ -64,6 +64,8 @@ instance.interceptors.response.use(
   }
 )
 
+export { instance as request }
+
 export const get = <T = unknown>(url: string, params?: object, config?: object): Promise<T> =>
   instance.get(url, { params, ...config }) as Promise<T>
 export const post = <T = unknown>(url: string, data?: object | FormData | null, config?: object): Promise<T> =>

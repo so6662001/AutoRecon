@@ -10,17 +10,17 @@
         </div>
         <div class="header-actions">
           <template v-if="['CREATED', 'GENERATED'].includes(bill.status)">
-            <el-button type="primary" @click="handleSend">发送</el-button>
-            <el-button @click="handleEdit">编辑</el-button>
-            <el-button type="danger" @click="handleVoid">作废</el-button>
+            <el-button type="primary" data-track-event="bill_send" data-track-category="bill_operation" @click="handleSend">发送</el-button>
+            <el-button data-track-event="bill_edit" data-track-category="bill_operation" @click="handleEdit">编辑</el-button>
+            <el-button type="danger" data-track-event="bill_void" data-track-category="bill_operation" @click="handleVoid">作废</el-button>
           </template>
           <template v-else-if="bill.status === 'PENDING'">
-            <el-button type="primary" @click="handleConfirm">确认</el-button>
-            <el-button type="warning" @click="handleDispute">提异议</el-button>
+            <el-button type="primary" data-track-event="bill_confirm" data-track-category="bill_operation" @click="handleConfirm">确认</el-button>
+            <el-button type="warning" data-track-event="bill_dispute" data-track-category="bill_operation" @click="handleDispute">提异议</el-button>
             <el-button @click="handleUrge">催促</el-button>
           </template>
           <template v-else-if="bill.status === 'TO_SIGN'">
-            <el-button type="primary" @click="handleSign">签章</el-button>
+            <el-button type="primary" data-track-event="bill_sign" data-track-category="bill_operation" @click="handleSign">签章</el-button>
           </template>
           <template v-else-if="['SIGNED', 'COLLECTING', 'COMPLETED'].includes(bill.status)">
             <el-button type="primary" @click="handleDownloadPdf">下载PDF</el-button>
