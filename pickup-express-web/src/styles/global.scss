@@ -143,4 +143,33 @@ body {
   .el-button + .el-button {
     margin-left: 4px;
   }
+
+  .el-descriptions .el-descriptions__body .el-descriptions__table {
+    display: block;
+  }
+
+  .el-descriptions--2 .el-descriptions__body .el-descriptions__table .el-descriptions__row {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .page-container .el-table,
+  .el-card .el-table {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .filter-bar,
+  .search-bar,
+  .toolbar,
+  .page-header,
+  .action-bar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px;
+
+    .el-button {
+      width: 100%;
+    }
+  }
 }

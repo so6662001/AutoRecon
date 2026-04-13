@@ -338,4 +338,35 @@ onMounted(() => {
     justify-content: flex-end;
   }
 }
+
+@media (max-width: 768px) {
+  .bill-list-page {
+    .search-form {
+      padding: 12px;
+
+      :deep(.el-form-item) {
+        display: block;
+        margin-right: 0;
+        margin-bottom: 10px;
+        width: 100%;
+      }
+
+      :deep(.el-input),
+      :deep(.el-select),
+      :deep(.el-date-editor) {
+        width: 100% !important;
+      }
+    }
+
+    .action-bar {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .pagination-wrap {
+      justify-content: center;
+    }
+  }
+}
 </style>

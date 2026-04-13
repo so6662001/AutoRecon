@@ -1033,4 +1033,46 @@ onMounted(async () => {
     color: #303133;
   }
 }
+
+@media (max-width: 768px) {
+  .bill-detail-page {
+    .detail-header {
+      flex-direction: column;
+      gap: 12px;
+      align-items: flex-start;
+
+      .header-actions {
+        flex-wrap: wrap;
+        width: 100%;
+
+        .el-button {
+          flex: 1;
+          min-width: 0;
+        }
+      }
+
+      .bill-no {
+        font-size: 17px;
+      }
+    }
+
+    .balance-card {
+      max-width: 100%;
+    }
+
+    :deep(.info-section .el-descriptions__body) {
+      display: block;
+    }
+
+    :deep(.info-section .el-descriptions__row) {
+      display: flex;
+      flex-direction: column;
+    }
+
+    :deep(.el-table) {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+  }
+}
 </style>

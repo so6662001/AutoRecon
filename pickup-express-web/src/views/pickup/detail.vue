@@ -568,8 +568,16 @@ onUnmounted(() => {
     align-items: flex-start;
   }
 
-  .detail-header .el-button {
+  .detail-header .header-actions {
+    display: flex;
+    flex-direction: column;
     width: 100%;
+    gap: 8px;
+  }
+
+  .detail-header .header-actions .el-button {
+    width: 100%;
+    margin-left: 0;
   }
 
   .vehicle-section {
