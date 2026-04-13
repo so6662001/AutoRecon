@@ -120,7 +120,6 @@ class DeliveryServiceTest {
         when(contractMapper.selectById(1L)).thenReturn(testContract());
 
         assertThrows(BizException.class, () -> deliveryService.verifyPickupCode("ABC123", "沪A12345"));
-        verify(pickupOrderMapper, never()).updateById(any(PickupOrder.class));
     }
 
     @Test

@@ -64,29 +64,71 @@ public class DeliveryServiceImpl implements DeliveryService {
         return applicationContext.getBean(EvidenceService.class);
     }
 
+    // 提货码验证失败计数器: key=pickupCode, value=失败次数
+    private static final java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.atomic.AtomicInteger>
+            VERIFY_FAIL_COUNTER = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final int MAX_VERIFY_ATTEMPTS = 5;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean verifyPickupCode(String pickupCode, String vehiclePlate) {
+        // 安全: 5次错误锁定检查(设计十二: 暴力猜测防护)
+        java.util.concurrent.atomic.AtomicInteger failCount =
+                VERIFY_FAIL_COUNTER.computeIfAbsent(pickupCode, k -> new java.util.concurrent.atomic.AtomicInteger(0));
+        if (failCount.get() >= MAX_VERIFY_ATTEMPTS) {
+            log.warn("Pickup code locked after {} failed attempts: code={}", MAX_VERIFY_ATTEMPTS, pickupCode);
+            throw new BizException(ErrorCode.PICKUP_CODE_INVALID.getCode(), "提货码已被锁定(连续" + MAX_VERIFY_ATTEMPTS + "次验证失败)，请联系销售重新生成");
+        }
+
         PickupOrder order = pickupOrderMapper.selectOne(
                 new LambdaQueryWrapper<PickupOrder>()
                         .eq(PickupOrder::getPickupCode, pickupCode));
         if (order == null) {
-            log.warn("Pickup code verification failed: invalid code");
+            failCount.incrementAndGet();
+            log.warn("Pickup code verification failed: invalid code, failCount={}", failCount.get());
             throw new BizException(ErrorCode.PICKUP_CODE_INVALID);
         }
+
+        // 安全: 一次性使用检查(设计十二: 一次性使用)
+        if (order.getPickupCodeStatus() != null
+                && order.getPickupCodeStatus() >= PickupCodeStatusEnum.VERIFIED.getValue()) {
+            log.warn("Pickup code already used/verified: pickupOrderId={}, status={}",
+                    order.getId(), order.getPickupCodeStatus());
+            // 已验证的允许继续(同一次提货)，已使用的拒绝
+            if (order.getPickupCodeStatus() == PickupCodeStatusEnum.USED.getValue()) {
+                throw new BizException(ErrorCode.PICKUP_CODE_INVALID.getCode(), "提货码已使用，不可重复提货");
+            }
+            if (order.getPickupCodeStatus() == PickupCodeStatusEnum.EXPIRED.getValue()) {
+                throw new BizException(ErrorCode.PICKUP_CODE_EXPIRED);
+            }
+        }
+
         Contract contract = contractMapper.selectById(order.getContractId());
         if (contract != null) {
             TenantUtil.checkContractAccess(contract.getSellerId(), contract.getBuyerId());
         }
+
+        // 过期检查
         if (order.getPickupCodeExpireAt() != null && order.getPickupCodeExpireAt().isBefore(LocalDateTime.now())) {
+            failCount.incrementAndGet();
+            order.setPickupCodeStatus(PickupCodeStatusEnum.EXPIRED.getValue());
+            pickupOrderMapper.updateById(order);
             log.warn("Pickup code verification failed: expired code, pickupOrderId={}", order.getId());
             throw new BizException(ErrorCode.PICKUP_CODE_EXPIRED);
         }
+
+        // 车牌比对
         if (vehiclePlate != null && !vehiclePlate.isBlank() && order.getVehiclePlate() != null
                 && !vehiclePlate.trim().equalsIgnoreCase(order.getVehiclePlate().trim())) {
-            log.warn("Pickup code verification failed: vehicle plate mismatch, pickupOrderId={}", order.getId());
+            failCount.incrementAndGet();
+            log.warn("Pickup code verification failed: vehicle plate mismatch, pickupOrderId={}, failCount={}",
+                    order.getId(), failCount.get());
             return false;
         }
+
+        // 验证通过 — 重置失败计数
+        VERIFY_FAIL_COUNTER.remove(pickupCode);
+
         order.setPickupCodeStatus(PickupCodeStatusEnum.VERIFIED.getValue());
         order.setDeliveryStatus(1); // 发货中
         order.setStatus(PickupOrderStatusEnum.DELIVERING.getValue());
