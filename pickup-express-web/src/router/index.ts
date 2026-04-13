@@ -54,6 +54,12 @@ const routes = [
         meta: { title: '提货单列表', icon: 'List' },
       },
       {
+        path: 'pickup/monitor',
+        name: 'pickupMonitor',
+        component: () => import('@/views/pickup/monitor.vue'),
+        meta: { title: '实时监控', icon: 'Monitor' },
+      },
+      {
         path: 'pickup/:id',
         name: 'pickupDetail',
         component: () => import('@/views/pickup/detail.vue'),

@@ -36,6 +36,10 @@
             <span>提货管理</span>
           </template>
           <el-menu-item index="/pickup/list">提货单列表</el-menu-item>
+          <el-menu-item index="/pickup/monitor">
+            <el-icon><Monitor /></el-icon>
+            <template #title>实时监控</template>
+          </el-menu-item>
           <el-menu-item index="/dispatch/manage">派车管理</el-menu-item>
         </el-sub-menu>
 
@@ -95,6 +99,7 @@ import {
   Odometer,
   Document,
   List,
+  Monitor,
   Money,
   CircleCheck,
   OfficeBuilding,
@@ -115,6 +120,7 @@ const activeMenu = computed(() => {
   }
   if (path.startsWith('/pickup/')) {
     if (path.includes('/delivery')) return '/pickup/list'
+    if (path.startsWith('/pickup/monitor')) return '/pickup/monitor'
     return '/pickup/list'
   }
   if (path.startsWith('/settlement/') && !path.endsWith('/list')) {
