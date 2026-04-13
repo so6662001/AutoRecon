@@ -33,6 +33,9 @@ public enum ErrorCode {
     QUOTA_EXCEEDED(50001, "套餐额度已用完"),
     SUBSCRIPTION_EXPIRED(50002, "订阅已过期"),
 
+    AGREEMENT_VERSION_NOT_FOUND(60001, "协议版本不存在"),
+    AGREEMENT_TYPE_MISMATCH(60002, "协议类型与版本不一致"),
+
     SYSTEM_ERROR(99999, "系统内部错误");
 
     private final int code;

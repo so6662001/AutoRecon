@@ -898,3 +898,50 @@ CREATE TABLE enterprise_settings (
   UNIQUE KEY uk_enterprise_settings_enterprise_id (enterprise_id),
   INDEX idx_enterprise_settings_deleted (deleted)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='企业扩展设置';
+
+-- =============================================================================
+-- 34. agreement_version - 协议版本管理
+-- =============================================================================
+CREATE TABLE agreement_version (
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    agreement_type TINYINT NOT NULL COMMENT '协议类型: 1-用户服务协议 2-隐私保护政策',
+    version_no VARCHAR(20) NOT NULL COMMENT '版本号(如v1.0, v2.0)',
+    title VARCHAR(200) NOT NULL COMMENT '协议标题',
+    content LONGTEXT COMMENT '协议内容(Markdown/HTML)',
+    content_url VARCHAR(500) COMMENT 'OSS存储URL(PDF/HTML归档)',
+    summary VARCHAR(500) COMMENT '本次更新摘要',
+    effective_date DATE NOT NULL COMMENT '生效日期',
+    published_by BIGINT COMMENT '发布人',
+    published_at DATETIME COMMENT '发布时间',
+    status TINYINT DEFAULT 0 COMMENT '状态: 0-草稿 1-已发布 2-已废弃',
+    require_reconfirm TINYINT DEFAULT 1 COMMENT '是否要求用户重新确认: 0-否 1-是',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT(1) NOT NULL DEFAULT 0 COMMENT '逻辑删除 0-否 1-是',
+    INDEX idx_agreement_type_status (agreement_type, status),
+    INDEX idx_effective_date (effective_date),
+    INDEX idx_agreement_version_deleted (deleted)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='协议版本管理';
+
+-- =============================================================================
+-- 35. agreement_confirmation - 用户协议确认记录
+-- =============================================================================
+CREATE TABLE agreement_confirmation (
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    enterprise_id BIGINT COMMENT '企业ID',
+    agreement_version_id BIGINT NOT NULL COMMENT '协议版本ID',
+    agreement_type TINYINT NOT NULL COMMENT '协议类型',
+    version_no VARCHAR(20) NOT NULL COMMENT '确认的版本号',
+    confirmed_at DATETIME NOT NULL COMMENT '确认时间',
+    confirm_method TINYINT DEFAULT 1 COMMENT '确认方式: 1-登录弹窗确认 2-注册时确认 3-免注册确认',
+    ip_address VARCHAR(50) COMMENT '确认时IP',
+    user_agent VARCHAR(500) COMMENT '确认时设备信息',
+    content_snapshot_url VARCHAR(500) COMMENT '确认时协议内容快照(OSS URL)',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT(1) NOT NULL DEFAULT 0 COMMENT '逻辑删除 0-否 1-是',
+    INDEX idx_user_agreement (user_id, agreement_type),
+    INDEX idx_version (agreement_version_id),
+    INDEX idx_agreement_confirmation_deleted (deleted)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户协议确认记录';

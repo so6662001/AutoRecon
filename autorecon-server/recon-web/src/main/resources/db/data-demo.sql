@@ -102,4 +102,9 @@ INSERT INTO collection_plan (id, bill_id, seller_id, buyer_id, receivable_amount
 INSERT INTO guest_access_token (id, token, bill_id, expire_at, phone_verified, opened_count, confirmed, deleted) VALUES
 (1, 'DEMO_GUEST_TOKEN', 1, '2027-12-31 23:59:59', 1, 0, 0, 0);
 
+-- 协议版本
+INSERT INTO agreement_version (id, agreement_type, version_no, title, content, effective_date, published_at, status, require_reconfirm, deleted) VALUES
+(1, 1, 'v1.0', '用户服务协议', '# 用户服务协议\n\n本协议...', '2026-01-01', '2026-01-01 00:00:00', 1, 1, 0),
+(2, 2, 'v1.0', '隐私保护政策', '# 隐私保护政策\n\n本政策...', '2026-01-01', '2026-01-01 00:00:00', 1, 1, 0);
+
 SET REFERENTIAL_INTEGRITY TRUE;

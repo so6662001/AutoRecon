@@ -690,3 +690,44 @@ CREATE TABLE IF NOT EXISTS enterprise_settings (
   deleted TINYINT NOT NULL DEFAULT 0
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uk_enterprise_settings_eid ON enterprise_settings(enterprise_id);
+
+-- 34. agreement_version
+CREATE TABLE IF NOT EXISTS agreement_version (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  agreement_type TINYINT NOT NULL,
+  version_no VARCHAR(20) NOT NULL,
+  title VARCHAR(200) NOT NULL,
+  content CLOB,
+  content_url VARCHAR(500),
+  summary VARCHAR(500),
+  effective_date DATE NOT NULL,
+  published_by BIGINT,
+  published_at TIMESTAMP,
+  status TINYINT DEFAULT 0,
+  require_reconfirm TINYINT DEFAULT 1,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  deleted TINYINT NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_agreement_type_status ON agreement_version(agreement_type, status);
+CREATE INDEX IF NOT EXISTS idx_effective_date ON agreement_version(effective_date);
+
+-- 35. agreement_confirmation
+CREATE TABLE IF NOT EXISTS agreement_confirmation (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT NOT NULL,
+  enterprise_id BIGINT,
+  agreement_version_id BIGINT NOT NULL,
+  agreement_type TINYINT NOT NULL,
+  version_no VARCHAR(20) NOT NULL,
+  confirmed_at TIMESTAMP NOT NULL,
+  confirm_method TINYINT DEFAULT 1,
+  ip_address VARCHAR(50),
+  user_agent VARCHAR(500),
+  content_snapshot_url VARCHAR(500),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  deleted TINYINT NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_user_agreement ON agreement_confirmation(user_id, agreement_type);
+CREATE INDEX IF NOT EXISTS idx_version ON agreement_confirmation(agreement_version_id);
