@@ -13,6 +13,8 @@ import com.pickupexpress.domain.dto.DispatchRequestDTO;
 import com.pickupexpress.domain.dto.DriverAssignDTO;
 import com.pickupexpress.domain.entity.Contract;
 import com.pickupexpress.domain.entity.PickupOrder;
+import com.pickupexpress.domain.enums.ContractStatusEnum;
+import com.pickupexpress.domain.enums.ContractTypeEnum;
 import com.pickupexpress.domain.enums.DispatchModeEnum;
 import com.pickupexpress.domain.enums.PickupCodeStatusEnum;
 import com.pickupexpress.domain.enums.PickupOrderStatusEnum;
@@ -48,6 +50,7 @@ public class PickupOrderServiceImpl extends ServiceImpl<PickupOrderMapper, Picku
     private static final String ALPHANUMERIC = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
     private final ContractService contractService;
+    private final ContractMapper contractMapper;
     private final PickupOrderMapper pickupOrderMapper;
     private final LiftRecordMapper liftRecordMapper;
     private final DeliveryConfirmMapper deliveryConfirmMapper;
@@ -269,5 +272,76 @@ public class PickupOrderServiceImpl extends ServiceImpl<PickupOrderMapper, Picku
             return null;
         }
         return getOne(new LambdaQueryWrapper<PickupOrder>().eq(PickupOrder::getPickupCode, pickupCode));
+    }
+
+    /**
+     * 留货合同静默模式: 仓库发起时自动创建提货单
+     * 仓库输入合同号+司机信息 → 系统匹配合同 → 自动生成提货单
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long createPickupOrderFromWarehouse(Long contractId, String driverName, String driverPhone, String vehiclePlate) {
+        Contract contract = contractMapper.selectById(contractId);
+        if (contract == null) {
+            throw new BizException(ErrorCode.CONTRACT_NOT_FOUND);
+        }
+        TenantUtil.checkContractAccess(contract.getSellerId(), contract.getBuyerId());
+
+        // Only for reserved contracts (静默模式)
+        if (contract.getContractType() != ContractTypeEnum.RESERVED.getValue()) {
+            throw new BizException(ErrorCode.CONTRACT_STATUS_ERROR.getCode(), "仅留货合同支持仓库直接发起");
+        }
+
+        // Contract must be READY or PICKING
+        if (contract.getStatus() != ContractStatusEnum.READY.getValue()
+                && contract.getStatus() != ContractStatusEnum.PICKING.getValue()) {
+            throw new BizException(ErrorCode.CONTRACT_STATUS_ERROR.getCode(), "合同状态不允许提货");
+        }
+
+        // Auto-create pickup order (no dispatch needed for reserved contracts)
+        String pickupNo = generatePickupNo();
+        String pickupCode = generatePickupCode();
+
+        PickupOrder order = PickupOrder.builder()
+                .pickupNo(pickupNo)
+                .contractId(contractId)
+                .contractNo(contract.getContractNo())
+                .buyerId(contract.getBuyerId())
+                .pickupCode(pickupCode)
+                .pickupCodeStatus(PickupCodeStatusEnum.VERIFIED.getValue())
+                .pickupCodeExpireAt(LocalDateTime.now().plusHours(48))
+                .dispatchMode(0)
+                .dispatchStatus(2)
+                .customerConfirmed(0)
+                .vehiclePlate(vehiclePlate)
+                .driverName(driverName)
+                .driverPhone(driverPhone)
+                .driverAssigned(1)
+                .driverAssignedAt(LocalDateTime.now())
+                .warehouseId(contract.getWarehouseId())
+                .warehouseName(contract.getWarehouseName())
+                .deliveryMode(2)
+                .deliveryStatus(0)
+                .settlementStatus(0)
+                .totalLifts(0)
+                .totalPieces(0)
+                .totalWeight(java.math.BigDecimal.ZERO)
+                .totalAmount(java.math.BigDecimal.ZERO)
+                .status(PickupOrderStatusEnum.DELIVERING.getValue())
+                .build();
+
+        save(order);
+
+        // Update contract status to PICKING
+        if (contract.getStatus() == ContractStatusEnum.READY.getValue()) {
+            contract.setStatus(ContractStatusEnum.PICKING.getValue());
+            contractMapper.updateById(contract);
+        }
+
+        progressEventService.recordEvent(order.getId(), contractId,
+                "PICKUP_ORDER_CREATED", "仓库发起提货(静默模式)", null, "warehouse");
+
+        log.info("Warehouse-initiated pickup order: pickupNo={}, contractNo={}", pickupNo, contract.getContractNo());
+        return order.getId();
     }
 }

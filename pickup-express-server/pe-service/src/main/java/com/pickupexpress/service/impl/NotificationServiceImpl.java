@@ -48,11 +48,17 @@ public class NotificationServiceImpl implements NotificationService {
         if (order == null) return;
 
         Contract contract = contractMapper.selectById(order.getContractId());
-        String productInfo = contract != null ? contract.getContractNo() : "品规";
-        String content = String.format("您的提货已完成: %s %s吨, 结算金额¥%s。查看详情: [链接]", productInfo, totalWeight, totalAmount);
-        logNotification(pickupOrderId, order.getContractId(), order.getBuyerId(),
-                NotificationChannelEnum.SMS.getValue(), order.getDriverPhone(), content);
-        log.info("Placeholder: send pickup complete SMS to {}", order.getDriverPhone());
+        String buyerPhone = contract != null ? contract.getBuyerContactPhone() : null;
+
+        String content = String.format("您的提货已完成: %s吨, 金额¥%s。查看详情: [链接]",
+                totalWeight != null ? totalWeight.toPlainString() : "0",
+                totalAmount != null ? totalAmount.toPlainString() : "0");
+
+        if (buyerPhone != null) {
+            logNotification(pickupOrderId, order.getContractId(), order.getBuyerId(),
+                    NotificationChannelEnum.SMS.getValue(), buyerPhone, content);
+            log.info("Sent pickup complete notification to buyer: phone={}", buyerPhone);
+        }
     }
 
     @Override
@@ -69,7 +75,9 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     public void sendVerificationSms(Long pickupOrderId, String buyerPhone, String content) {
         PickupOrder order = pickupOrderMapper.selectById(pickupOrderId);
-        String phone = buyerPhone != null ? buyerPhone : (order != null ? order.getDriverPhone() : null);
+        Contract contract = order != null ? contractMapper.selectById(order.getContractId()) : null;
+        String phone = buyerPhone != null ? buyerPhone
+                : (contract != null ? contract.getBuyerContactPhone() : null);
         logNotification(pickupOrderId, order != null ? order.getContractId() : null,
                 order != null ? order.getBuyerId() : null,
                 NotificationChannelEnum.SMS.getValue(), phone, content);

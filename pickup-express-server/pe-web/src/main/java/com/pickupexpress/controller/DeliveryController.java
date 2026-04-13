@@ -29,6 +29,17 @@ public class DeliveryController {
     private final DeliveryService deliveryService;
     private final PickupOrderService pickupOrderService;
 
+    @Operation(summary = "仓库发起提货(留货合同静默模式)")
+    @PostMapping("/warehouse-initiate")
+    public R<Long> warehouseInitiatePickup(
+            @RequestParam Long contractId,
+            @RequestParam String driverName,
+            @RequestParam String driverPhone,
+            @RequestParam String vehiclePlate) {
+        Long orderId = pickupOrderService.createPickupOrderFromWarehouse(contractId, driverName, driverPhone, vehiclePlate);
+        return R.ok(orderId);
+    }
+
     @Operation(summary = "验证提货码")
     @PostMapping("/verify-code")
     public R<PickupOrderVO> verifyPickupCode(

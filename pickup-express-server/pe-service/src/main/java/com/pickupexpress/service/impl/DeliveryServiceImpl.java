@@ -7,6 +7,7 @@ import com.pickupexpress.domain.dto.DeliveryCompleteDTO;
 import com.pickupexpress.domain.dto.LiftUploadDTO;
 import com.pickupexpress.common.util.TenantUtil;
 import com.pickupexpress.domain.entity.Contract;
+import com.pickupexpress.domain.entity.ContractItem;
 import com.pickupexpress.domain.entity.DeliveryConfirm;
 import com.pickupexpress.domain.entity.DeliveryPhoto;
 import com.pickupexpress.domain.entity.LiftRecord;
@@ -15,19 +16,24 @@ import com.pickupexpress.domain.enums.DeliveryStatusEnum;
 import com.pickupexpress.domain.enums.PickupCodeStatusEnum;
 import com.pickupexpress.domain.enums.PickupOrderStatusEnum;
 import com.pickupexpress.domain.vo.DeliveryProgressVO;
+import com.pickupexpress.mapper.ContractItemMapper;
 import com.pickupexpress.mapper.ContractMapper;
 import com.pickupexpress.mapper.DeliveryConfirmMapper;
 import com.pickupexpress.mapper.DeliveryPhotoMapper;
 import com.pickupexpress.mapper.LiftRecordMapper;
 import com.pickupexpress.mapper.PickupOrderMapper;
+import com.pickupexpress.service.ContractService;
 import com.pickupexpress.service.DeliveryService;
+import com.pickupexpress.service.ProgressEventService;
 import com.pickupexpress.service.SettlementService;
+import com.pickupexpress.service.TradingHabitService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -42,9 +48,13 @@ public class DeliveryServiceImpl implements DeliveryService {
     private final PickupOrderMapper pickupOrderMapper;
     private final ContractMapper contractMapper;
     private final LiftRecordMapper liftRecordMapper;
+    private final ContractItemMapper contractItemMapper;
     private final DeliveryConfirmMapper deliveryConfirmMapper;
     private final DeliveryPhotoMapper deliveryPhotoMapper;
     private final SettlementService settlementService;
+    private final ProgressEventService progressEventService;
+    private final ContractService contractService;
+    private final TradingHabitService tradingHabitService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -181,6 +191,67 @@ public class DeliveryServiceImpl implements DeliveryService {
         pickupOrderMapper.updateById(order);
 
         settlementService.generateSettlement(dto.getPickupOrderId());
+
+        List<LiftRecord> lifts = liftRecordMapper.selectList(
+                new LambdaQueryWrapper<LiftRecord>().eq(LiftRecord::getPickupOrderId, order.getId()));
+        BigDecimal actualWeight = lifts.stream()
+                .map(l -> l.getActualWeight() != null ? l.getActualWeight() : l.getTheoreticalWeight())
+                .filter(w -> w != null)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        try {
+            tradingHabitService.recordPickup(order.getBuyerId(),
+                    order.getDriverName(), order.getDriverPhone(), order.getVehiclePlate(),
+                    actualWeight, order.getTotalAmount());
+        } catch (Exception e) {
+            log.warn("Failed to record trading habit: {}", e.getMessage());
+        }
+
+        generatePickupConfirmation(order);
+    }
+
+    private void generatePickupConfirmation(PickupOrder order) {
+        if (order.getContractId() == null) {
+            return;
+        }
+
+        List<ContractItem> contractItems = contractItemMapper.selectList(
+                new LambdaQueryWrapper<ContractItem>().eq(ContractItem::getContractId, order.getContractId()));
+
+        List<LiftRecord> lifts = liftRecordMapper.selectList(
+                new LambdaQueryWrapper<LiftRecord>().eq(LiftRecord::getPickupOrderId, order.getId()));
+
+        BigDecimal actualWeight = lifts.stream()
+                .map(l -> l.getActualWeight() != null ? l.getActualWeight() : l.getTheoreticalWeight())
+                .filter(w -> w != null)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal contractWeight = contractItems.stream()
+                .map(i -> i.getWeight() != null ? i.getWeight() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (contractWeight.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal diffRate = actualWeight.subtract(contractWeight).abs()
+                    .divide(contractWeight, 4, RoundingMode.HALF_UP);
+
+            String varianceType;
+            if (diffRate.compareTo(BigDecimal.valueOf(0.03)) > 0) {
+                varianceType = "超差";
+                log.info("Pickup confirmation: OVER_TOLERANCE variance {}% for order {}",
+                        diffRate.multiply(BigDecimal.valueOf(100)), order.getPickupNo());
+            } else if (diffRate.compareTo(BigDecimal.ZERO) > 0) {
+                varianceType = "容差内";
+            } else {
+                varianceType = "无差异";
+            }
+
+            progressEventService.recordEvent(order.getId(), order.getContractId(),
+                    "PICKUP_CONFIRMATION_GENERATED",
+                    "提货确认单生成(" + varianceType + "): 合同" + contractWeight + "吨, 实际" + actualWeight + "吨",
+                    null, "system");
+        }
+
+        contractService.updatePickedAmount(order.getContractId(), actualWeight, order.getTotalAmount());
     }
 
     @Override

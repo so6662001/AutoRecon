@@ -38,4 +38,10 @@ public interface PickupOrderService extends IService<PickupOrder> {
     List<PickupOrder> listByDriverPhone(String driverPhone);
 
     PickupOrder getByPickupCode(String pickupCode);
+
+    /**
+     * 留货合同静默模式: 仓库发起时自动创建提货单
+     * 仓库输入合同号+司机信息 → 系统匹配合同 → 自动生成提货单
+     */
+    Long createPickupOrderFromWarehouse(Long contractId, String driverName, String driverPhone, String vehiclePlate);
 }

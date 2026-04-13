@@ -9,12 +9,16 @@ import com.pickupexpress.domain.entity.DeliveryConfirm;
 import com.pickupexpress.domain.entity.LiftRecord;
 import com.pickupexpress.domain.entity.PickupOrder;
 import com.pickupexpress.domain.enums.PickupCodeStatusEnum;
+import com.pickupexpress.mapper.ContractItemMapper;
 import com.pickupexpress.mapper.ContractMapper;
 import com.pickupexpress.mapper.DeliveryConfirmMapper;
 import com.pickupexpress.mapper.DeliveryPhotoMapper;
 import com.pickupexpress.mapper.LiftRecordMapper;
 import com.pickupexpress.mapper.PickupOrderMapper;
 import com.pickupexpress.service.impl.DeliveryServiceImpl;
+import com.pickupexpress.service.ContractService;
+import com.pickupexpress.service.ProgressEventService;
+import com.pickupexpress.service.TradingHabitService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,6 +49,9 @@ class DeliveryServiceTest {
     private LiftRecordMapper liftRecordMapper;
 
     @Mock
+    private ContractItemMapper contractItemMapper;
+
+    @Mock
     private DeliveryConfirmMapper deliveryConfirmMapper;
 
     @Mock
@@ -52,6 +59,15 @@ class DeliveryServiceTest {
 
     @Mock
     private SettlementService settlementService;
+
+    @Mock
+    private ProgressEventService progressEventService;
+
+    @Mock
+    private ContractService contractService;
+
+    @Mock
+    private TradingHabitService tradingHabitService;
 
     @InjectMocks
     private DeliveryServiceImpl deliveryService;
@@ -184,11 +200,16 @@ class DeliveryServiceTest {
 
         when(pickupOrderMapper.selectById(1L)).thenReturn(order);
         when(contractMapper.selectById(1L)).thenReturn(testContract());
+        when(liftRecordMapper.selectList(any())).thenReturn(Collections.emptyList());
+        when(contractItemMapper.selectList(any())).thenReturn(Collections.emptyList());
 
         deliveryService.completeDelivery(dto);
 
         verify(deliveryConfirmMapper).insert(argThat((DeliveryConfirm c) -> c.getPickupOrderId() == 1L));
         verify(pickupOrderMapper, atLeast(1)).updateById(any(PickupOrder.class));
         verify(settlementService).generateSettlement(1L);
+        verify(tradingHabitService).recordPickup(eq(2L), isNull(), isNull(), isNull(),
+                eq(BigDecimal.ZERO), isNull());
+        verify(contractService).updatePickedAmount(eq(1L), eq(BigDecimal.ZERO), isNull());
     }
 }
