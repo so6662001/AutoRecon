@@ -58,9 +58,16 @@ public class TriMatchServiceImpl implements TriMatchService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal unpaidAmount = totalAmount.subtract(paidAmount).max(BigDecimal.ZERO);
 
+        // 三率计算 (设计文档8.5)
+        // 账票匹配率 = 已开票 / 总额
         BigDecimal invoiceRate = totalAmount.compareTo(BigDecimal.ZERO) > 0
                 ? invoicedAmount.divide(totalAmount, 4, RoundingMode.HALF_UP)
                 : BigDecimal.ZERO;
+        // 票款匹配率 = 已收款 / 已开票 (不是已收款/总额)
+        BigDecimal invoicePaymentRate = invoicedAmount.compareTo(BigDecimal.ZERO) > 0
+                ? paidAmount.divide(invoicedAmount, 4, RoundingMode.HALF_UP).min(BigDecimal.ONE)
+                : BigDecimal.ZERO;
+        // 账款匹配率 = 已收款 / 总额
         BigDecimal paymentRate = totalAmount.compareTo(BigDecimal.ZERO) > 0
                 ? paidAmount.divide(totalAmount, 4, RoundingMode.HALF_UP)
                 : BigDecimal.ZERO;
@@ -74,6 +81,7 @@ public class TriMatchServiceImpl implements TriMatchService {
         vo.setPaidAmount(paidAmount);
         vo.setUnpaidAmount(unpaidAmount);
         vo.setInvoiceRate(invoiceRate);
+        vo.setInvoicePaymentRate(invoicePaymentRate);
         vo.setPaymentRate(paymentRate);
         vo.setInvoiceLinks(invoiceLinks);
         return vo;

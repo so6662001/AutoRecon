@@ -19,7 +19,8 @@ public class TriMatchVO {
     private BigDecimal uninvoicedAmount;
     private BigDecimal paidAmount;
     private BigDecimal unpaidAmount;
-    private BigDecimal invoiceRate;
-    private BigDecimal paymentRate;
+    private BigDecimal invoiceRate;        // 账票匹配率 = 已开票/总额
+    private BigDecimal invoicePaymentRate; // 票款匹配率 = 已收款/已开票
+    private BigDecimal paymentRate;        // 账款匹配率 = 已收款/总额
     private List<InvoiceLink> invoiceLinks;
 }

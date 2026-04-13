@@ -23,4 +23,9 @@ public interface InvoiceService extends IService<Invoice> {
     List<InvoiceLink> getInvoiceLinks(Long billId);
 
     void unlinkInvoice(Long linkId);
+
+    /**
+     * 自动关联: 按合同号/订单号匹配发票与对账单明细
+     */
+    int autoLinkInvoices(Long billId);
 }

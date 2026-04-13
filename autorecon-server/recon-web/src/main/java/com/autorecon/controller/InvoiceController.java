@@ -66,4 +66,11 @@ public class InvoiceController {
         invoiceService.unlinkInvoice(linkId);
         return R.ok();
     }
+
+    @PostMapping("/auto-link/{billId}")
+    @Operation(summary = "自动关联发票(按金额匹配)")
+    public R<Integer> autoLinkInvoices(@PathVariable Long billId) {
+        int count = invoiceService.autoLinkInvoices(billId);
+        return R.ok(count);
+    }
 }
