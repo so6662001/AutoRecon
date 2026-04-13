@@ -11,6 +11,7 @@ import com.pickupexpress.domain.vo.SettlementVO;
 import com.pickupexpress.mapper.ContractMapper;
 import com.pickupexpress.mapper.LiftRecordMapper;
 import com.pickupexpress.mapper.PickupOrderMapper;
+import com.pickupexpress.mapper.ContractItemMapper;
 import com.pickupexpress.mapper.SettlementOrderMapper;
 import com.pickupexpress.service.impl.SettlementServiceImpl;
 import org.junit.jupiter.api.AfterEach;
@@ -43,6 +44,15 @@ class SettlementServiceTest {
 
     @Mock
     private SettlementOrderMapper settlementOrderMapper;
+
+    @Mock
+    private ContractItemMapper contractItemMapper;
+
+    @Mock
+    private ProgressEventService progressEventService;
+
+    @Mock
+    private NotificationService notificationService;
 
     @InjectMocks
     private SettlementServiceImpl settlementService;

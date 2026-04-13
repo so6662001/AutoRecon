@@ -15,10 +15,14 @@ import com.pickupexpress.domain.entity.PickupOrder;
 import com.pickupexpress.domain.entity.SettlementOrder;
 import com.pickupexpress.domain.enums.SettlementStatusEnum;
 import com.pickupexpress.domain.vo.SettlementVO;
+import com.pickupexpress.domain.entity.ContractItem;
+import com.pickupexpress.mapper.ContractItemMapper;
 import com.pickupexpress.mapper.ContractMapper;
 import com.pickupexpress.mapper.LiftRecordMapper;
 import com.pickupexpress.mapper.PickupOrderMapper;
 import com.pickupexpress.mapper.SettlementOrderMapper;
+import com.pickupexpress.service.NotificationService;
+import com.pickupexpress.service.ProgressEventService;
 import com.pickupexpress.service.SettlementService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,9 +31,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -44,7 +50,10 @@ public class SettlementServiceImpl extends ServiceImpl<SettlementOrderMapper, Se
 
     private final PickupOrderMapper pickupOrderMapper;
     private final ContractMapper contractMapper;
+    private final ContractItemMapper contractItemMapper;
     private final LiftRecordMapper liftRecordMapper;
+    private final ProgressEventService progressEventService;
+    private final NotificationService notificationService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -58,17 +67,62 @@ public class SettlementServiceImpl extends ServiceImpl<SettlementOrderMapper, Se
             TenantUtil.checkContractAccess(contract.getSellerId(), contract.getBuyerId());
         }
 
+        // 获取逐吊发货记录
         List<LiftRecord> lifts = liftRecordMapper.selectList(
                 new LambdaQueryWrapper<LiftRecord>().eq(LiftRecord::getPickupOrderId, pickupOrderId));
-        BigDecimal totalWeight = lifts.stream()
-                .map(l -> l.getActualWeight() != null ? l.getActualWeight() : l.getTheoreticalWeight() != null ? l.getTheoreticalWeight() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal totalAmount = order.getTotalAmount() != null ? order.getTotalAmount() : BigDecimal.ZERO;
-        BigDecimal taxAmount = BigDecimal.ZERO;
+        // 获取合同明细(用于获取单价)
+        List<ContractItem> contractItems = order.getContractId() != null
+                ? contractItemMapper.selectList(new LambdaQueryWrapper<ContractItem>().eq(ContractItem::getContractId, order.getContractId()))
+                : List.of();
+
+        // 按合同单价计算每条明细金额(设计文档4.7: 按合同价格×实际重量)
+        BigDecimal totalWeight = BigDecimal.ZERO;
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        List<Map<String, Object>> settlementDetail = new ArrayList<>();
+
+        for (LiftRecord lift : lifts) {
+            BigDecimal weight = lift.getActualWeight() != null ? lift.getActualWeight()
+                    : lift.getTheoreticalWeight() != null ? lift.getTheoreticalWeight() : BigDecimal.ZERO;
+            totalWeight = totalWeight.add(weight);
+
+            // 查找对应品规的合同单价
+            BigDecimal unitPrice = findUnitPrice(contractItems, lift.getProductName(), lift.getSpec());
+            BigDecimal lineAmount = weight.multiply(unitPrice).setScale(2, RoundingMode.HALF_UP);
+            totalAmount = totalAmount.add(lineAmount);
+
+            // 结算明细
+            Map<String, Object> detail = new LinkedHashMap<>();
+            detail.put("liftSeq", lift.getLiftSeq());
+            detail.put("productName", lift.getProductName());
+            detail.put("spec", lift.getSpec());
+            detail.put("material", lift.getMaterial());
+            detail.put("pieces", lift.getPieces());
+            detail.put("weight", weight);
+            detail.put("unitPrice", unitPrice);
+            detail.put("amount", lineAmount);
+            detail.put("dataSource", lift.getDataSource());
+            settlementDetail.add(detail);
+        }
+
+        // 计算税额(默认13%增值税)
+        BigDecimal taxRate = BigDecimal.valueOf(0.13);
+        BigDecimal taxAmount = totalAmount.multiply(taxRate).setScale(2, RoundingMode.HALF_UP);
         BigDecimal totalWithTax = totalAmount.add(taxAmount);
-        BigDecimal deductedPrepayment = BigDecimal.ZERO;
-        BigDecimal receivableAmount = totalWithTax.subtract(deductedPrepayment);
+
+        // 扣减已付款/预付款
+        BigDecimal deductedPrepayment = contract != null && contract.getPaidAmount() != null
+                ? contract.getPaidAmount() : BigDecimal.ZERO;
+        // 实际应收 = 价税合计 - 已扣预付(但不低于0)
+        BigDecimal receivableAmount = totalWithTax.subtract(deductedPrepayment).max(BigDecimal.ZERO);
+
+        // 结算明细JSON
+        String detailJson = null;
+        try {
+            detailJson = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(settlementDetail);
+        } catch (Exception e) {
+            log.warn("Failed to serialize settlement detail: {}", e.getMessage());
+        }
 
         String settlementNo = generateSettlementNo();
 
@@ -84,17 +138,59 @@ public class SettlementServiceImpl extends ServiceImpl<SettlementOrderMapper, Se
                 .totalWithTax(totalWithTax)
                 .deductedPrepayment(deductedPrepayment)
                 .receivableAmount(receivableAmount)
-                .pdfUrl(null)
+                .settlementDetail(detailJson)
+                .pdfUrl(null) // TODO: PDF 生成
                 .customerViewed(0)
                 .syncedToRecon(0)
                 .status(SettlementStatusEnum.SETTLED.getValue())
                 .build();
         save(settlement);
 
+        // 更新提货单结算状态和金额
         order.setSettlementStatus(SettlementStatusEnum.SETTLED.getValue());
+        order.setTotalAmount(totalWithTax);
         pickupOrderMapper.updateById(order);
 
+        // 进度事件: 结算单生成
+        progressEventService.recordEvent(order.getId(), order.getContractId(),
+                "SETTLEMENT_CREATED",
+                "结算单" + settlementNo + "已生成: 重量" + totalWeight.toPlainString() + "吨, 金额¥" + totalWithTax.toPlainString(),
+                null, "system");
+
+        // 通知客户(15.2原则: 友好用语, 事后通知)
+        try {
+            notificationService.sendSettlementNotification(settlement.getId());
+        } catch (Exception e) {
+            log.warn("Failed to send settlement notification: {}", e.getMessage());
+        }
+
+        log.info("Generated settlement: no={}, weight={}, amount={}, receivable={}",
+                settlementNo, totalWeight, totalWithTax, receivableAmount);
         return settlement.getId();
+    }
+
+    /**
+     * 根据品规查找合同单价
+     */
+    private BigDecimal findUnitPrice(List<ContractItem> items, String productName, String spec) {
+        for (ContractItem item : items) {
+            boolean nameMatch = productName != null && productName.equals(item.getProductName());
+            boolean specMatch = spec != null && spec.equals(item.getSpec());
+            if (nameMatch && specMatch && item.getUnitPrice() != null) {
+                return item.getUnitPrice();
+            }
+        }
+        // 只匹配品名
+        for (ContractItem item : items) {
+            if (productName != null && productName.equals(item.getProductName()) && item.getUnitPrice() != null) {
+                return item.getUnitPrice();
+            }
+        }
+        // 取第一个有单价的
+        for (ContractItem item : items) {
+            if (item.getUnitPrice() != null) return item.getUnitPrice();
+        }
+        return BigDecimal.ZERO;
     }
 
     private String generateSettlementNo() {
