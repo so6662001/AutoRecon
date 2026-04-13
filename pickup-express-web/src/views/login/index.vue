@@ -274,7 +274,21 @@ function fillDemoAccount(u: { username: string; password: string }) {
 
 @media (max-width: 480px) {
   .login-card {
-    padding: 32px 24px;
+    padding: 24px 16px;
+  }
+
+  .demo-accounts {
+    font-size: 14px;
+  }
+
+  .demo-account-card {
+    padding: 12px;
+    font-size: 14px;
+    min-height: 44px;
+  }
+
+  :deep(.el-input__wrapper) {
+    min-height: 44px;
   }
 }
 </style>

@@ -98,12 +98,14 @@
                 <span class="collapse-title">📦 发货明细</span>
               </template>
               <div class="collapse-content">
-                <el-table :data="liftRecords" stripe size="small" class="lifts-table">
-                  <el-table-column prop="liftNo" label="吊序号" width="80" />
-                  <el-table-column prop="productSpec" label="品规" min-width="120" />
-                  <el-table-column prop="pieceCount" label="件数" width="70" align="right" />
-                  <el-table-column prop="weight" label="重量(吨)" width="90" align="right" />
-                </el-table>
+                <div class="bill-table-wrapper">
+                  <el-table :data="liftRecords" stripe size="small" class="lifts-table">
+                    <el-table-column prop="liftNo" label="吊序号" width="80" />
+                    <el-table-column prop="productSpec" label="品规" min-width="120" />
+                    <el-table-column prop="pieceCount" label="件数" width="70" align="right" />
+                    <el-table-column prop="weight" label="重量(吨)" width="90" align="right" />
+                  </el-table>
+                </div>
               </div>
             </el-collapse-item>
             <el-collapse-item name="photos">
@@ -240,7 +242,7 @@
         </div>
 
         <!-- Footer -->
-        <footer class="buyer-footer">
+        <footer class="buyer-footer footer-text">
           <div class="footer-brand">提货通 · 智能提货服务平台</div>
           <div class="footer-badge">🔒 数据加密传输</div>
           <div class="footer-free">买方使用完全免费</div>
@@ -869,11 +871,36 @@ watch(verified, (v) => {
   }
 
   .buyer-card {
-    padding: 20px 16px;
+    padding: 16px;
   }
 
   .summary-title {
     font-size: 20px;
+  }
+
+  .summary-meta {
+    font-size: 14px;
+  }
+
+  .help-text {
+    font-size: 14px;
+  }
+
+  .footer-text {
+    font-size: 13px;
+  }
+
+  .bill-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  :deep(.el-table) {
+    font-size: 13px;
+  }
+
+  :deep(.el-collapse-item__content) {
+    padding: 0;
   }
 }
 </style>

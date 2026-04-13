@@ -2,7 +2,7 @@
   <div class="page-container delivery-progress-page">
     <div v-loading="loading" class="delivery-content">
       <!-- Header -->
-      <div class="detail-header">
+      <div class="detail-header delivery-header">
         <div class="header-info">
           <span class="pickup-no">{{ order.pickupOrderNo }}</span>
           <span class="separator">|</span>
@@ -16,7 +16,7 @@
       </div>
 
       <!-- Progress overview: 大进度环 -->
-      <el-card shadow="hover" class="progress-overview">
+      <el-card shadow="hover" class="progress-overview progress-section">
         <div class="progress-ring-container">
           <v-chart
             v-if="ringOption"
@@ -36,19 +36,21 @@
         <template #header>
           <span>吊装记录</span>
         </template>
-        <el-table :data="liftRecords" stripe>
-          <el-table-column prop="liftNo" label="吊序号" width="100" />
-          <el-table-column prop="productSpec" label="品规" min-width="140" />
-          <el-table-column prop="pieceCount" label="件数" width="80" align="right" />
-          <el-table-column prop="weight" label="重量" width="100" align="right" />
-          <el-table-column prop="createdAt" label="时间" width="180" />
-          <el-table-column prop="operator" label="操作员" width="100" />
-          <el-table-column label="" width="80">
-            <template #default="{ row }">
-              <el-tag v-if="row.isNew" type="success" size="small">新</el-tag>
-            </template>
-          </el-table-column>
-        </el-table>
+        <div class="lift-table-wrapper">
+          <el-table :data="liftRecords" stripe>
+            <el-table-column prop="liftNo" label="吊序号" width="100" />
+            <el-table-column prop="productSpec" label="品规" min-width="140" />
+            <el-table-column prop="pieceCount" label="件数" width="80" align="right" />
+            <el-table-column prop="weight" label="重量" width="100" align="right" />
+            <el-table-column prop="createdAt" label="时间" width="180" />
+            <el-table-column prop="operator" label="操作员" width="100" />
+            <el-table-column label="" width="80">
+              <template #default="{ row }">
+                <el-tag v-if="row.isNew" type="success" size="small">新</el-tag>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
       </el-card>
 
       <!-- Photos section -->
@@ -56,7 +58,7 @@
         <template #header>
           <span>已上传照片</span>
         </template>
-        <div class="photo-gallery">
+        <div class="photo-grid photo-gallery">
           <el-image
             v-for="(url, i) in photos"
             :key="i"
@@ -284,6 +286,57 @@ onMounted(() => {
       height: 120px;
       border-radius: 4px;
     }
+  }
+}
+
+@media (max-width: 768px) {
+  .delivery-progress-page.page-container,
+  .page-container.delivery-progress-page {
+    padding: 12px;
+  }
+
+  .delivery-header {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .delivery-header .header-info {
+    font-size: 14px;
+  }
+
+  .progress-section {
+    :deep(.el-card__body) {
+      display: flex;
+      flex-direction: column;
+    }
+  }
+
+  .progress-ring {
+    width: 150px;
+    height: 150px;
+  }
+
+  .progress-ring-container {
+    height: 150px;
+  }
+
+  .lift-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  :deep(.el-table) {
+    font-size: 13px;
+  }
+
+  :deep(.el-button) {
+    min-height: 44px;
+  }
+
+  .photo-grid :deep(.el-image),
+  .photo-grid :deep(img) {
+    width: 80px;
+    height: 80px;
   }
 }
 </style>

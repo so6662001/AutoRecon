@@ -35,7 +35,7 @@
       </el-card>
 
       <!-- 车辆信息 -->
-      <el-descriptions :column="2" border class="vehicle-section">
+      <el-descriptions :column="descriptionsColumn" border class="vehicle-section">
         <el-descriptions-item label="派车模式">{{ order.dispatchMode || '-' }}</el-descriptions-item>
         <el-descriptions-item label="车牌号">{{ order.plateNo || '-' }}</el-descriptions-item>
         <el-descriptions-item label="驾驶员">{{ order.driverName || '-' }}</el-descriptions-item>
@@ -48,21 +48,23 @@
       <!-- Tabs -->
       <el-tabs v-model="activeTab" class="detail-tabs">
         <el-tab-pane label="发货明细" name="lifts">
-          <el-table :data="liftRecords" stripe>
-            <el-table-column prop="liftNo" label="吊序号" width="100" />
-            <el-table-column prop="productName" label="品名" />
-            <el-table-column prop="spec" label="规格" />
-            <el-table-column prop="pieceCount" label="件数" align="right" />
-            <el-table-column prop="theoryWeight" label="理论重量" align="right" />
-            <el-table-column prop="actualWeight" label="过磅重量" align="right" />
-            <el-table-column prop="operator" label="操作员" width="100" />
-            <el-table-column prop="createdAt" label="时间" width="180" />
-            <el-table-column prop="source" label="数据来源" width="100">
-              <template #default="{ row }">
-                <el-tag size="small">{{ row.source || '-' }}</el-tag>
-              </template>
-            </el-table-column>
-          </el-table>
+          <div class="table-wrapper">
+            <el-table :data="liftRecords" stripe>
+              <el-table-column prop="liftNo" label="吊序号" width="100" />
+              <el-table-column prop="productName" label="品名" />
+              <el-table-column prop="spec" label="规格" />
+              <el-table-column prop="pieceCount" label="件数" align="right" />
+              <el-table-column prop="theoryWeight" label="理论重量" align="right" />
+              <el-table-column prop="actualWeight" label="过磅重量" align="right" />
+              <el-table-column prop="operator" label="操作员" width="100" />
+              <el-table-column prop="createdAt" label="时间" width="180" />
+              <el-table-column prop="source" label="数据来源" width="100">
+                <template #default="{ row }">
+                  <el-tag size="small">{{ row.source || '-' }}</el-tag>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
         </el-tab-pane>
         <el-tab-pane label="发货进度" name="progress">
           <div class="delivery-progress">
@@ -134,7 +136,7 @@
           </el-descriptions>
         </el-tab-pane>
         <el-tab-pane label="结算单" name="settlement">
-          <el-descriptions v-if="settlement.id" :column="2" border>
+          <el-descriptions v-if="settlement.id" :column="descriptionsColumn" border>
             <el-descriptions-item label="结算单号">{{ settlement.settlementNo }}</el-descriptions-item>
             <el-descriptions-item label="状态">{{ settlement.status }}</el-descriptions-item>
             <el-descriptions-item label="重量">{{ formatNum(settlement.weight) }}</el-descriptions-item>
@@ -163,7 +165,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
@@ -181,6 +183,12 @@ const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
 const activeTab = ref('lifts')
+
+const isMobileLayout = ref(false)
+function updateMobileLayout() {
+  isMobileLayout.value = typeof window !== 'undefined' && window.innerWidth <= 768
+}
+const descriptionsColumn = computed(() => (isMobileLayout.value ? 1 : 2))
 
 const order = reactive<Record<string, any>>({
   id: null,
@@ -426,11 +434,17 @@ watch(pickupId, () => {
 }, { immediate: true })
 
 onMounted(() => {
+  updateMobileLayout()
+  window.addEventListener('resize', updateMobileLayout)
   loadDetail()
   loadProgress()
   loadVerification()
   loadSettlement()
   loadTimeline()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateMobileLayout)
 })
 </script>
 
@@ -539,6 +553,45 @@ onMounted(() => {
 
   .detail-tabs {
     margin-top: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .pickup-detail.page-container,
+  .page-container.pickup-detail {
+    padding: 12px;
+  }
+
+  .detail-header {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .detail-header .el-button {
+    width: 100%;
+  }
+
+  .vehicle-section {
+    --el-descriptions-item-bordered-label-background: #fafafa;
+  }
+
+  .code-meta {
+    font-size: 14px;
+  }
+
+  .table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  :deep(.el-table) {
+    font-size: 13px;
+  }
+
+  .photo-gallery .photo-item {
+    width: 80px;
+    height: 80px;
   }
 }
 </style>

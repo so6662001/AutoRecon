@@ -1,12 +1,12 @@
 <template>
-  <div class="guest-page">
+  <div class="guest-page guest-container">
     <div class="security-banner">
       <el-icon><Lock /></el-icon>
       本页面由 AutoRecon 提供技术支持，数据加密传输
     </div>
 
     <div class="guest-content">
-      <div v-if="!verified" class="verify-card">
+      <div v-if="!verified" class="verify-card guest-card">
         <h2 class="card-title">手机验证</h2>
         <p class="card-desc">请输入手机号并完成验证以查看对账单</p>
         <el-form :model="verifyForm" class="verify-form">
@@ -30,6 +30,7 @@
               size="large"
               maxlength="6"
               clearable
+              class="code-input"
             >
               <template #prefix>
                 <el-icon><Message /></el-icon>
@@ -60,7 +61,7 @@
       </div>
 
       <template v-else>
-        <div v-if="confirmed" class="success-card">
+        <div v-if="confirmed" class="success-card guest-card">
           <el-icon class="success-icon"><CircleCheck /></el-icon>
           <h2>确认成功</h2>
           <p>感谢您的确认，对账单已处理完成。</p>
@@ -68,7 +69,7 @@
           <el-button type="primary" @click="goRegister">立即注册</el-button>
         </div>
 
-        <div v-else class="bill-card">
+        <div v-else class="bill-card guest-card">
           <h2 class="card-title">对账单</h2>
           <div v-loading="loading" class="bill-summary">
             <div class="summary-row">
@@ -105,16 +106,18 @@
               </el-button>
             </div>
             <el-collapse-transition>
-              <el-table v-show="showDetail" :data="bill.items || []" stripe class="detail-table">
-                <el-table-column prop="productName" label="品名" min-width="120" />
-                <el-table-column prop="spec" label="规格" min-width="100" />
-                <el-table-column prop="quantity" label="数量" width="80" align="right" />
-                <el-table-column prop="amount" label="金额" width="120" align="right">
-                  <template #default="{ row }">
-                    ¥{{ Number(row.amount || 0).toLocaleString() }}
-                  </template>
-                </el-table-column>
-              </el-table>
+              <div v-show="showDetail" class="bill-table">
+                <el-table :data="bill.items || []" stripe class="detail-table">
+                  <el-table-column prop="productName" label="品名" min-width="120" />
+                  <el-table-column prop="spec" label="规格" min-width="100" />
+                  <el-table-column prop="quantity" label="数量" width="80" align="right" />
+                  <el-table-column prop="amount" label="金额" width="120" align="right">
+                    <template #default="{ row }">
+                      ¥{{ Number(row.amount || 0).toLocaleString() }}
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </div>
             </el-collapse-transition>
           </div>
 
@@ -148,7 +151,7 @@
     </div>
 
     <footer class="guest-footer">
-      <div class="trust-badges">
+      <div class="trust-badges footer-badges">
         <span><el-icon><Lock /></el-icon> 安全加密</span>
         <span><el-icon><Document /></el-icon> 合规存证</span>
         <span><el-icon><Service /></el-icon> 7×24 支持</span>
@@ -518,14 +521,42 @@ onMounted(() => {
 }
 
 @media (max-width: 640px) {
-  .guest-page {
+  .guest-container {
     padding: 12px;
   }
 
-  .verify-card,
-  .bill-card,
-  .success-card {
-    padding: 24px;
+  .guest-card {
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  .security-banner {
+    font-size: 14px;
+  }
+
+  .footer-text {
+    font-size: 13px;
+  }
+
+  .footer-badges span {
+    font-size: 12px;
+  }
+
+  .bill-table {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  :deep(.el-table) {
+    font-size: 13px;
+  }
+
+  :deep(.el-button) {
+    min-height: 44px;
+  }
+
+  .code-input :deep(.el-input) {
+    font-size: 16px;
   }
 
   .trust-badges {
