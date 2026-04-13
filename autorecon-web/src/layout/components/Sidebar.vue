@@ -115,6 +115,10 @@
           <el-menu-item index="/system/recon-rules">对账规则</el-menu-item>
           <el-menu-item index="/system/notifications">通知模板</el-menu-item>
           <el-menu-item index="/system/security">数据安全</el-menu-item>
+          <el-menu-item index="/system/data-auth">
+            <el-icon><Lock /></el-icon>
+            <template #title>数据授权</template>
+          </el-menu-item>
           <el-menu-item index="/system/users">用户管理</el-menu-item>
           <el-menu-item index="/system/billing">计费管理</el-menu-item>
           <el-menu-item index="/system/enterprise">企业信息</el-menu-item>
@@ -139,6 +143,7 @@ import {
   Timer,
   Guide,
   Setting,
+  Lock,
 } from '@element-plus/icons-vue'
 
 defineProps<{

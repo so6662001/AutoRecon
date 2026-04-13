@@ -247,6 +247,12 @@ const routes = [
           meta: { title: '数据安全' },
         },
         {
+          path: 'system/data-auth',
+          name: 'dataAuth',
+          component: () => import('@/views/system/data-auth.vue'),
+          meta: { title: '数据授权' },
+        },
+        {
           path: 'system/agreements',
           name: 'agreementsManage',
           component: () => import('@/views/system/agreements.vue'),

@@ -132,6 +132,12 @@ const routes = [
         meta: { title: '事后补录', icon: 'EditPen', roles: [1] },
       },
       {
+        path: 'system/data-auth',
+        name: 'dataAuth',
+        component: () => import('@/views/system/data-auth.vue'),
+        meta: { title: '数据授权' },
+      },
+      {
         path: 'verification/records',
         name: 'verificationRecords',
         component: () => import('@/views/verification/records.vue'),

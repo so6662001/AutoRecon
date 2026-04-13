@@ -13,3 +13,15 @@ export const publishAgreement = (data: Record<string, unknown>) =>
 export const getAgreementVersion = (id: number) => get(`/v1/agreements/versions/${id}`)
 export const getAgreementConfirmations = () => get('/v1/agreements/confirmations')
 export const deprecateAgreementVersion = (id: number) => put(`/v1/agreements/versions/${id}/deprecate`)
+
+// 企业数据授权
+export const getDataAuthStatus = () => get('/v1/data-auth')
+export const initializeDataAuth = () => post('/v1/data-auth/initialize')
+export const updateDataAuth = (data: Record<string, unknown>) =>
+  put('/v1/data-auth/update', data)
+export const revokeDataAuth = (type: string) =>
+  put('/v1/data-auth/revoke', undefined, { params: { authorizationType: type } })
+export const checkDataAuth = () => get('/v1/data-auth/check')
+export const listAuthChanges = () => get('/v1/data-auth/changes')
+export const respondToAuthChange = (id: number, data: Record<string, unknown>) =>
+  put(`/v1/data-auth/changes/${id}/respond`, data)

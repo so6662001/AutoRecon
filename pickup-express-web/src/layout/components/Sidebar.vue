@@ -78,6 +78,10 @@
           <el-menu-item index="/template/manage">合同模板</el-menu-item>
           <el-menu-item index="/timeout-config">确认时效</el-menu-item>
           <el-menu-item index="/supplement/manage">事后补录</el-menu-item>
+          <el-menu-item index="/system/data-auth">
+            <el-icon><Lock /></el-icon>
+            <template #title>数据授权</template>
+          </el-menu-item>
         </el-sub-menu>
       </el-menu>
     </el-scrollbar>
@@ -95,6 +99,7 @@ import {
   CircleCheck,
   OfficeBuilding,
   Setting,
+  Lock,
 } from '@element-plus/icons-vue'
 
 defineProps<{
