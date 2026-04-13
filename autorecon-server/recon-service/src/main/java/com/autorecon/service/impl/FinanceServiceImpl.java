@@ -9,8 +9,12 @@ import com.autorecon.domain.dto.FinanceApplyDTO;
 import com.autorecon.domain.entity.FinanceApply;
 import com.autorecon.domain.entity.ReconBill;
 import com.autorecon.domain.enums.BillStatusEnum;
+import com.autorecon.domain.entity.CreditScore;
+import com.autorecon.domain.entity.InvoiceLink;
 import com.autorecon.mapper.FinanceApplyMapper;
+import com.autorecon.mapper.InvoiceLinkMapper;
 import com.autorecon.mapper.ReconBillMapper;
+import com.autorecon.service.CreditScoreService;
 import com.autorecon.service.FinanceService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -40,6 +44,8 @@ public class FinanceServiceImpl extends ServiceImpl<FinanceApplyMapper, FinanceA
 
     private final FinanceApplyMapper financeApplyMapper;
     private final ReconBillMapper reconBillMapper;
+    private final InvoiceLinkMapper invoiceLinkMapper;
+    private final CreditScoreService creditScoreService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -56,8 +62,51 @@ public class FinanceServiceImpl extends ServiceImpl<FinanceApplyMapper, FinanceA
         if (bill == null) {
             throw new BizException(ErrorCode.BILL_NOT_FOUND);
         }
-        if (!BillStatusEnum.SIGNED.getCode().equals(bill.getStatus())) {
-            throw new BizException(ErrorCode.BILL_STATUS_ERROR.getCode(), "仅已签章的对账单可申请融资");
+        // 前提1: 对账单已签章或催收中
+        if (!BillStatusEnum.SIGNED.getCode().equals(bill.getStatus())
+                && !BillStatusEnum.COLLECTING.getCode().equals(bill.getStatus())) {
+            throw new BizException(ErrorCode.BILL_STATUS_ERROR.getCode(), "仅已签章或催收中的对账单可申请融资");
+        }
+
+        // 前提2: 已关联发票
+        List<InvoiceLink> invoiceLinks = invoiceLinkMapper.selectList(
+                new LambdaQueryWrapper<InvoiceLink>().eq(InvoiceLink::getBillId, dto.getBillId()));
+        if (invoiceLinks.isEmpty()) {
+            throw new BizException(ErrorCode.BAD_REQUEST.getCode(), "请先关联发票后再申请融资");
+        }
+
+        // 前提3: 买方信用评分 ≥ C级 (≥60分)
+        try {
+            CreditScore buyerScore = creditScoreService.getScore(bill.getBuyerId(), sellerId);
+            if (buyerScore != null && buyerScore.getCreditScore() != null
+                    && buyerScore.getCreditScore().compareTo(BigDecimal.valueOf(60)) < 0) {
+                throw new BizException(ErrorCode.BAD_REQUEST.getCode(),
+                        "买方信用评分不足(当前" + buyerScore.getScoreLevel() + "级)，需C级及以上方可融资");
+            }
+        } catch (BizException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("无法获取买方信用评分，跳过信用检查: {}", e.getMessage());
+        }
+
+        // 前提4: 融资金额 ≤ 应收余额的80%
+        BigDecimal maxAmount = bill.getCurrentBalance() != null
+                ? bill.getCurrentBalance().multiply(BigDecimal.valueOf(0.8))
+                : bill.getTotalAmount().multiply(BigDecimal.valueOf(0.8));
+        if (dto.getApplyAmount().compareTo(maxAmount) > 0) {
+            throw new BizException(ErrorCode.BAD_REQUEST.getCode(),
+                    "融资金额不能超过应收余额的80%(最高可申请¥" + maxAmount.setScale(2, java.math.RoundingMode.HALF_UP) + ")");
+        }
+
+        // 构建融资材料汇总(Step 2)
+        StringBuilder invoiceInfo = new StringBuilder();
+        BigDecimal totalInvoiceAmount = BigDecimal.ZERO;
+        for (InvoiceLink link : invoiceLinks) {
+            totalInvoiceAmount = totalInvoiceAmount.add(
+                    link.getLinkAmount() != null ? link.getLinkAmount() : BigDecimal.ZERO);
+            if (link.getInvoiceNo() != null) {
+                invoiceInfo.append(link.getInvoiceNo()).append(",");
+            }
         }
 
         String applyNo = "FA" + LocalDateTime.now().format(APPLY_NO_FORMAT);
@@ -71,6 +120,7 @@ public class FinanceServiceImpl extends ServiceImpl<FinanceApplyMapper, FinanceA
                 .financeTermDays(dto.getFinanceTermDays())
                 .status(1)
                 .signedPdfUrl(bill.getSignedPdfUrl())
+                .invoiceUrls(invoiceInfo.toString()) // 关联发票号列表
                 .build();
         financeApplyMapper.insert(apply);
         log.info("Created finance apply: id={}, applyNo={}", apply.getId(), applyNo);
