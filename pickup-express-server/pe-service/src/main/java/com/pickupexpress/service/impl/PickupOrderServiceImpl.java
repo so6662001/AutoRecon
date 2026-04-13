@@ -310,6 +310,13 @@ public class PickupOrderServiceImpl extends ServiceImpl<PickupOrderMapper, Picku
         }
         order.setStatus(PickupOrderStatusEnum.ACCEPTED.getValue());
         updateById(order);
+
+        // 证据: 驾驶员接单记录
+        progressEventService.recordEvent(order.getId(), order.getContractId(),
+                "DRIVER_ACCEPTED",
+                "驾驶员" + (order.getDriverName() != null ? order.getDriverName() : "") + "已接单",
+                null, order.getDriverName());
+        log.info("Driver accepted: pickupOrderId={}, driver={}", pickupOrderId, order.getDriverName());
     }
 
     @Override
@@ -324,6 +331,16 @@ public class PickupOrderServiceImpl extends ServiceImpl<PickupOrderMapper, Picku
         order.setArrivalGpsLat(lat);
         order.setArrivalGpsLng(lng);
         updateById(order);
+
+        // 证据: GPS到达记录(坐标+时间)
+        String gpsInfo = lat != null && lng != null
+                ? "(GPS:" + lat.toPlainString() + "," + lng.toPlainString() + ")"
+                : "";
+        progressEventService.recordEvent(order.getId(), order.getContractId(),
+                "DRIVER_ARRIVED",
+                "驾驶员已到达仓库" + (order.getWarehouseName() != null ? order.getWarehouseName() : "") + gpsInfo,
+                null, order.getDriverName());
+        log.info("Driver arrived: pickupOrderId={}, gps=({},{})", pickupOrderId, lat, lng);
     }
 
     @Override
