@@ -1,12 +1,13 @@
 package com.autorecon.service.impl;
 
-import com.autorecon.common.exception.BizException;
-import com.autorecon.common.exception.ErrorCode;
+import com.autorecon.common.util.SecurityUtil;
+import com.autorecon.domain.entity.CollectionPlan;
 import com.autorecon.domain.entity.CreditScore;
 import com.autorecon.domain.entity.Enterprise;
 import com.autorecon.domain.entity.Payment;
 import com.autorecon.domain.entity.ReconBill;
 import com.autorecon.domain.vo.CreditScoreDetailVO;
+import com.autorecon.mapper.CollectionPlanMapper;
 import com.autorecon.mapper.CreditScoreMapper;
 import com.autorecon.mapper.EnterpriseMapper;
 import com.autorecon.mapper.PaymentMapper;
@@ -29,6 +30,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 /**
  * 信用评分服务实现
  */
@@ -41,14 +45,15 @@ public class CreditScoreServiceImpl extends ServiceImpl<CreditScoreMapper, Credi
     private final EnterpriseMapper enterpriseMapper;
     private final PaymentMapper paymentMapper;
     private final ReconBillMapper reconBillMapper;
+    private final CollectionPlanMapper collectionPlanMapper;
 
     private static String deriveScoreLevel(BigDecimal score) {
         if (score == null) return "E";
         int s = score.intValue();
         if (s >= 90) return "A";
-        if (s >= 80) return "B";
-        if (s >= 70) return "C";
-        if (s >= 60) return "D";
+        if (s >= 75) return "B";
+        if (s >= 60) return "C";
+        if (s >= 40) return "D";
         return "E";
     }
 
@@ -93,6 +98,7 @@ public class CreditScoreServiceImpl extends ServiceImpl<CreditScoreMapper, Credi
     @Transactional(rollbackFor = Exception.class)
     public void adjustScore(Long buyerId, Long sellerId, BigDecimal newScore, String reason) {
         CreditScore score = getScore(buyerId, sellerId);
+        BigDecimal oldScore = score != null ? score.getCreditScore() : null;
         if (score == null) {
             score = CreditScore.builder()
                     .enterpriseId(buyerId)
@@ -107,6 +113,27 @@ public class CreditScoreServiceImpl extends ServiceImpl<CreditScoreMapper, Credi
             score.setScoreLevel(deriveScoreLevel(newScore));
             score.setLastCalculatedAt(LocalDateTime.now());
             creditScoreMapper.updateById(score);
+        }
+        try {
+            if (reason != null && !reason.isEmpty()) {
+                Map<String, Object> existingFactors = new LinkedHashMap<>();
+                if (score.getScoreFactors() != null) {
+                    try {
+                        existingFactors = new ObjectMapper().readValue(score.getScoreFactors(), new TypeReference<Map<String, Object>>() {});
+                    } catch (Exception ignored) {
+                    }
+                }
+                Map<String, Object> lastAdj = new LinkedHashMap<>();
+                lastAdj.put("reason", reason);
+                lastAdj.put("adjustedBy", SecurityUtil.getCurrentUserId());
+                lastAdj.put("adjustedAt", LocalDateTime.now().toString());
+                lastAdj.put("previousScore", oldScore);
+                existingFactors.put("lastAdjustment", lastAdj);
+                score.setScoreFactors(new ObjectMapper().writeValueAsString(existingFactors));
+                creditScoreMapper.updateById(score);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to save adjustment reason", e);
         }
         log.info("Adjusted credit score: buyerId={}, sellerId={}, newScore={}, reason={}", buyerId, sellerId, newScore, reason);
     }
@@ -143,12 +170,47 @@ public class CreditScoreServiceImpl extends ServiceImpl<CreditScoreMapper, Credi
                 avgDays.multiply(BigDecimal.valueOf(2)).min(BigDecimal.valueOf(100))
         ).max(BigDecimal.ZERO);
 
-        BigDecimal overdueRate = score.getOverdueRate() != null ? score.getOverdueRate() : BigDecimal.ZERO;
+        List<ReconBill> allBills = reconBillMapper.selectList(
+                new LambdaQueryWrapper<ReconBill>()
+                        .eq(ReconBill::getSellerId, sellerId)
+                        .eq(ReconBill::getBuyerId, buyerId)
+                        .eq(ReconBill::getDeleted, 0));
+
+        BigDecimal totalTradeAmount = allBills.stream()
+                .map(b -> b.getTotalAmount() != null ? b.getTotalAmount() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal overdueAmount = BigDecimal.ZERO;
+        List<CollectionPlan> overduePlans = collectionPlanMapper.selectList(
+                new LambdaQueryWrapper<CollectionPlan>()
+                        .eq(CollectionPlan::getBuyerId, buyerId)
+                        .eq(CollectionPlan::getSellerId, sellerId)
+                        .lt(CollectionPlan::getDueDate, LocalDate.now())
+                        .ne(CollectionPlan::getStatus, 3)
+                        .eq(CollectionPlan::getDeleted, 0));
+        for (CollectionPlan p : overduePlans) {
+            overdueAmount = overdueAmount.add(p.getRemainingAmount() != null ? p.getRemainingAmount() : BigDecimal.ZERO);
+        }
+
+        BigDecimal computedOverdueRate = totalTradeAmount.compareTo(BigDecimal.ZERO) > 0
+                ? overdueAmount.divide(totalTradeAmount, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100))
+                : BigDecimal.ZERO;
+
+        long disputedBills = allBills.stream().filter(b -> "DISPUTED".equals(b.getStatus())).count();
+        BigDecimal computedDisputeRate = allBills.isEmpty() ? BigDecimal.ZERO
+                : BigDecimal.valueOf(disputedBills * 100.0 / allBills.size()).setScale(2, RoundingMode.HALF_UP);
+
+        score.setOverdueRate(computedOverdueRate);
+        score.setDisputeRate(computedDisputeRate);
+        score.setTotalTradeAmount(totalTradeAmount);
+        score.setTotalOverdueAmount(overdueAmount);
+
+        BigDecimal overdueRate = computedOverdueRate;
         BigDecimal f3 = BigDecimal.valueOf(100).subtract(
                 overdueRate.multiply(BigDecimal.valueOf(5)).min(BigDecimal.valueOf(100))
         ).max(BigDecimal.ZERO);
 
-        BigDecimal disputeRate = score.getDisputeRate() != null ? score.getDisputeRate() : BigDecimal.ZERO;
+        BigDecimal disputeRate = computedDisputeRate;
         BigDecimal f4 = BigDecimal.valueOf(100).subtract(
                 disputeRate.multiply(BigDecimal.valueOf(5)).min(BigDecimal.valueOf(100))
         ).max(BigDecimal.ZERO);
@@ -156,7 +218,7 @@ public class CreditScoreServiceImpl extends ServiceImpl<CreditScoreMapper, Credi
         long monthsCooperation = calculateCooperationMonths(buyerId, sellerId);
         BigDecimal f5 = BigDecimal.valueOf(Math.min(monthsCooperation * 100L / 24, 100));
 
-        BigDecimal tradeAmount = score.getTotalTradeAmount() != null ? score.getTotalTradeAmount() : BigDecimal.ZERO;
+        BigDecimal tradeAmount = totalTradeAmount;
         BigDecimal f6 = tradeAmount.divide(BigDecimal.valueOf(10000000), 2, RoundingMode.HALF_UP)
                 .multiply(BigDecimal.valueOf(100)).min(BigDecimal.valueOf(100));
 
@@ -192,11 +254,47 @@ public class CreditScoreServiceImpl extends ServiceImpl<CreditScoreMapper, Credi
     }
 
     private BigDecimal calculateOnTimeRate(Long buyerId, Long sellerId) {
-        return BigDecimal.valueOf(0.8);
+        List<CollectionPlan> plans = collectionPlanMapper.selectList(
+                new LambdaQueryWrapper<CollectionPlan>()
+                        .eq(CollectionPlan::getBuyerId, buyerId)
+                        .eq(CollectionPlan::getSellerId, sellerId)
+                        .eq(CollectionPlan::getDeleted, 0));
+        if (plans.isEmpty()) return BigDecimal.valueOf(0.7);
+
+        long total = plans.size();
+        long onTime = plans.stream().filter(p -> {
+            if (p.getStatus() != null && p.getStatus() == 3 && p.getDueDate() != null) {
+                return p.getCollectedAmount() != null && p.getCollectedAmount().compareTo(BigDecimal.ZERO) > 0;
+            }
+            return p.getStatus() != null && p.getStatus() != 3;
+        }).count();
+
+        return BigDecimal.valueOf(onTime).divide(BigDecimal.valueOf(total), 4, RoundingMode.HALF_UP);
     }
 
     private BigDecimal calculateAvgPaymentDays(Long buyerId, Long sellerId) {
-        return BigDecimal.valueOf(25);
+        List<CollectionPlan> completedPlans = collectionPlanMapper.selectList(
+                new LambdaQueryWrapper<CollectionPlan>()
+                        .eq(CollectionPlan::getBuyerId, buyerId)
+                        .eq(CollectionPlan::getSellerId, sellerId)
+                        .eq(CollectionPlan::getStatus, 3)
+                        .eq(CollectionPlan::getDeleted, 0));
+
+        if (completedPlans.isEmpty()) return BigDecimal.valueOf(30);
+
+        long totalDays = 0;
+        int count = 0;
+        for (CollectionPlan plan : completedPlans) {
+            if (plan.getCreatedAt() != null && plan.getDueDate() != null) {
+                long days = ChronoUnit.DAYS.between(
+                        plan.getCreatedAt().toLocalDate(),
+                        plan.getDueDate());
+                totalDays += Math.max(days, 0);
+                count++;
+            }
+        }
+
+        return count > 0 ? BigDecimal.valueOf(totalDays).divide(BigDecimal.valueOf(count), 2, RoundingMode.HALF_UP) : BigDecimal.valueOf(30);
     }
 
     private long calculateCooperationMonths(Long buyerId, Long sellerId) {

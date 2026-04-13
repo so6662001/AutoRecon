@@ -56,10 +56,13 @@ public class CreditScoreController {
     @Operation(summary = "调整信用评分")
     public R<Void> adjustScore(
             @PathVariable Long buyerId,
-            @RequestParam BigDecimal newScore,
+            @RequestParam(value = "newScore", required = false) BigDecimal newScore,
+            @RequestParam(value = "score", required = false) BigDecimal score,
             @RequestParam(required = false) String reason) {
+        BigDecimal actualScore = newScore != null ? newScore : score;
+        if (actualScore == null) return R.fail("评分不能为空");
         Long sellerId = SecurityUtil.getCurrentEnterpriseId();
-        creditScoreService.adjustScore(buyerId, sellerId, newScore, reason);
+        creditScoreService.adjustScore(buyerId, sellerId, actualScore, reason);
         return R.ok();
     }
 

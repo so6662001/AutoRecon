@@ -7,6 +7,7 @@ import com.autorecon.common.util.SecurityUtil;
 import com.autorecon.domain.dto.CollectionPlanCreateDTO;
 import com.autorecon.domain.entity.CollectionLog;
 import com.autorecon.domain.entity.CollectionPlan;
+import com.autorecon.domain.entity.CreditScore;
 import com.autorecon.domain.entity.Enterprise;
 import com.autorecon.domain.entity.ReconBill;
 import com.autorecon.domain.enums.BillStatusEnum;
@@ -203,6 +204,14 @@ public class CollectionServiceImpl extends ServiceImpl<CollectionPlanMapper, Col
         }
 
         String strategy = "B";
+        try {
+            CreditScore creditScore = creditScoreService.getScore(bill.getBuyerId(), bill.getSellerId());
+            if (creditScore != null && creditScore.getScoreLevel() != null) {
+                strategy = creditScore.getScoreLevel();
+            }
+        } catch (Exception e) {
+            log.warn("Failed to get credit score for strategy", e);
+        }
 
         CollectionPlan plan = CollectionPlan.builder()
                 .billId(bill.getId())
