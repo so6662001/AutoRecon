@@ -107,4 +107,25 @@ INSERT INTO agreement_version (id, agreement_type, version_no, title, content, e
 (1, 1, 'v1.0', '用户服务协议', '# 用户服务协议\n\n本协议...', '2026-01-01', '2026-01-01 00:00:00', 1, 1, 0),
 (2, 2, 'v1.0', '隐私保护政策', '# 隐私保护政策\n\n本政策...', '2026-01-01', '2026-01-01 00:00:00', 1, 1, 0);
 
+-- 企业数据授权（演示企业全部已授权；卖方管理员 seller1=2，买方管理员 buyer1=3、buyer2=4）
+INSERT INTO enterprise_data_authorization (enterprise_id, authorization_type, authorized, authorized_by, authorized_at, authorization_method, revoked, version_no, deleted) VALUES
+(1, 'BASIC_SERVICE', 1, 2, '2026-01-15 10:00:00', 1, 0, 'v1.0', 0),
+(1, 'AI_TRAINING', 1, 2, '2026-01-15 10:00:00', 1, 0, 'v1.0', 0),
+(1, 'INDUSTRY_INDEX', 1, 2, '2026-01-15 10:00:00', 1, 0, 'v1.0', 0),
+(1, 'CREDIT_ASSESSMENT', 1, 2, '2026-01-15 10:00:00', 1, 0, 'v1.0', 0),
+(1, 'BUSINESS_INSIGHT', 1, 2, '2026-01-15 10:00:00', 1, 0, 'v1.0', 0),
+(1, 'ANOMALY_DETECTION', 1, 2, '2026-01-15 10:00:00', 1, 0, 'v1.0', 0),
+(2, 'BASIC_SERVICE', 1, 3, '2026-01-15 10:00:00', 1, 0, 'v1.0', 0),
+(2, 'AI_TRAINING', 1, 3, '2026-01-15 10:00:00', 1, 0, 'v1.0', 0),
+(2, 'INDUSTRY_INDEX', 1, 3, '2026-01-15 10:00:00', 1, 0, 'v1.0', 0),
+(2, 'CREDIT_ASSESSMENT', 1, 3, '2026-01-15 10:00:00', 1, 0, 'v1.0', 0),
+(2, 'BUSINESS_INSIGHT', 1, 3, '2026-01-15 10:00:00', 1, 0, 'v1.0', 0),
+(2, 'ANOMALY_DETECTION', 1, 3, '2026-01-15 10:00:00', 1, 0, 'v1.0', 0),
+(3, 'BASIC_SERVICE', 1, 4, '2026-01-15 10:00:00', 1, 0, 'v1.0', 0),
+(3, 'AI_TRAINING', 1, 4, '2026-01-15 10:00:00', 1, 0, 'v1.0', 0),
+(3, 'INDUSTRY_INDEX', 1, 4, '2026-01-15 10:00:00', 1, 0, 'v1.0', 0),
+(3, 'CREDIT_ASSESSMENT', 1, 4, '2026-01-15 10:00:00', 1, 0, 'v1.0', 0),
+(3, 'BUSINESS_INSIGHT', 1, 4, '2026-01-15 10:00:00', 1, 0, 'v1.0', 0),
+(3, 'ANOMALY_DETECTION', 1, 4, '2026-01-15 10:00:00', 1, 0, 'v1.0', 0);
+
 SET REFERENTIAL_INTEGRITY TRUE;

@@ -731,3 +731,43 @@ CREATE TABLE IF NOT EXISTS agreement_confirmation (
 );
 CREATE INDEX IF NOT EXISTS idx_user_agreement ON agreement_confirmation(user_id, agreement_type);
 CREATE INDEX IF NOT EXISTS idx_version ON agreement_confirmation(agreement_version_id);
+
+-- 36. enterprise_data_authorization
+CREATE TABLE IF NOT EXISTS enterprise_data_authorization (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  enterprise_id BIGINT NOT NULL,
+  authorization_type VARCHAR(30) NOT NULL,
+  authorized TINYINT DEFAULT 1,
+  authorized_by BIGINT,
+  authorized_at TIMESTAMP,
+  authorization_method TINYINT DEFAULT 1,
+  ip_address VARCHAR(50),
+  user_agent VARCHAR(500),
+  revoked TINYINT DEFAULT 0,
+  revoked_at TIMESTAMP,
+  revoked_by BIGINT,
+  snapshot_url VARCHAR(500),
+  version_no VARCHAR(20),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  deleted TINYINT NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_enterprise_type ON enterprise_data_authorization(enterprise_id, authorization_type);
+
+-- 37. authorization_change_notification
+CREATE TABLE IF NOT EXISTS authorization_change_notification (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  enterprise_id BIGINT NOT NULL,
+  change_type VARCHAR(30) NOT NULL,
+  change_summary VARCHAR(500),
+  new_authorization_types VARCHAR(200),
+  notified_user_id BIGINT,
+  notified_at TIMESTAMP,
+  response_status TINYINT DEFAULT 0,
+  responded_at TIMESTAMP,
+  response_detail VARCHAR(500),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  deleted TINYINT NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_enterprise_status ON authorization_change_notification(enterprise_id, response_status);

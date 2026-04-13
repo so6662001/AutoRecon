@@ -13,6 +13,12 @@ public interface AuditLogService extends IService<AuditLog> {
 
     void log(String module, String action, String targetType, Long targetId, String detail);
 
+    /**
+     * 审计日志（含 IP 与 User-Agent，用于数据授权等场景）
+     */
+    void log(String module, String action, String targetType, Long targetId, String detail,
+             String ipAddress, String userAgent);
+
     PageResult<AuditLog> queryLogs(Long enterpriseId, String module, Integer pageNum, Integer pageSize);
 
     /**

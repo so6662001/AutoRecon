@@ -945,3 +945,47 @@ CREATE TABLE agreement_confirmation (
     INDEX idx_version (agreement_version_id),
     INDEX idx_agreement_confirmation_deleted (deleted)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户协议确认记录';
+
+-- =============================================================================
+-- 36. enterprise_data_authorization - 企业数据授权
+-- =============================================================================
+CREATE TABLE enterprise_data_authorization (
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    enterprise_id BIGINT NOT NULL COMMENT '企业ID',
+    authorization_type VARCHAR(30) NOT NULL COMMENT '授权类型',
+    authorized TINYINT DEFAULT 1 COMMENT '是否授权: 0-否 1-是',
+    authorized_by BIGINT COMMENT '授权人',
+    authorized_at DATETIME COMMENT '授权时间',
+    authorization_method TINYINT DEFAULT 1 COMMENT '授权方式: 1-注册签章 2-管理员确认 3-变更确认',
+    ip_address VARCHAR(50),
+    user_agent VARCHAR(500),
+    revoked TINYINT DEFAULT 0 COMMENT '是否已撤回',
+    revoked_at DATETIME,
+    revoked_by BIGINT,
+    snapshot_url VARCHAR(500) COMMENT '授权条款快照OSS URL',
+    version_no VARCHAR(20) COMMENT '条款版本号',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT DEFAULT 0,
+    INDEX idx_enterprise_type (enterprise_id, authorization_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='企业数据授权';
+
+-- =============================================================================
+-- 37. authorization_change_notification - 授权变更通知
+-- =============================================================================
+CREATE TABLE authorization_change_notification (
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    enterprise_id BIGINT NOT NULL,
+    change_type VARCHAR(30) NOT NULL COMMENT '变更类型',
+    change_summary VARCHAR(500) COMMENT '变更摘要',
+    new_authorization_types VARCHAR(200) COMMENT '新增授权类型',
+    notified_user_id BIGINT COMMENT '通知的管理员',
+    notified_at DATETIME,
+    response_status TINYINT DEFAULT 0 COMMENT '0-待处理 1-已确认 2-已拒绝 3-超时',
+    responded_at DATETIME,
+    response_detail VARCHAR(500),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT DEFAULT 0,
+    INDEX idx_enterprise_status (enterprise_id, response_status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='授权变更通知';

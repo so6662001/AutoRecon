@@ -36,6 +36,11 @@ public enum ErrorCode {
     AGREEMENT_VERSION_NOT_FOUND(60001, "协议版本不存在"),
     AGREEMENT_TYPE_MISMATCH(60002, "协议类型与版本不一致"),
 
+    DATA_AUTH_BASIC_CANNOT_REVOKE(61001, "基础服务授权不可撤回"),
+    DATA_AUTH_NOT_INITIALIZED(61002, "企业数据授权未初始化"),
+    DATA_AUTH_FORBIDDEN(61003, "无权限管理企业数据授权"),
+    DATA_AUTH_NOTIFICATION_NOT_FOUND(61004, "授权变更通知不存在"),
+
     SYSTEM_ERROR(99999, "系统内部错误");
 
     private final int code;

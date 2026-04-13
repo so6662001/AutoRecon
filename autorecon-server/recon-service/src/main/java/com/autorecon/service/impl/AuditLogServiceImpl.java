@@ -33,6 +33,13 @@ public class AuditLogServiceImpl extends ServiceImpl<AuditLogMapper, AuditLog> i
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void log(String module, String action, String targetType, Long targetId, String detail) {
+        log(module, action, targetType, targetId, detail, null, null);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void log(String module, String action, String targetType, Long targetId, String detail,
+                    String ipAddress, String userAgent) {
         Long enterpriseId = SecurityUtil.getCurrentEnterpriseId();
         Long userId = SecurityUtil.getCurrentUserId();
         String userName = null;
@@ -40,7 +47,11 @@ public class AuditLogServiceImpl extends ServiceImpl<AuditLogMapper, AuditLog> i
             SysUser user = sysUserMapper.selectById(userId);
             if (user != null) userName = user.getRealName() != null ? user.getRealName() : user.getUsername();
         }
-        String ip = "127.0.0.1";
+        String ip = StringUtils.isNotBlank(ipAddress) ? ipAddress : "127.0.0.1";
+        String ua = userAgent;
+        if (ua != null && ua.length() > 200) {
+            ua = ua.substring(0, 200);
+        }
 
         AuditLog auditLog = AuditLog.builder()
                 .enterpriseId(enterpriseId)
@@ -52,6 +63,7 @@ public class AuditLogServiceImpl extends ServiceImpl<AuditLogMapper, AuditLog> i
                 .targetId(targetId)
                 .detail(detail)
                 .ipAddress(ip)
+                .userAgent(ua)
                 .build();
         auditLogMapper.insert(auditLog);
     }
