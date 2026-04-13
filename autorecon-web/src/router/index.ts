@@ -258,6 +258,67 @@ const routes = [
           component: () => import('@/views/system/agreements.vue'),
           meta: { title: '协议管理' },
         },
+        // 数据分析
+        {
+          path: 'analytics/realtime',
+          name: 'analyticsRealtime',
+          component: () => import('@/views/analytics/realtime.vue'),
+          meta: { title: '实时概览', icon: 'DataLine', roles: [1, 4, 6] },
+        },
+        {
+          path: 'analytics/page-value',
+          name: 'analyticsPageValue',
+          component: () => import('@/views/analytics/page-value.vue'),
+          meta: { title: '页面价值', roles: [1, 4, 6] },
+        },
+        {
+          path: 'analytics/user-path',
+          name: 'analyticsUserPath',
+          component: () => import('@/views/analytics/user-path.vue'),
+          meta: { title: '用户路径', roles: [1, 4, 6] },
+        },
+        {
+          path: 'analytics/funnel',
+          name: 'analyticsFunnel',
+          component: () => import('@/views/analytics/funnel.vue'),
+          meta: { title: '漏斗分析', roles: [1, 4, 6] },
+        },
+        {
+          path: 'analytics/retention',
+          name: 'analyticsRetention',
+          component: () => import('@/views/analytics/retention.vue'),
+          meta: { title: '留存分析', roles: [1, 4, 6] },
+        },
+        {
+          path: 'analytics/segments',
+          name: 'analyticsSegments',
+          component: () => import('@/views/analytics/segments.vue'),
+          meta: { title: '用户分群', roles: [1, 4, 6] },
+        },
+        {
+          path: 'analytics/feature-tracking',
+          name: 'analyticsFeatureTracking',
+          component: () => import('@/views/analytics/feature-tracking.vue'),
+          meta: { title: '功能追踪', roles: [1, 4, 6] },
+        },
+        {
+          path: 'analytics/device',
+          name: 'analyticsDevice',
+          component: () => import('@/views/analytics/device.vue'),
+          meta: { title: '终端分析', roles: [1, 4, 6] },
+        },
+        {
+          path: 'analytics/performance',
+          name: 'analyticsPerformance',
+          component: () => import('@/views/analytics/performance.vue'),
+          meta: { title: '性能监控', roles: [1, 4, 6] },
+        },
+        {
+          path: 'analytics/settings',
+          name: 'analyticsSettings',
+          component: () => import('@/views/analytics/settings.vue'),
+          meta: { title: '埋点管理', roles: [1, 6] },
+        },
       ],
     },
   ]

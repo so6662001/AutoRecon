@@ -102,6 +102,24 @@
           <el-menu-item index="/engagement/materials">话术与物料</el-menu-item>
         </el-sub-menu>
 
+        <!-- 数据分析 -->
+        <el-sub-menu index="analytics">
+          <template #title>
+            <el-icon><DataLine /></el-icon>
+            <span>数据分析</span>
+          </template>
+          <el-menu-item index="/analytics/realtime">实时概览</el-menu-item>
+          <el-menu-item index="/analytics/page-value">页面价值</el-menu-item>
+          <el-menu-item index="/analytics/user-path">用户路径</el-menu-item>
+          <el-menu-item index="/analytics/funnel">漏斗分析</el-menu-item>
+          <el-menu-item index="/analytics/retention">留存分析</el-menu-item>
+          <el-menu-item index="/analytics/segments">用户分群</el-menu-item>
+          <el-menu-item index="/analytics/feature-tracking">功能追踪</el-menu-item>
+          <el-menu-item index="/analytics/device">终端分析</el-menu-item>
+          <el-menu-item index="/analytics/performance">性能监控</el-menu-item>
+          <el-menu-item index="/analytics/settings">埋点管理</el-menu-item>
+        </el-sub-menu>
+
         <!-- 系统设置 -->
         <el-sub-menu index="system">
           <template #title>
@@ -144,6 +162,7 @@ import {
   Guide,
   Setting,
   Lock,
+  DataLine,
 } from '@element-plus/icons-vue'
 
 defineProps<{
