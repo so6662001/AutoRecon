@@ -98,7 +98,7 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     public NotificationLog logNotification(Long pickupOrderId, Long contractId, Long buyerId, Integer channel, String phone, String content) {
         NotificationLog notificationLog = NotificationLog.builder()
-                .targetType("pickup_order")
+                .targetType("PICKUP_ORDER") // 统一大写,与EvidenceServiceImpl查询一致
                 .targetId(pickupOrderId)
                 .recipient(phone)
                 .channel(channel)
@@ -109,5 +109,58 @@ public class NotificationServiceImpl implements NotificationService {
                 .build();
         notificationLogMapper.insert(notificationLog);
         return notificationLog;
+    }
+
+    // ===== 合同签约通知(订货合同必须) =====
+
+    /**
+     * 推送合同签约通知给客户(15.2: 订货合同需要客户签约才通知)
+     */
+    public void sendContractSignNotification(Long contractId) {
+        Contract contract = contractMapper.selectById(contractId);
+        if (contract == null || contract.getBuyerContactPhone() == null) return;
+
+        String content = "您有一份合同待签约(合同号:" + contract.getContractNo() + ")，请点击链接查看并签署。";
+        NotificationLog notificationLog = NotificationLog.builder()
+                .targetType("CONTRACT")
+                .targetId(contractId)
+                .recipient(contract.getBuyerContactPhone())
+                .channel(NotificationChannelEnum.SMS.getValue())
+                .title("合同签约通知")
+                .content(content)
+                .sent(1)
+                .sentAt(LocalDateTime.now())
+                .build();
+        notificationLogMapper.insert(notificationLog);
+        log.info("Sent contract sign notification: contractId={}, phone={}", contractId, contract.getBuyerContactPhone());
+    }
+
+    /**
+     * 推送派车待确认通知给客户(销售代派车时)
+     */
+    public void sendDispatchPendingNotification(Long pickupOrderId) {
+        PickupOrder order = pickupOrderMapper.selectById(pickupOrderId);
+        if (order == null) return;
+
+        Contract contract = contractMapper.selectById(order.getContractId());
+        String buyerPhone = contract != null ? contract.getBuyerContactPhone() : null;
+        if (buyerPhone == null) return;
+
+        String content = String.format("销售为您安排了提货车辆(车牌:%s, 驾驶员:%s)，请确认。",
+                order.getVehiclePlate() != null ? order.getVehiclePlate() : "待定",
+                order.getDriverName() != null ? order.getDriverName() : "待定");
+
+        NotificationLog notificationLog = NotificationLog.builder()
+                .targetType("PICKUP_ORDER")
+                .targetId(pickupOrderId)
+                .recipient(buyerPhone)
+                .channel(NotificationChannelEnum.SMS.getValue())
+                .title("派车确认通知")
+                .content(content)
+                .sent(1)
+                .sentAt(LocalDateTime.now())
+                .build();
+        notificationLogMapper.insert(notificationLog);
+        log.info("Sent dispatch pending notification: pickupOrderId={}, phone={}", pickupOrderId, buyerPhone);
     }
 }

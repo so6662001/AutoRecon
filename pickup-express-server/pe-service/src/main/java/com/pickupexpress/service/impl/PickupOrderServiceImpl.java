@@ -159,6 +159,15 @@ public class PickupOrderServiceImpl extends ServiceImpl<PickupOrderMapper, Picku
             contractMapper.updateById(contract);
         }
 
+        // 模式B: 销售代派车→记录待确认通知(设计5.1: 派车待确认→客户)
+        if (dispatchMode == DispatchModeEnum.SALES.getValue()) {
+            progressEventService.recordEvent(order.getId(), contract.getId(),
+                    "DISPATCH_PENDING_NOTIFICATION",
+                    "已通知客户确认派车(车牌:" + order.getVehiclePlate() + ")",
+                    null, "system");
+            // TODO: 集成短信通知
+        }
+
         // 提货码分发事件(设计文档4.4: 分发记录)
         if (order.getDriverName() != null && !order.getDriverName().isEmpty()) {
             progressEventService.recordEvent(order.getId(), contract.getId(),

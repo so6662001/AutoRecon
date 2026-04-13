@@ -49,6 +49,7 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
     private final PickupOrderMapper pickupOrderMapper;
     private final SettlementOrderMapper settlementOrderMapper;
     private final ProgressEventMapper progressEventMapper;
+    private final NotificationServiceImpl notificationService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -166,7 +167,15 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
         }
         TenantUtil.checkContractAccess(contract.getSellerId(), contract.getBuyerId());
         contract.setSignStatus(SignStatusEnum.NOT_SIGNED.getValue());
+        contract.setStatus(ContractStatusEnum.PENDING_SIGN.getValue());
         updateById(contract);
+
+        // 通知客户签约(设计5.1: 合同待签约→客户)
+        try {
+            notificationService.sendContractSignNotification(contractId);
+        } catch (Exception e) {
+            log.warn("Failed to send contract sign notification: {}", e.getMessage());
+        }
     }
 
     @Override
