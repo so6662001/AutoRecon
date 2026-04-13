@@ -199,6 +199,12 @@ public class MatchEngineServiceImpl implements MatchEngineService {
         return (weightOk && amountOk && quantityOk) ? MATCHED : DIFF;
     }
 
+    /**
+     * 重量差异归因引擎 (设计文档8.4)
+     *
+     * 7条归因规则优先级: R1→R6→R5→R2→R4→R3→R7
+     * 输出: 归因类别 + 原因说明 + 置信度 + 建议处理方式
+     */
     private String attributeWeightDiff(ReconBillItem item) {
         if (item.getWeight() == null || item.getBuyerWeight() == null) {
             return null;
@@ -207,36 +213,99 @@ public class MatchEngineServiceImpl implements MatchEngineService {
         BigDecimal diff = item.getBuyerWeight().subtract(item.getWeight());
         BigDecimal absDiff = diff.abs();
         BigDecimal diffRate = absDiff.divide(item.getWeight(), 4, RoundingMode.HALF_UP);
+        String pct = diffRate.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP) + "%";
 
+        // R1: 磅差 (≤0.3%, 检查是否存在系统性偏差)
         if (diffRate.compareTo(BigDecimal.valueOf(0.003)) <= 0) {
-            return "正常过磅误差(偏差" + diffRate.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP) + "%)，在允许范围内";
+            boolean systematic = checkSystematicBias(item);
+            if (systematic) {
+                return "[R2·系统偏差] 偏差" + pct + "虽在容差内，但连续多次同方向偏差，疑似磅秤校准差异 | 置信度:85% | 建议:双方校准磅秤后重新过磅";
+            }
+            return "[R1·正常磅差] 正常过磅误差(偏差" + pct + ")，在允许范围内 | 置信度:95% | 建议:无需处理";
         }
 
+        // R6: 数量差异 (差异约等于整件重量的倍数)
         if (item.getQuantity() != null && item.getQuantity().compareTo(BigDecimal.ZERO) > 0) {
             BigDecimal avgPieceWeight = item.getWeight().divide(item.getQuantity(), 4, RoundingMode.HALF_UP);
             if (avgPieceWeight.compareTo(BigDecimal.ZERO) > 0) {
-                BigDecimal pieceDiff = absDiff.divide(avgPieceWeight, 0, RoundingMode.HALF_UP);
-                if (pieceDiff.compareTo(BigDecimal.ONE) >= 0 && pieceDiff.compareTo(BigDecimal.valueOf(5)) <= 0) {
-                    return "疑似" + (diff.compareTo(BigDecimal.ZERO) < 0 ? "漏发" : "多发")
-                            + pieceDiff.intValue() + "件(偏差" + absDiff.setScale(2, RoundingMode.HALF_UP) + "吨)";
+                BigDecimal pieceDiff = absDiff.divide(avgPieceWeight, 1, RoundingMode.HALF_UP);
+                BigDecimal remainder = absDiff.remainder(avgPieceWeight);
+                BigDecimal remainderRate = remainder.divide(avgPieceWeight, 2, RoundingMode.HALF_UP);
+                // 差异接近整数倍件重(余数<30%件重)
+                if (pieceDiff.compareTo(BigDecimal.ONE) >= 0
+                        && pieceDiff.compareTo(BigDecimal.valueOf(5)) <= 0
+                        && remainderRate.compareTo(BigDecimal.valueOf(0.3)) < 0) {
+                    int pieces = pieceDiff.setScale(0, RoundingMode.HALF_UP).intValue();
+                    String action = diff.compareTo(BigDecimal.ZERO) < 0 ? "漏发" : "多发";
+                    return "[R6·数量差异] 疑似" + action + pieces + "件(偏差" + absDiff.setScale(2, RoundingMode.HALF_UP)
+                            + "吨，单件均重" + avgPieceWeight.setScale(3, RoundingMode.HALF_UP) + "吨) | 置信度:88% | 建议:核查发货件数清点记录";
                 }
             }
         }
 
+        // R5: 理论重量偏差 (≤1%)
         if (diffRate.compareTo(BigDecimal.valueOf(0.01)) <= 0) {
-            return "实际重量与理论重量偏差属正常公差范围(偏差" + diffRate.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP) + "%)";
+            return "[R5·理重偏差] 实际重量与理论重量偏差属正常公差范围(偏差" + pct + ") | 置信度:90% | 建议:无需处理，属正常生产偏差";
         }
 
+        // R2: 系统性偏差 (≤2%, 或检测到连续同方向)
+        boolean systematic = checkSystematicBias(item);
         if (diffRate.compareTo(BigDecimal.valueOf(0.02)) <= 0) {
-            return "疑似磅秤校准差异(偏差" + diffRate.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP) + "%)，建议双方校准磅秤";
+            if (systematic) {
+                return "[R2·系统偏差] 连续多次同方向偏差(偏差" + pct + ")，磅秤可能存在系统误差 | 置信度:82% | 建议:安排双方联合校准磅秤";
+            }
+            return "[R2·系统偏差] 疑似磅秤校准差异(偏差" + pct + ") | 置信度:75% | 建议:建议双方校准磅秤";
         }
 
+        // R4: 含水量差异 (雨季6-9月, 且买方重量>卖方)
+        int month = java.time.LocalDate.now().getMonthValue();
+        if (month >= 6 && month <= 9 && diff.compareTo(BigDecimal.ZERO) > 0 && diffRate.compareTo(BigDecimal.valueOf(0.03)) <= 0) {
+            return "[R4·含水量] 当前为雨季("+month+"月)，买方过磅重量偏大(偏差" + pct + ")，可能因含水量增加 | 置信度:70% | 建议:参考天气情况判断，必要时烘干后复磅";
+        }
+
+        // R3: 运输损耗 (买方 < 卖方, ≤3%)
         if (diff.compareTo(BigDecimal.ZERO) < 0 && diffRate.compareTo(BigDecimal.valueOf(0.03)) <= 0) {
-            return "运输途中正常损耗(损耗率" + diffRate.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP) + "%)";
+            return "[R3·运输损耗] 运输途中正常损耗(损耗率" + pct + ") | 置信度:80% | 建议:属正常运输损耗范围，按合同约定容差处理";
         }
 
-        return "差异异常(偏差" + absDiff.setScale(2, RoundingMode.HALF_UP) + "吨/"
-                + diffRate.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP) + "%)，需人工核查";
+        // R7: 异常差异
+        return "[R7·异常差异] 差异异常(偏差" + absDiff.setScale(2, RoundingMode.HALF_UP) + "吨/" + pct
+                + ")，超出所有已知归因规则 | 置信度:N/A | 建议:需人工核查，检查是否存在发错货、漏装、串货等情况";
+    }
+
+    /**
+     * R2辅助: 检测系统性偏差 — 查看同一买方+品规的近期比对是否连续同方向
+     */
+    private boolean checkSystematicBias(ReconBillItem item) {
+        if (item.getBillId() == null) return false;
+        try {
+            // 查询同一对账单内同品规的其他明细，看差异方向是否一致
+            List<ReconBillItem> sameSpecItems = reconBillItemMapper.selectList(
+                    new LambdaQueryWrapper<ReconBillItem>()
+                            .eq(ReconBillItem::getBillId, item.getBillId())
+                            .eq(ReconBillItem::getProductName, item.getProductName())
+                            .eq(ReconBillItem::getSpec, item.getSpec())
+                            .isNotNull(ReconBillItem::getBuyerWeight)
+                            .ne(ReconBillItem::getId, item.getId()));
+
+            if (sameSpecItems.size() < 2) return false;
+
+            // 检查是否所有差异都是同一方向
+            boolean allPositive = true, allNegative = true;
+            for (ReconBillItem other : sameSpecItems) {
+                if (other.getWeight() == null || other.getBuyerWeight() == null) continue;
+                BigDecimal otherDiff = other.getBuyerWeight().subtract(other.getWeight());
+                if (otherDiff.compareTo(BigDecimal.ZERO) >= 0) allNegative = false;
+                if (otherDiff.compareTo(BigDecimal.ZERO) <= 0) allPositive = false;
+            }
+            // 当前item的差异方向也要一致
+            BigDecimal currentDiff = item.getBuyerWeight().subtract(item.getWeight());
+            if (currentDiff.compareTo(BigDecimal.ZERO) > 0 && allPositive) return true;
+            if (currentDiff.compareTo(BigDecimal.ZERO) < 0 && allNegative) return true;
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private MatchResultVO buildMatchResultVO(Long billId, List<ReconBillItem> items,
