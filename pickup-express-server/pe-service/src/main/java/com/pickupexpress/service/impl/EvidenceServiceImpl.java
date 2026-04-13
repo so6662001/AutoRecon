@@ -8,6 +8,7 @@ import com.pickupexpress.common.util.TenantUtil;
 import com.pickupexpress.domain.entity.*;
 import com.pickupexpress.domain.vo.EvidencePackageVO;
 import com.pickupexpress.mapper.*;
+import com.pickupexpress.service.ProgressEventService;
 import com.pickupexpress.service.EvidenceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +37,8 @@ public class EvidenceServiceImpl extends ServiceImpl<EvidencePackageMapper, Evid
     private final DeliveryPhotoMapper deliveryPhotoMapper;
     private final DeliveryConfirmMapper deliveryConfirmMapper;
     private final SettlementOrderMapper settlementOrderMapper;
+    private final NotificationLogMapper notificationLogMapper;
+    private final ProgressEventService progressEventService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -72,7 +75,16 @@ public class EvidenceServiceImpl extends ServiceImpl<EvidencePackageMapper, Evid
         SettlementOrder settlement = settlementOrderMapper.selectOne(
                 new LambdaQueryWrapper<SettlementOrder>().eq(SettlementOrder::getPickupOrderId, pickupOrderId));
         if (settlement != null) {
-            content.append(settlement.getSettlementNo()).append(settlement.getPdfUrl());
+            content.append(settlement.getSettlementNo()).append(settlement.getTotalAmount()).append(settlement.getPdfUrl());
+        }
+
+        // 纳入通知记录(设计4.8: 8_通知记录.json)
+        List<NotificationLog> notifications = notificationLogMapper.selectList(
+                new LambdaQueryWrapper<NotificationLog>()
+                        .eq(NotificationLog::getTargetType, "PICKUP_ORDER")
+                        .eq(NotificationLog::getTargetId, pickupOrderId));
+        for (NotificationLog n : notifications) {
+            content.append(n.getId()).append(n.getContent()).append(n.getSentAt());
         }
 
         String hash = computeSha256(content.toString());
@@ -82,8 +94,8 @@ public class EvidenceServiceImpl extends ServiceImpl<EvidencePackageMapper, Evid
                 .contractId(order.getContractId())
                 .packageHash(hash)
                 .contractPdfUrl(contract != null ? contract.getSignedPdfUrl() : null)
-                .pickupOrderPdfUrl(null)
-                .deliveryDataUrl(null)
+                .pickupOrderPdfUrl(null) // TODO: 生成提货单PDF
+                .deliveryDataUrl(null) // TODO: 发货明细JSON文件URL
                 .photosUrls(photos.stream().map(DeliveryPhoto::getPhotoUrl).collect(Collectors.joining(",")))
                 .signatureUrl(confirm != null ? confirm.getSignatureUrl() : null)
                 .settlementPdfUrl(settlement != null ? settlement.getPdfUrl() : null)
@@ -95,6 +107,13 @@ public class EvidenceServiceImpl extends ServiceImpl<EvidencePackageMapper, Evid
         order.setEvidencePackageId(pkg.getId());
         pickupOrderMapper.updateById(order);
 
+        // 进度事件: 证据归档完成
+        progressEventService.recordEvent(order.getId(), order.getContractId(),
+                "EVIDENCE_ARCHIVED",
+                "证据包归档完成(含合同+提货单+发货" + lifts.size() + "吊+照片" + photos.size() + "张+结算单, 哈希:" + hash.substring(0, 16) + "...)",
+                null, "system");
+
+        log.info("Evidence archived: pickupOrderId={}, hash={}", pickupOrderId, hash);
         return pkg.getId();
     }
 
@@ -172,7 +191,16 @@ public class EvidenceServiceImpl extends ServiceImpl<EvidencePackageMapper, Evid
         SettlementOrder settlement = settlementOrderMapper.selectOne(
                 new LambdaQueryWrapper<SettlementOrder>().eq(SettlementOrder::getPickupOrderId, pkg.getPickupOrderId()));
         if (settlement != null) {
-            content.append(settlement.getSettlementNo()).append(settlement.getPdfUrl());
+            content.append(settlement.getSettlementNo()).append(settlement.getTotalAmount()).append(settlement.getPdfUrl());
+        }
+
+        // 通知记录(与archiveEvidence一致)
+        List<NotificationLog> notifications = notificationLogMapper.selectList(
+                new LambdaQueryWrapper<NotificationLog>()
+                        .eq(NotificationLog::getTargetType, "PICKUP_ORDER")
+                        .eq(NotificationLog::getTargetId, pkg.getPickupOrderId()));
+        for (NotificationLog n : notifications) {
+            content.append(n.getId()).append(n.getContent()).append(n.getSentAt());
         }
 
         String computedHash = computeSha256(content.toString());

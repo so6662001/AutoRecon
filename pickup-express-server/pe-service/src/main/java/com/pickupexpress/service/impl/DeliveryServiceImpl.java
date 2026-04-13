@@ -26,6 +26,7 @@ import com.pickupexpress.service.ContractService;
 import com.pickupexpress.service.DeliveryService;
 import com.pickupexpress.service.ProgressEventService;
 import com.pickupexpress.service.SettlementService;
+import com.pickupexpress.service.EvidenceService;
 import com.pickupexpress.service.NotificationService;
 import com.pickupexpress.service.TradingHabitService;
 import lombok.RequiredArgsConstructor;
@@ -57,6 +58,11 @@ public class DeliveryServiceImpl implements DeliveryService {
     private final ContractService contractService;
     private final TradingHabitService tradingHabitService;
     private final NotificationService notificationService;
+    private final org.springframework.context.ApplicationContext applicationContext;
+
+    private EvidenceService getEvidenceService() {
+        return applicationContext.getBean(EvidenceService.class);
+    }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -257,6 +263,13 @@ public class DeliveryServiceImpl implements DeliveryService {
         }
 
         generatePickupConfirmation(order);
+
+        // 自动归档证据包(设计4.8: 发货完成后自动归档)
+        try {
+            getEvidenceService().archiveEvidence(order.getId());
+        } catch (Exception e) {
+            log.warn("Failed to auto-archive evidence: {}", e.getMessage());
+        }
     }
 
     private void generatePickupConfirmation(PickupOrder order) {

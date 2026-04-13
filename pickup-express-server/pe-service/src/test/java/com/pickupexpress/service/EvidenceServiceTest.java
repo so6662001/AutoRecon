@@ -48,6 +48,12 @@ class EvidenceServiceTest {
     @Mock
     private SettlementOrderMapper settlementOrderMapper;
 
+    @Mock
+    private NotificationLogMapper notificationLogMapper;
+
+    @Mock
+    private ProgressEventService progressEventService;
+
     @InjectMocks
     private EvidenceServiceImpl evidenceService;
 
