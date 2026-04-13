@@ -45,6 +45,58 @@ public class BatchReconController {
         return R.ok(batchId);
     }
 
+    @GetMapping("/{batchId}/progress")
+    @Operation(summary = "查询批量对账进度")
+    public R<Map<String, Object>> getBatchProgress(@PathVariable String batchId) {
+        List<ReconBill> bills = reconBillMapper.selectList(
+                new LambdaQueryWrapper<ReconBill>().eq(ReconBill::getBatchId, batchId));
+
+        Long currentEnterpriseId = SecurityUtil.getCurrentEnterpriseId();
+        if (currentEnterpriseId != null) {
+            bills = bills.stream()
+                    .filter(b -> currentEnterpriseId.equals(b.getSellerId()) || currentEnterpriseId.equals(b.getBuyerId()))
+                    .collect(Collectors.toList());
+        }
+
+        int total = bills.size();
+        long created = bills.stream().filter(b -> "CREATED".equals(b.getStatus())).count();
+        long sent = bills.stream().filter(b -> !"CREATED".equals(b.getStatus()) && !"GENERATED".equals(b.getStatus())).count();
+        long confirmed = bills.stream().filter(b -> "SIGNED".equals(b.getStatus()) || "COMPLETED".equals(b.getStatus())).count();
+
+        Map<String, Object> progress = new HashMap<>();
+        progress.put("batchId", batchId);
+        progress.put("total", total);
+        progress.put("created", created);
+        progress.put("sent", sent);
+        progress.put("confirmed", confirmed);
+        progress.put("completionRate", total > 0 ? (sent * 100 / total) : 0);
+        return R.ok(progress);
+    }
+
+    @PostMapping("/{batchId}/remind")
+    @Operation(summary = "一键催促未响应的买方")
+    public R<Integer> remindUnresponded(@PathVariable String batchId) {
+        List<ReconBill> pendingBills = reconBillMapper.selectList(
+                new LambdaQueryWrapper<ReconBill>()
+                        .eq(ReconBill::getBatchId, batchId)
+                        .eq(ReconBill::getStatus, "PENDING"));
+
+        Long currentEnterpriseId = SecurityUtil.getCurrentEnterpriseId();
+        if (currentEnterpriseId != null) {
+            pendingBills = pendingBills.stream()
+                    .filter(b -> currentEnterpriseId.equals(b.getSellerId()))
+                    .collect(Collectors.toList());
+        }
+
+        int reminded = 0;
+        for (ReconBill bill : pendingBills) {
+            // TODO: 发送催促通知给买方
+            log.info("Remind buyer for bill: billNo={}, buyerId={}", bill.getBillNo(), bill.getBuyerId());
+            reminded++;
+        }
+        return R.ok(reminded);
+    }
+
     @GetMapping("/{batchId}/bills")
     @Operation(summary = "获取批量创建的对账单列表")
     public R<List<ReconBillVO>> getBatchBills(@PathVariable String batchId) {
