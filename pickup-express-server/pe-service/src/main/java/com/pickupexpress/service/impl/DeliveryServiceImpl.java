@@ -26,6 +26,7 @@ import com.pickupexpress.service.ContractService;
 import com.pickupexpress.service.DeliveryService;
 import com.pickupexpress.service.ProgressEventService;
 import com.pickupexpress.service.SettlementService;
+import com.pickupexpress.service.NotificationService;
 import com.pickupexpress.service.TradingHabitService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,6 +56,7 @@ public class DeliveryServiceImpl implements DeliveryService {
     private final ProgressEventService progressEventService;
     private final ContractService contractService;
     private final TradingHabitService tradingHabitService;
+    private final NotificationService notificationService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -143,6 +145,22 @@ public class DeliveryServiceImpl implements DeliveryService {
         order.setTotalWeight(totalWeight);
         order.setDeliveryStatus(DeliveryStatusEnum.IN_PROGRESS.getValue());
         pickupOrderMapper.updateById(order);
+
+        // 进度事件: 逐吊上传(每5吊记录一次,避免事件过多)
+        if (totalLifts == 1 || totalLifts % 5 == 0) {
+            String dataSourceName = dto.getDataSource() != null ? switch (dto.getDataSource()) {
+                case 1 -> "WMS";
+                case 2 -> "H5助手";
+                case 3 -> "第三方WMS";
+                case 4 -> "驾驶员";
+                case 5 -> "补录";
+                default -> "未知";
+            } : "未知";
+            progressEventService.recordEvent(order.getId(), order.getContractId(),
+                    "LIFT_UPLOADED",
+                    "已装第" + totalLifts + "吊, 累计" + totalWeight.toPlainString() + "吨 (来源:" + dataSourceName + ")",
+                    null, dto.getOperatorName());
+        }
     }
 
     @Override
@@ -198,9 +216,30 @@ public class DeliveryServiceImpl implements DeliveryService {
 
         order.setDeliveryStatus(DeliveryStatusEnum.COMPLETED.getValue());
         order.setStatus(PickupOrderStatusEnum.COMPLETED.getValue());
+        order.setPickupCodeStatus(PickupCodeStatusEnum.USED.getValue()); // 提货码标记已使用
         pickupOrderMapper.updateById(order);
 
+        // 进度事件: 发货完成
+        progressEventService.recordEvent(order.getId(), order.getContractId(),
+                "DELIVERY_COMPLETED",
+                "发货完成: 共" + order.getTotalLifts() + "吊/" + order.getTotalPieces() + "件/" + order.getTotalWeight() + "吨",
+                null, dto.getOperatorName());
+
+        // 进度事件: 仓库签字确认
+        progressEventService.recordEvent(order.getId(), order.getContractId(),
+                "DELIVERY_SIGNED",
+                "仓库操作员" + (dto.getOperatorName() != null ? dto.getOperatorName() : "") + "签字确认",
+                null, dto.getOperatorName());
+
         settlementService.generateSettlement(dto.getPickupOrderId());
+
+        // 通知买方提货完成(15.2原则: 事后通知, 用语友好)
+        try {
+            notificationService.sendPickupCompleteNotification(dto.getPickupOrderId(),
+                    order.getTotalWeight(), order.getTotalAmount());
+        } catch (Exception e) {
+            log.warn("Failed to send pickup complete notification: {}", e.getMessage());
+        }
 
         List<LiftRecord> lifts = liftRecordMapper.selectList(
                 new LambdaQueryWrapper<LiftRecord>().eq(LiftRecord::getPickupOrderId, order.getId()));
