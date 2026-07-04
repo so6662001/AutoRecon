@@ -203,7 +203,9 @@
           <div class="card">
             <el-steps :active="activeStep" finish-status="success" align-center>
               <el-step title="选择客户与周期" description="确定对账对象与时间范围" :icon="Icons.User" />
-              <el-step title="拉取往来流水"   description="从 ERP / Excel 采集" :icon="Icons.Download" />
+              <el-step :title="form.source==='EXCEL' ? '上传 Excel 数据' : '拉取 ERP 数据'"
+                       :description="form.source==='EXCEL' ? '上传流水/明细 & 校验' : '从 ERP 自动同步'"
+                       :icon="form.source==='EXCEL' ? Icons.Upload : Icons.Download" />
               <el-step title="应用科目过滤"   description="生成余额快照" :icon="Icons.Filter" />
               <el-step title="预览发送"       description="确认并推送客户" :icon="Icons.Promotion" />
             </el-steps>
@@ -212,7 +214,7 @@
           <!-- Step 1 -->
           <div class="card step-panel" v-show="activeStep===0">
             <h3 style="margin-top:0;">Step 1 · 选择客户与对账周期</h3>
-            <el-form :model="form" label-width="130px" style="max-width:900px;">
+            <el-form :model="form" label-width="130px" style="max-width:960px;">
               <el-form-item label="客户">
                 <el-select v-model="form.customerId" placeholder="请选择客户" filterable style="width:420px;" @change="onCustomerChange">
                   <el-option v-for="c in customers" :key="c.id" :label="c.name" :value="c.id">
@@ -226,6 +228,61 @@
                   </el-option>
                 </el-select>
                 <span class="form-hint">当前客户: 某某建筑 · 经销商/D · 视同确认天数15天</span>
+              </el-form-item>
+
+              <!-- Enhancement 1: Recipient selection (dynamic after customer chosen) -->
+              <el-form-item label="接收人信息" v-if="form.customerId">
+                <div style="width:100%; max-width:640px;">
+                  <div style="color:#8c8c8c; font-size:12px; margin-bottom:8px;">选择本次对账单的通知接收人（可后续调整）</div>
+
+                  <div v-for="c in contacts" :key="c.id"
+                       class="contact-card"
+                       :class="{selected: selectedContact===c.id}"
+                       @click="selectedContact=c.id">
+                    <div class="top">
+                      <el-radio :model-value="selectedContact" :value="c.id" @click.stop @change="selectedContact=c.id">
+                        <b style="font-size:14px; color:#262626;">{{ c.name }}</b>
+                      </el-radio>
+                      <el-tag size="small" :type="c.roleTag">{{ c.role }}</el-tag>
+                      <el-tag v-if="c.primary" size="small" type="success" effect="plain">默认</el-tag>
+                    </div>
+                    <div class="meta">
+                      <span class="item">
+                        <el-icon><component :is="Icons.Iphone" /></el-icon>
+                        {{ c.phone }}
+                      </span>
+                      <span class="item">
+                        <el-icon :color="c.wechat?'#52c41a':'#bfbfbf'"><component :is="Icons.ChatDotRound" /></el-icon>
+                        <span :style="{color: c.wechat?'#52c41a':'#8c8c8c'}">{{ c.wechat?'微信已绑定':'微信未绑定' }}</span>
+                      </span>
+                    </div>
+                    <div class="last">
+                      最近对账: {{ c.lastRecon }}
+                    </div>
+                  </div>
+
+                  <div style="margin-top:10px;">
+                    <el-checkbox v-model="showCC">同时抄送其他人</el-checkbox>
+                  </div>
+                  <div v-if="showCC" style="margin-top:8px;">
+                    <el-select v-model="ccContacts" multiple placeholder="选择抄送接收人" style="width:100%;">
+                      <el-option v-for="c in contacts.filter(x=>x.id!==selectedContact)"
+                                 :key="c.id"
+                                 :label="c.name + ' · ' + c.role"
+                                 :value="c.id" />
+                    </el-select>
+                  </div>
+
+                  <div style="margin-top:10px;">
+                    <el-button size="small" :icon="Icons.Plus" @click="showAddContact=true">新增接收人</el-button>
+                  </div>
+
+                  <el-alert type="info" show-icon :closable="false" style="margin-top:12px;">
+                    <template #title>
+                      <span style="font-size:12px;">系统将向选中的接收人发送对账单通知（短信/微信/AI 外呼）。首次接收的联系人建议先建立微信好友关系，以确保消息可送达。</span>
+                    </template>
+                  </el-alert>
+                </div>
               </el-form-item>
 
               <el-form-item label="对账周期起始日">
@@ -246,17 +303,33 @@
                 </span>
               </el-form-item>
 
+              <!-- Enhancement 2: Prominent data source selector -->
               <el-form-item label="数据来源">
-                <el-radio-group v-model="form.source">
-                  <el-radio value="ERP">
-                    <el-icon><component :is="Icons.Connection" /></el-icon>
-                    从ERP拉取
-                  </el-radio>
-                  <el-radio value="EXCEL">
-                    <el-icon><component :is="Icons.Document" /></el-icon>
-                    从Excel导入
-                  </el-radio>
-                </el-radio-group>
+                <div class="choice-cards" style="width:100%; max-width:640px;">
+                  <div class="choice-card"
+                       :class="{active: form.source==='ERP'}"
+                       @click="form.source='ERP'">
+                    <div class="c-title">
+                      <el-radio :model-value="form.source" value="ERP" @click.stop @change="form.source='ERP'">
+                        <el-icon><component :is="Icons.Connection" /></el-icon>
+                        从 ERP 自动拉取
+                      </el-radio>
+                      <el-tag size="small" type="success" effect="dark" style="margin-left:auto;">推荐</el-tag>
+                    </div>
+                    <div class="c-desc">已配置金蝶 EAS 对接 · 定时同步 · 数据实时准确</div>
+                  </div>
+                  <div class="choice-card"
+                       :class="{active: form.source==='EXCEL'}"
+                       @click="form.source='EXCEL'">
+                    <div class="c-title">
+                      <el-radio :model-value="form.source" value="EXCEL" @click.stop @change="form.source='EXCEL'">
+                        <el-icon><component :is="Icons.Document" /></el-icon>
+                        从 Excel 导入
+                      </el-radio>
+                    </div>
+                    <div class="c-desc">适合无 ERP 或临时补录场景，支持分表/合并两种模板</div>
+                  </div>
+                </div>
               </el-form-item>
 
               <el-form-item label="对账模板">
@@ -283,54 +356,301 @@
 
           <!-- Step 2 -->
           <div class="card step-panel" v-show="activeStep===1">
-            <h3 style="margin-top:0;">Step 2 · 拉取往来流水</h3>
+            <h3 style="margin-top:0;">
+              Step 2 · {{ form.source==='EXCEL' ? '上传 Excel 数据' : '拉取 ERP 数据' }}
+            </h3>
 
-            <div v-if="pulling" style="padding:60px 0; text-align:center;">
-              <el-icon class="is-loading" size="40" color="#1890ff"><component :is="Icons.Loading" /></el-icon>
-              <p style="color:#595959; margin-top:12px;">正在从 ERP 拉取往来流水…</p>
-              <el-progress :percentage="pullProgress" style="max-width:420px; margin:16px auto 0;" />
-              <p style="color:#8c8c8c; font-size:12px;">对接系统: 用友U8 · 表: RP_TRANSACTION</p>
-            </div>
-
-            <div v-else>
-              <el-alert type="success" show-icon :closable="false" style="margin-bottom:16px;">
-                <template #title>
-                  <span>成功拉取 <b>9</b> 条流水记录（周期: 2026-03-01 ~ 2026-03-31 · 来源: ERP）</span>
-                </template>
-              </el-alert>
-
-              <table class="bank-table">
-                <thead>
-                  <tr>
-                    <th>日期</th><th>单号</th><th>摘要</th>
-                    <th>应收</th><th>实收</th><th>余额</th>
-                    <th>科目</th><th>是否过滤</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="row in tx" :key="row.no" :class="{filtered: row.filtered}">
-                    <td>{{ row.date }}</td>
-                    <td>{{ row.no }}</td>
-                    <td>{{ row.memo }}</td>
-                    <td class="amt-pos" v-if="row.dr">+¥{{ row.dr.toLocaleString() }}</td><td v-else>-</td>
-                    <td class="amt-neg" v-if="row.cr">-¥{{ row.cr.toLocaleString() }}</td><td v-else>-</td>
-                    <td class="amt-bal">¥{{ row.bal.toLocaleString() }}</td>
-                    <td>{{ row.acct }}</td>
-                    <td>
-                      <el-tag v-if="row.filtered" size="small" type="warning" effect="plain">已过滤</el-tag>
-                      <el-tag v-else size="small" type="success" effect="plain">发送</el-tag>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-
-              <div style="margin-top:16px; padding:12px 16px; background:#f5f7fa; border-radius:6px; display:flex; gap:24px; font-size:13px;">
-                <span>共 <b>9</b> 条</span>
-                <span>应收合计 <b class="amt-pos">+¥105,300</b></span>
-                <span>实收合计 <b class="amt-neg">-¥50,000</b></span>
-                <span>期末余额 <b class="amt-bal">¥75,800</b></span>
+            <!-- ============ ERP MODE ============ -->
+            <template v-if="form.source==='ERP'">
+              <div v-if="pulling" style="padding:60px 0; text-align:center;">
+                <el-icon class="is-loading" size="40" color="#1890ff"><component :is="Icons.Loading" /></el-icon>
+                <p style="color:#595959; margin-top:12px;">正在从 ERP 拉取往来流水…</p>
+                <el-progress :percentage="pullProgress" style="max-width:420px; margin:16px auto 0;" />
+                <p style="color:#8c8c8c; font-size:12px;">对接系统: 金蝶EAS · 表: RP_TRANSACTION</p>
               </div>
-            </div>
+
+              <div v-else>
+                <el-alert type="success" show-icon :closable="false" style="margin-bottom:16px;">
+                  <template #title>
+                    <span>成功拉取 <b>9</b> 条流水记录（周期: 2026-03-01 ~ 2026-03-31 · 来源: 金蝶EAS）</span>
+                  </template>
+                </el-alert>
+
+                <table class="bank-table">
+                  <thead>
+                    <tr>
+                      <th>日期</th><th>单号</th><th>单据类型</th><th>摘要</th><th>结算数量</th>
+                      <th>本期应收</th><th>本期实收</th><th>应收余额</th><th>是否过滤</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="row in tx" :key="row.no" :class="{filtered: row.filtered}">
+                      <td>{{ row.date }}</td>
+                      <td>{{ row.no }}</td>
+                      <td>{{ row.docType }}</td>
+                      <td>{{ row.memo }}</td>
+                      <td>{{ row.qty }}</td>
+                      <td class="amt-pos" v-if="row.dr">+¥{{ row.dr.toLocaleString() }}</td><td v-else>-</td>
+                      <td class="amt-neg" v-if="row.cr">-¥{{ row.cr.toLocaleString() }}</td><td v-else>-</td>
+                      <td class="amt-bal">¥{{ row.bal.toLocaleString() }}</td>
+                      <td>
+                        <el-tag v-if="row.filtered" size="small" type="warning" effect="plain">已过滤</el-tag>
+                        <el-tag v-else size="small" type="success" effect="plain">发送</el-tag>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <div style="margin-top:16px; padding:12px 16px; background:#f5f7fa; border-radius:6px; display:flex; gap:24px; font-size:13px;">
+                  <span>共 <b>9</b> 条</span>
+                  <span>应收合计 <b class="amt-pos">+¥105,300</b></span>
+                  <span>实收合计 <b class="amt-neg">-¥50,000</b></span>
+                  <span>期末余额 <b class="amt-bal">¥75,800</b></span>
+                </div>
+              </div>
+            </template>
+
+            <!-- ============ EXCEL MODE ============ -->
+            <template v-else>
+              <!-- Upload mode selection -->
+              <div class="excel-section">
+                <h4><el-icon color="#1890ff"><component :is="Icons.Files" /></el-icon> 上传方式选择</h4>
+                <div class="choice-cards" style="max-width:720px;">
+                  <div class="choice-card"
+                       :class="{active: uploadMode==='split'}"
+                       @click="uploadMode='split'">
+                    <div class="c-title">
+                      <el-radio :model-value="uploadMode" value="split" @click.stop @change="uploadMode='split'">
+                        <b>分表上传</b>
+                      </el-radio>
+                      <el-tag size="small" type="success" effect="dark" style="margin-left:auto;">推荐</el-tag>
+                    </div>
+                    <div class="c-desc">
+                      流水表 + 应收明细表<br>
+                      结构清晰，易于填写，出错易定位
+                    </div>
+                  </div>
+                  <div class="choice-card"
+                       :class="{active: uploadMode==='merged'}"
+                       @click="uploadMode='merged'">
+                    <div class="c-title">
+                      <el-radio :model-value="uploadMode" value="merged" @click.stop @change="uploadMode='merged'">
+                        <b>合并表格上传</b>
+                      </el-radio>
+                    </div>
+                    <div class="c-desc">
+                      一张表包含所有字段<br>
+                      一次导入，需字段完整（适合熟练用户或系统对接）
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="section-divider"></div>
+
+              <!-- Step 1: download template (split mode) -->
+              <div class="excel-section" v-if="uploadMode==='split'">
+                <h4><el-icon color="#1890ff"><component :is="Icons.Download" /></el-icon> 步骤 1 · 下载模板</h4>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                  <el-button :icon="Icons.Download">下载 往来流水模板.xlsx</el-button>
+                  <el-button :icon="Icons.Download">下载 应收明细模板.xlsx</el-button>
+                </div>
+                <div style="color:#8c8c8c; font-size:12px; margin-top:8px;">
+                  <el-icon><component :is="Icons.InfoFilled" /></el-icon>
+                  提示: 请勿修改表头，日期格式请使用 <b>YYYY-MM-DD</b>
+                </div>
+              </div>
+
+              <!-- Step 1: download template (merged mode) -->
+              <div class="excel-section" v-else>
+                <h4><el-icon color="#1890ff"><component :is="Icons.Download" /></el-icon> 步骤 1 · 下载模板</h4>
+                <el-button :icon="Icons.Download">下载 合并模板.xlsx</el-button>
+                <div style="color:#8c8c8c; font-size:12px; margin-top:8px;">
+                  <el-icon><component :is="Icons.InfoFilled" /></el-icon>
+                  合并表格模板已包含所有列。同一单号的多行会被自动合并（流水 + 明细）
+                </div>
+              </div>
+
+              <div class="section-divider"></div>
+
+              <!-- Step 2: upload (split) -->
+              <div class="excel-section" v-if="uploadMode==='split'">
+                <h4><el-icon color="#1890ff"><component :is="Icons.Upload" /></el-icon> 步骤 2 · 上传数据</h4>
+                <div class="excel-upload-grid">
+                  <div>
+                    <div class="upload-label">
+                      <el-icon><component :is="Icons.Document" /></el-icon>
+                      往来流水表
+                    </div>
+                    <el-upload drag action="#" :auto-upload="false" :show-file-list="false" accept=".xlsx,.xls">
+                      <el-icon class="el-icon--upload"><component :is="Icons.UploadFilled" /></el-icon>
+                      <div class="el-upload__text">拖拽或<em>点击上传</em></div>
+                      <template #tip>
+                        <div class="el-upload__tip">支持 .xlsx / .xls</div>
+                      </template>
+                    </el-upload>
+                    <div v-if="flowFile" class="upload-success">
+                      <div class="fname">
+                        <el-icon color="#52c41a"><component :is="Icons.CircleCheckFilled" /></el-icon>
+                        已上传 {{ flowFile.name }}
+                      </div>
+                      <div class="fmeta">共 {{ flowFile.count }} 条流水记录，最新: {{ flowFile.latest }}</div>
+                    </div>
+                  </div>
+                  <div>
+                    <div class="upload-label">
+                      <el-icon><component :is="Icons.Document" /></el-icon>
+                      应收明细表
+                    </div>
+                    <el-upload drag action="#" :auto-upload="false" :show-file-list="false" accept=".xlsx,.xls">
+                      <el-icon class="el-icon--upload"><component :is="Icons.UploadFilled" /></el-icon>
+                      <div class="el-upload__text">拖拽或<em>点击上传</em></div>
+                      <template #tip>
+                        <div class="el-upload__tip">支持 .xlsx / .xls</div>
+                      </template>
+                    </el-upload>
+                    <div v-if="detailFile" class="upload-success">
+                      <div class="fname">
+                        <el-icon color="#52c41a"><component :is="Icons.CircleCheckFilled" /></el-icon>
+                        已上传 {{ detailFile.name }}
+                      </div>
+                      <div class="fmeta">共 {{ detailFile.count }} 条应收明细</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Step 2: upload (merged) -->
+              <div class="excel-section" v-else>
+                <h4><el-icon color="#1890ff"><component :is="Icons.Upload" /></el-icon> 步骤 2 · 上传合并表格</h4>
+                <div style="max-width:520px;">
+                  <div class="upload-label">
+                    <el-icon><component :is="Icons.Document" /></el-icon>
+                    合并表格 (含流水+明细列)
+                  </div>
+                  <el-upload drag action="#" :auto-upload="false" :show-file-list="false" accept=".xlsx,.xls">
+                    <el-icon class="el-icon--upload"><component :is="Icons.UploadFilled" /></el-icon>
+                    <div class="el-upload__text">拖拽或<em>点击上传</em>合并表格</div>
+                    <template #tip>
+                      <div class="el-upload__tip">支持 .xlsx / .xls；同一单号的多行会自动合并（流水 + 明细）</div>
+                    </template>
+                  </el-upload>
+                  <div v-if="mergedFile" class="upload-success">
+                    <div class="fname">
+                      <el-icon color="#52c41a"><component :is="Icons.CircleCheckFilled" /></el-icon>
+                      已上传 {{ mergedFile.name }}
+                    </div>
+                    <div class="fmeta">共 {{ mergedFile.count }} 行数据（流水 {{ mergedFile.flowCount }} + 明细 {{ mergedFile.detailCount }}）</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="section-divider"></div>
+
+              <!-- Step 3: validation -->
+              <div class="excel-section" v-if="validationResult">
+                <h4><el-icon color="#1890ff"><component :is="Icons.DataAnalysis" /></el-icon> 步骤 3 · 数据校验结果</h4>
+                <div class="validation-box">
+                  <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+                    <div class="validation-cell">
+                      <div class="head">
+                        <el-icon color="#52c41a"><component :is="Icons.CircleCheckFilled" /></el-icon>
+                        流水表: {{ validationResult.flow.count }} 条
+                      </div>
+                      <div class="rows">
+                        <div>应收: <b class="amt-pos">+¥{{ validationResult.flow.income.toLocaleString() }}</b></div>
+                        <div>实收: <b class="amt-neg">-¥{{ validationResult.flow.paid.toLocaleString() }}</b></div>
+                        <div>期末: <b class="amt-bal">¥{{ validationResult.flow.endBal.toLocaleString() }}</b></div>
+                      </div>
+                    </div>
+                    <div class="validation-cell">
+                      <div class="head">
+                        <el-icon color="#52c41a"><component :is="Icons.CircleCheckFilled" /></el-icon>
+                        明细表: {{ validationResult.detail.count }} 条
+                      </div>
+                      <div class="rows">
+                        <div>已付: <b class="amt-neg">¥{{ validationResult.detail.paid.toLocaleString() }}</b></div>
+                        <div>未付: <b class="amt-pos">¥{{ validationResult.detail.unpaid.toLocaleString() }}</b></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="validation-issues" v-if="validationResult.issues && validationResult.issues.length">
+                    <div class="title">
+                      <el-icon><component :is="Icons.WarningFilled" /></el-icon>
+                      校验提示 ({{ validationResult.issues.length }} 条)
+                    </div>
+                    <ul>
+                      <li v-for="(iss, i) in validationResult.issues" :key="i">{{ iss }}</li>
+                    </ul>
+                  </div>
+
+                  <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+                    <el-button size="small" :icon="Icons.RefreshRight">重新上传流水表</el-button>
+                    <el-button size="small" :icon="Icons.RefreshRight">重新上传明细表</el-button>
+                    <el-button size="small" :icon="Icons.Download">下载校验报告</el-button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="section-divider"></div>
+
+              <!-- Data preview with tabs -->
+              <div class="excel-section">
+                <h4><el-icon color="#1890ff"><component :is="Icons.View" /></el-icon> 数据预览</h4>
+                <el-tabs v-model="previewTab">
+                  <el-tab-pane label="往来流水" name="flow">
+                    <table class="bank-table">
+                      <thead>
+                        <tr>
+                          <th>日期</th><th>单号</th><th>单据类型</th><th>摘要</th><th>结算数量</th>
+                          <th>本期应收</th><th>本期实收</th><th>应收余额</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="row in tx" :key="'p'+row.no">
+                          <td>{{ row.date }}</td>
+                          <td>{{ row.no }}</td>
+                          <td>{{ row.docType }}</td>
+                          <td>{{ row.memo }}</td>
+                          <td>{{ row.qty }}</td>
+                          <td class="amt-pos" v-if="row.dr">+¥{{ row.dr.toLocaleString() }}</td><td v-else>-</td>
+                          <td class="amt-neg" v-if="row.cr">-¥{{ row.cr.toLocaleString() }}</td><td v-else>-</td>
+                          <td class="amt-bal">¥{{ row.bal.toLocaleString() }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </el-tab-pane>
+                  <el-tab-pane label="应收明细" name="detail">
+                    <table class="bank-table">
+                      <thead>
+                        <tr>
+                          <th>单号</th><th>日期</th><th>商品</th><th>数量</th><th>单价</th>
+                          <th>金额</th><th>已付</th><th>未付</th><th>状态</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="r in receivableDetails" :key="r.no">
+                          <td>{{ r.no }}</td>
+                          <td>{{ r.date }}</td>
+                          <td>{{ r.product }}</td>
+                          <td>{{ r.qty }}</td>
+                          <td>¥{{ r.unitPrice.toLocaleString() }}</td>
+                          <td class="amt-bal">¥{{ r.amount.toLocaleString() }}</td>
+                          <td class="amt-pos">¥{{ r.paid.toLocaleString() }}</td>
+                          <td class="amt-neg">¥{{ r.unpaid.toLocaleString() }}</td>
+                          <td>
+                            <el-tag size="small" :type="r.unpaid===0?'success':(r.paid===0?'danger':'warning')" effect="plain">
+                              {{ r.unpaid===0?'已结清':(r.paid===0?'未付':'部分付款') }}
+                            </el-tag>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </el-tab-pane>
+                </el-tabs>
+              </div>
+            </template>
           </div>
 
           <!-- Step 3 -->
@@ -462,6 +782,22 @@
 
               <!-- Send options -->
               <div>
+                <!-- Enhancement 4: recipient info -->
+                <div class="recipient-info-box">
+                  <div class="r-title">
+                    <el-icon color="#1890ff"><component :is="Icons.User" /></el-icon>
+                    通知接收人: <b>{{ currentContact ? currentContact.name : '-' }}</b>
+                    <span v-if="currentContact" style="color:#0958d9; font-family:'SF Mono',Consolas,monospace;">({{ currentContact.phone }})</span>
+                  </div>
+                  <div class="r-line" v-if="currentContact">
+                    <div>角色: {{ currentContact.role }} · 微信: <b>{{ currentContact.wechat?'已绑定':'未绑定' }}</b></div>
+                    <div>通知方式: <b>{{ notificationSummary }}</b></div>
+                    <div v-if="ccContacts.length" style="margin-top:2px;">
+                      抄送 ({{ ccContacts.length }}): {{ ccNames }}
+                    </div>
+                  </div>
+                </div>
+
                 <div class="card" style="margin:0 0 12px 0; padding:16px;">
                   <h4 style="margin:0 0 12px 0; display:flex; align-items:center; gap:6px;">
                     <el-icon color="#1890ff"><component :is="Icons.Promotion" /></el-icon>
@@ -532,10 +868,40 @@
         </div>
       </div>
     </div>
+
+    <!-- Add contact dialog -->
+    <el-dialog v-model="showAddContact" title="新增接收人" width="480px" append-to-body>
+      <el-form :model="newContact" label-width="80px">
+        <el-form-item label="姓名" required>
+          <el-input v-model="newContact.name" placeholder="请输入姓名" />
+        </el-form-item>
+        <el-form-item label="角色" required>
+          <el-select v-model="newContact.role" style="width:100%;">
+            <el-option label="业务对接人" value="业务对接人" />
+            <el-option label="财务负责人" value="财务负责人" />
+            <el-option label="企业负责人" value="企业负责人" />
+            <el-option label="其他" value="其他" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="手机" required>
+          <el-input v-model="newContact.phone" placeholder="请输入手机号" maxlength="11" />
+        </el-form-item>
+        <el-form-item label="微信号">
+          <el-input v-model="newContact.wechatId" placeholder="选填，用于微信推送" />
+        </el-form-item>
+        <el-form-item label="设为默认">
+          <el-switch v-model="newContact.setDefault" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showAddContact=false">取消</el-button>
+        <el-button type="primary" @click="addContact">添加</el-button>
+      </template>
+    </el-dialog>
   </div>
 
   <script>
-    const { createApp, ref, reactive } = Vue;
+    const { createApp, ref, reactive, computed } = Vue;
     const Icons = ElementPlusIconsVue;
 
     const app = createApp({
@@ -555,6 +921,74 @@
           aiCall: true,
         });
 
+        // ============ Recipient contacts ============
+        const contacts = ref([
+          { id:1, name:'李经理', role:'业务对接人', roleTag:'',        primary:true,  phone:'138****1234', wechat:true,  lastRecon:'03-15 (已确认)' },
+          { id:2, name:'张会计', role:'财务负责人', roleTag:'warning', primary:false, phone:'139****5678', wechat:false, lastRecon:'从未接收' },
+          { id:3, name:'王总',   role:'企业负责人', roleTag:'success', primary:false, phone:'137****9999', wechat:true,  lastRecon:'03-15 (已确认)' },
+        ]);
+        const selectedContact = ref(1);
+        const showCC = ref(false);
+        const ccContacts = ref([]);
+        const showAddContact = ref(false);
+        const newContact = reactive({ name:'', role:'业务对接人', phone:'', wechatId:'', setDefault:false });
+
+        function addContact() {
+          if (!newContact.name || !newContact.phone) {
+            ElementPlus.ElMessage.warning('请填写姓名与手机号');
+            return;
+          }
+          const id = Date.now();
+          const roleTagMap = { '业务对接人':'', '财务负责人':'warning', '企业负责人':'success', '其他':'info' };
+          contacts.value.push({
+            id, name:newContact.name, role:newContact.role,
+            roleTag: roleTagMap[newContact.role] || '',
+            primary: !!newContact.setDefault,
+            phone: newContact.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2'),
+            wechat: !!newContact.wechatId,
+            lastRecon: '从未接收',
+          });
+          if (newContact.setDefault) selectedContact.value = id;
+          ElementPlus.ElMessage.success('已添加接收人');
+          newContact.name = ''; newContact.role = '业务对接人';
+          newContact.phone = ''; newContact.wechatId = ''; newContact.setDefault = false;
+          showAddContact.value = false;
+        }
+
+        const currentContact = computed(() => contacts.value.find(c => c.id === selectedContact.value) || null);
+        const ccNames = computed(() => contacts.value.filter(c => ccContacts.value.includes(c.id)).map(c => c.name).join('、'));
+        const notificationSummary = computed(() => {
+          const labels = { sms:'短信', wechat:'微信', email:'邮件' };
+          const chs = form.channels.map(c => labels[c]).filter(Boolean).join(' + ');
+          const call = form.aiCall ? ' + AI外呼跟单(30分钟后)' : '';
+          return (chs || '未选择') + call;
+        });
+
+        // ============ Excel upload state ============
+        const uploadMode = ref('split');
+        const previewTab = ref('flow');
+        const flowFile = ref({ name:'202503-流水.xlsx', count:15, latest:'2025-03-31' });
+        const detailFile = ref({ name:'202503-明细.xlsx', count:8 });
+        const mergedFile = ref(null);
+        const validationResult = ref({
+          flow:   { count:15, income:125800, paid:50000, endBal:75800 },
+          detail: { count:8,  paid:241160,   unpaid:224000 },
+          issues: [
+            '流水表第 3 行日期格式建议使用 YYYY-MM-DD（当前: 2025/3/5）',
+            '明细表第 6 行金额与单价×数量不符（差额 ¥50）',
+          ],
+        });
+        const receivableDetails = ref([
+          { no:'PO2026001', date:'2025-03-03', product:'螺纹钢 HRB400E ¢12',  qty:'30 吨', unitPrice:1000, amount:30000,  paid:30000, unpaid:0 },
+          { no:'PO2026002', date:'2025-03-05', product:'盘螺 HPB300 ¢8',      qty:'15 吨', unitPrice:1000, amount:15000,  paid:15000, unpaid:0 },
+          { no:'PO2026003', date:'2025-03-20', product:'热轧板 Q235 5.5mm',   qty:'50 吨', unitPrice:1006, amount:50300,  paid:5000,  unpaid:45300 },
+          { no:'PO2026004', date:'2025-03-25', product:'螺纹钢 HRB400E ¢16',  qty:'40 吨', unitPrice:1070, amount:42800,  paid:0,     unpaid:42800 },
+          { no:'PO2026005', date:'2025-03-27', product:'角钢 Q235 ∠50',       qty:'20 吨', unitPrice:1080, amount:21600,  paid:21600, unpaid:0 },
+          { no:'PO2026006', date:'2025-03-28', product:'钢板 Q345 8mm',       qty:'25 吨', unitPrice:1148, amount:28700,  paid:28700, unpaid:0 },
+          { no:'PO2026007', date:'2025-03-29', product:'圆钢 45# ¢30',        qty:'18 吨', unitPrice:1080, amount:19440,  paid:0,     unpaid:19440 },
+          { no:'PO2026008', date:'2025-03-30', product:'工字钢 Q235 I16',     qty:'30 吨', unitPrice:1108, amount:33320,  paid:33320, unpaid:0 },
+        ]);
+
         const customers = [
           { id:'C001', name:'某某贸易',   type:'经销商', level:'B' },
           { id:'C002', name:'某某制造',   type:'经销商', level:'B' },
@@ -572,15 +1006,15 @@
         // internal balance (bal) accumulates all
         // Starting balance 20500; expected external end 75800; internal end 74600
         const tx = ref([
-          { date:'03-03', no:'PO2026001', memo:'螺纹钢 HRB400E ¢12', dr:30000, cr:0,     bal:50500, extBal:50500, acct:'1122', filtered:false },
-          { date:'03-05', no:'PO2026002', memo:'盘螺 HPB300 ¢8',    dr:15000, cr:0,     bal:65500, extBal:65500, acct:'1122', filtered:false },
-          { date:'03-08', no:'HK-R01',    memo:'客户回扣 (港币科目)', dr:0,     cr:500,   bal:65000, extBal:65500, acct:'HK01', filtered:true  },
-          { date:'03-10', no:'PY2026001', memo:'收到回款(交行3388)', dr:0,     cr:50000, bal:15000, extBal:15500, acct:'1002', filtered:false },
-          { date:'03-15', no:'NB-R01',    memo:'内部调整 (宁波账套)', dr:0,     cr:200,   bal:14800, extBal:15500, acct:'NB01', filtered:true  },
-          { date:'03-20', no:'PO2026003', memo:'热轧板 Q235 5.5mm',  dr:50300, cr:0,     bal:65100, extBal:65800, acct:'1122', filtered:false },
-          { date:'03-25', no:'PO2026004', memo:'螺纹钢 HRB400E ¢16', dr:42800, cr:0,     bal:107900,extBal:108600, acct:'1122', filtered:false },
-          { date:'03-28', no:'PY2026002', memo:'收到承兑汇票',        dr:0,     cr:32800, bal:75100, extBal:75800, acct:'1002', filtered:false },
-          { date:'03-30', no:'NB998',     memo:'内部调账(排除项)',    dr:-500,  cr:0,     bal:74600, extBal:75800, acct:'NB998',filtered:true  },
+          { date:'03-03', no:'PO2026001', docType:'销售出库', qty:'30 吨', memo:'螺纹钢 HRB400E ¢12', dr:30000, cr:0,     bal:50500, extBal:50500, acct:'1122', filtered:false },
+          { date:'03-05', no:'PO2026002', docType:'销售出库', qty:'15 吨', memo:'盘螺 HPB300 ¢8',    dr:15000, cr:0,     bal:65500, extBal:65500, acct:'1122', filtered:false },
+          { date:'03-08', no:'HK-R01',    docType:'费用调整', qty:'-',     memo:'客户回扣 (港币科目)', dr:0,     cr:500,   bal:65000, extBal:65500, acct:'HK01', filtered:true  },
+          { date:'03-10', no:'PY2026001', docType:'收款',     qty:'-',     memo:'收到回款(交行3388)', dr:0,     cr:50000, bal:15000, extBal:15500, acct:'1002', filtered:false },
+          { date:'03-15', no:'NB-R01',    docType:'内部调整', qty:'-',     memo:'内部调整 (宁波账套)', dr:0,     cr:200,   bal:14800, extBal:15500, acct:'NB01', filtered:true  },
+          { date:'03-20', no:'PO2026003', docType:'销售出库', qty:'50 吨', memo:'热轧板 Q235 5.5mm',  dr:50300, cr:0,     bal:65100, extBal:65800, acct:'1122', filtered:false },
+          { date:'03-25', no:'PO2026004', docType:'销售出库', qty:'40 吨', memo:'螺纹钢 HRB400E ¢16', dr:42800, cr:0,     bal:107900,extBal:108600, acct:'1122', filtered:false },
+          { date:'03-28', no:'PY2026002', docType:'收款',     qty:'-',     memo:'收到承兑汇票',        dr:0,     cr:32800, bal:75100, extBal:75800, acct:'1002', filtered:false },
+          { date:'03-30', no:'NB998',     docType:'内部调账', qty:'-',     memo:'内部调账(排除项)',    dr:-500,  cr:0,     bal:74600, extBal:75800, acct:'NB998',filtered:true  },
         ]);
 
         const filteredItems = ref([
@@ -594,11 +1028,15 @@
         function next() {
           if (activeStep.value === 0) {
             activeStep.value = 1;
-            pulling.value = true; pullProgress.value = 0;
-            const t = setInterval(() => {
-              pullProgress.value += 20;
-              if (pullProgress.value >= 100) { clearInterval(t); pulling.value = false; }
-            }, 200);
+            if (form.source === 'ERP') {
+              pulling.value = true; pullProgress.value = 0;
+              const t = setInterval(() => {
+                pullProgress.value += 20;
+                if (pullProgress.value >= 100) { clearInterval(t); pulling.value = false; }
+              }, 200);
+            } else {
+              pulling.value = false;
+            }
           } else if (activeStep.value < 3) {
             activeStep.value++;
           }
@@ -615,7 +1053,13 @@
 
         function nav(page){ window.location.href='./'+page; }
 
-        return { Icons, activeStep, pulling, pullProgress, form, customers, tx, filteredItems, levelTagType, onCustomerChange, next, prev, submit, nav };
+        return {
+          Icons, activeStep, pulling, pullProgress, form, customers, tx, filteredItems,
+          contacts, selectedContact, showCC, ccContacts, showAddContact, newContact, addContact,
+          currentContact, ccNames, notificationSummary,
+          uploadMode, previewTab, flowFile, detailFile, mergedFile, validationResult, receivableDetails,
+          levelTagType, onCustomerChange, next, prev, submit, nav
+        };
       }
     });
     app.use(ElementPlus);
