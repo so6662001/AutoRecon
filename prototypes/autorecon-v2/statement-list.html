@@ -44,6 +44,12 @@
     .deemed-tag { background: #f0f0f0 !important; color: #595959 !important; border: 1px dashed #b7b7b7 !important; font-style: italic; }
     .amount-cell { font-family: "SF Mono", Consolas, Menlo, monospace; font-weight: 600; color:#262626; }
     .status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle;}
+    /* 独立列可视化增强 */
+    .cust-cell { font-weight: 600; color: #262626; }
+    .period-cell { display: inline-block; padding: 2px 8px; background: #f0f5ff; color: #1976d2; border-radius: 3px; font-size: 12px; font-variant-numeric: tabular-nums; }
+    .time-cell { font-family: "SF Mono", Consolas, Menlo, monospace; font-size: 12px; color: #595959; }
+    .time-cell.confirmed { color: #52c41a; font-weight: 500; }
+    .time-cell.empty { color: #c0c4cc; font-family: inherit; }
     .search-form .el-form-item { margin-bottom: 12px; }
     .table-toolbar { display:flex; justify-content: space-between; align-items:center; margin-bottom:12px;}
     .stat-strip { display:flex; gap:12px; margin-bottom:16px;}
@@ -223,30 +229,38 @@
 
             <el-table :data="tableData" stripe border style="width:100%" :header-cell-style="{background:'#fafafa',color:'#262626',fontWeight:600}">
               <el-table-column type="selection" width="44" />
-              <el-table-column prop="no" label="对账单号" width="140">
+              <el-table-column prop="no" label="对账单号" width="130">
                 <template #default="{row}">
                   <el-link type="primary" @click="goDetail(row)">{{ row.no }}</el-link>
                 </template>
               </el-table-column>
-              <el-table-column prop="customer" label="客户名称" min-width="130" />
-              <el-table-column label="类型/等级" width="140">
+              <el-table-column label="客户名称" width="130">
+                <template #default="{row}">
+                  <span class="cust-cell">{{ row.customer }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="类型/等级" width="105">
                 <template #default="{row}">
                   <el-tag size="small" effect="plain">{{ row.type }}</el-tag>
                   <el-tag size="small" :type="levelTagType(row.level)" style="margin-left:4px;">{{ row.level }}</el-tag>
                 </template>
               </el-table-column>
-              <el-table-column prop="period" label="对账周期" width="210" />
-              <el-table-column label="触发" width="70" align="center">
+              <el-table-column label="对账周期" width="180">
+                <template #default="{row}">
+                  <span class="period-cell">{{ row.period }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="触发" width="60" align="center">
                 <template #default="{row}">
                   <el-tag size="small" :type="row.trigger==='自动'?'':'warning'" effect="plain">{{ row.trigger }}</el-tag>
                 </template>
               </el-table-column>
-              <el-table-column label="期末余额" width="130" align="right">
+              <el-table-column label="期末余额" width="115" align="right">
                 <template #default="{row}">
                   <span class="amount-cell">{{ formatMoney(row.balance) }}</span>
                 </template>
               </el-table-column>
-              <el-table-column label="状态" width="150">
+              <el-table-column label="状态" width="120">
                 <template #default="{row}">
                   <el-tooltip
                     v-if="row.status==='DEEMED_CONFIRMED'"
@@ -265,9 +279,19 @@
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column prop="sentAt" label="发送时间" width="140" />
-              <el-table-column prop="confirmedAt" label="确认时间" width="140" />
-              <el-table-column label="操作" width="200" fixed="right">
+              <el-table-column label="发送时间" width="130">
+                <template #default="{row}">
+                  <span v-if="row.sentAt && row.sentAt !== '-'" class="time-cell">{{ row.sentAt }}</span>
+                  <span v-else class="time-cell empty">-</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="确认时间" width="130">
+                <template #default="{row}">
+                  <span v-if="row.confirmedAt && row.confirmedAt !== '-'" class="time-cell confirmed">{{ row.confirmedAt }}</span>
+                  <span v-else class="time-cell empty">-</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="180" fixed="right">
                 <template #default="{row}">
                   <el-link type="primary" @click="goDetail(row)">查看</el-link>
                   <template v-if="row.status==='PENDING' || row.status==='SENT'">
