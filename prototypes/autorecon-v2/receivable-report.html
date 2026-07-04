@@ -498,7 +498,12 @@
                   <el-tag :type="ageTag(row.age)" effect="light" size="small">{{ row.age }} 天</el-tag>
                 </template>
               </el-table-column>
-              <el-table-column prop="lastRecon" label="最近对账" width="115" align="center"/>
+              <el-table-column prop="lastRecon" label="最近对账日" width="130" align="center">
+                <template #default="{row}">
+                  <span v-if="row.lastRecon && row.lastRecon !== '-'" style="font-variant-numeric: tabular-nums;">{{ row.lastRecon }}</span>
+                  <el-tag v-else type="info" size="small" effect="plain">- 未对账</el-tag>
+                </template>
+              </el-table-column>
               <el-table-column label="对账状态" width="120" align="center">
                 <template #default="{row}">
                   <el-tag :type="statusTag(row.status)" effect="light" size="small">{{ row.status }}</el-tag>
@@ -547,16 +552,16 @@
           },
           tableSearch: '',
           rows: [
-            { name: '某某科技有限公司', type: '大型终端', level: 'A', total: 356800, paid: 200500, unpaid: 156300, age: 22, lastRecon: '2025-03-16', status: '异议中', stage: '' },
-            { name: '某某建筑工程有限公司', type: '经销商', level: 'D', total: 298600, paid: 200000, unpaid: 98600, age: 65, lastRecon: '2025-03-14', status: '视同确认', stage: '阶段2' },
-            { name: '某某制造集团', type: '经销商', level: 'B', total: 289500, paid: 200000, unpaid: 89500, age: 28, lastRecon: '2025-03-14', status: '已确认', stage: '' },
-            { name: '某某物流有限公司', type: '同行', level: 'C', total: 312000, paid: 312000, unpaid: 0, age: 0, lastRecon: '2025-03-15', status: '已完成', stage: '' },
-            { name: '某某贸易有限公司', type: '经销商', level: 'B', total: 175800, paid: 100000, unpaid: 75800, age: 18, lastRecon: '2025-03-17', status: '待确认', stage: '' },
-            { name: '某某建材有限公司', type: '加工厂', level: 'C', total: 267200, paid: 200000, unpaid: 67200, age: 45, lastRecon: '2025-03-15', status: '已确认', stage: '阶段1' },
-            { name: '某某钢结构有限公司', type: '加工厂', level: 'C', total: 145600, paid: 90000, unpaid: 55600, age: 38, lastRecon: '2025-03-13', status: '已确认', stage: '阶段1' },
-            { name: '某某工程机械有限公司', type: '大型终端', level: 'A', total: 528000, paid: 480000, unpaid: 48000, age: 12, lastRecon: '2025-03-16', status: '已确认', stage: '' },
-            { name: '某某地产集团', type: '大型终端', level: 'A', total: 462000, paid: 380000, unpaid: 82000, age: 55, lastRecon: '2025-03-12', status: '已确认', stage: '阶段2' },
-            { name: '某某市政工程有限公司', type: '经销商', level: 'D', total: 218400, paid: 130000, unpaid: 88400, age: 92, lastRecon: '2025-03-10', status: '视同确认', stage: '阶段3' }
+            { name: '某某科技有限公司', type: '大型终端', level: 'A', total: 356800, paid: 200500, unpaid: 156300, age: 22, lastRecon: '2025-03-15', status: '异议中', stage: '' },
+            { name: '某某建筑工程有限公司', type: '经销商', level: 'D', total: 298600, paid: 200000, unpaid: 98600, age: 65, lastRecon: '2025-03-12', status: '视同确认', stage: '阶段2' },
+            { name: '某某制造集团', type: '经销商', level: 'B', total: 289500, paid: 200000, unpaid: 89500, age: 28, lastRecon: '2025-03-10', status: '已确认', stage: '' },
+            { name: '某某物流有限公司', type: '同行', level: 'C', total: 312000, paid: 312000, unpaid: 0, age: 0, lastRecon: '2025-03-08', status: '已完成', stage: '' },
+            { name: '某某贸易有限公司', type: '经销商', level: 'B', total: 175800, paid: 100000, unpaid: 75800, age: 18, lastRecon: '-', status: '待确认', stage: '' },
+            { name: '某某建材有限公司', type: '加工厂', level: 'C', total: 267200, paid: 200000, unpaid: 67200, age: 45, lastRecon: '2025-03-05', status: '已确认', stage: '阶段1' },
+            { name: '某某钢结构有限公司', type: '加工厂', level: 'C', total: 145600, paid: 90000, unpaid: 55600, age: 38, lastRecon: '2025-03-14', status: '已确认', stage: '阶段1' },
+            { name: '某某工程机械有限公司', type: '大型终端', level: 'A', total: 528000, paid: 480000, unpaid: 48000, age: 12, lastRecon: '2025-03-11', status: '已确认', stage: '' },
+            { name: '某某地产集团', type: '大型终端', level: 'A', total: 462000, paid: 380000, unpaid: 82000, age: 55, lastRecon: '-', status: '已确认', stage: '阶段2' },
+            { name: '某某市政工程有限公司', type: '经销商', level: 'D', total: 218400, paid: 130000, unpaid: 88400, age: 92, lastRecon: '2025-03-06', status: '视同确认', stage: '阶段3' }
           ]
         }
       },
