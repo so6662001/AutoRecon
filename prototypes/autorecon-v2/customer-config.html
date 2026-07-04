@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>客户对账配置 - 对账通v2原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; background: #f0f2f5; color: #303133; }
+    #app { height: 100%; }
+    .layout { display: flex; height: 100vh; overflow: hidden; }
+
+    /* ===== SIDEBAR ===== */
+    .sidebar { width: 220px; background: #001529; color: #fff; flex-shrink: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    .sidebar .logo { height: 60px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; letter-spacing: 1px; color: #fff; border-bottom: 1px solid #0a2540; background: linear-gradient(135deg, #002140, #001529); }
+    .sidebar .logo .v-badge { font-size: 11px; background: #409eff; color: #fff; border-radius: 3px; padding: 1px 6px; margin-left: 6px; font-weight: 500; }
+    .sidebar .menu-wrap { flex: 1; overflow-y: auto; overflow-x: hidden; }
+    .sidebar .el-menu { border-right: none; background: transparent; }
+    .sidebar .el-menu--dark { --el-menu-bg-color: transparent; --el-menu-text-color: #c9d1d9; --el-menu-hover-bg-color: #0a2540; --el-menu-active-color: #fff; }
+    .sidebar .el-sub-menu__title:hover, .sidebar .el-menu-item:hover { background-color: #0a2540 !important; }
+    .sidebar .el-menu-item.is-active { background: linear-gradient(90deg, #409eff, #1976d2) !important; color: #fff !important; }
+    .sidebar .el-menu-item.is-active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: #fff; }
+    .sidebar-footer { padding: 12px 16px; border-top: 1px solid #0a2540; font-size: 12px; color: #7a8ca0; text-align: center; }
+
+    /* ===== MAIN ===== */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .header { height: 60px; background: #fff; border-bottom: 1px solid #ebeef5; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04); }
+    .header .breadcrumb-wrap { display: flex; align-items: center; gap: 16px; }
+    .header .enterprise { display: flex; align-items: center; gap: 8px; padding: 4px 12px; background: linear-gradient(135deg, #ecf5ff, #e6f7ff); border-radius: 16px; font-size: 13px; color: #1976d2; font-weight: 500; }
+    .header .actions { display: flex; align-items: center; gap: 20px; }
+    .header .icon-btn { position: relative; cursor: pointer; color: #606266; font-size: 18px; }
+    .header .icon-btn:hover { color: #409eff; }
+    .header .user { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .header .user .name { font-size: 14px; color: #303133; }
+
+    .content { flex: 1; overflow-y: auto; padding: 20px; }
+    .page-title-bar { background:#fff; padding: 14px 20px; border-radius: 6px; margin-bottom:16px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04); display:flex; align-items:center; justify-content:space-between; }
+    .page-title-bar .left { display:flex; align-items:center; gap:12px; }
+    .page-title-bar .cust-title { font-size: 18px; font-weight: 600; color:#303133; }
+
+    .config-card { background:#fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04); overflow:hidden; }
+
+    /* filter rule */
+    .rule-list { display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
+    .rule-item { display:flex; align-items:center; gap:10px; padding:10px 14px; background:#f5f7fa; border-radius:4px; border-left:3px solid #409eff; }
+    .rule-item.exclude { border-left-color:#67c23a; background:#f0f9eb; }
+    .rule-item .rule-input { flex:1; }
+    .rule-item .rule-desc { color:#909399; font-size:13px; }
+    .code-tag { display:inline-block; padding:1px 8px; background:#e6f7ff; color:#1976d2; border:1px solid #b3d8ff; border-radius:3px; font-family: monospace; font-size:13px; }
+
+    /* radio card style */
+    .radio-card-group { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:6px; }
+    .radio-card { padding:12px 16px; border:2px solid #e4e7ed; border-radius:6px; cursor:pointer; transition: all 0.2s; }
+    .radio-card:hover { border-color:#409eff; }
+    .radio-card.active { border-color:#409eff; background: #ecf5ff; }
+    .radio-card .rc-title { font-size:14px; font-weight:600; color:#303133; margin-bottom:4px; }
+    .radio-card .rc-desc { font-size:12px; color:#909399; }
+
+    /* stage cards */
+    .stage-card { background:#fafafa; border-radius:6px; padding: 14px 16px; margin-bottom:12px; border-left: 4px solid #909399; }
+    .stage-card.s1 { border-left-color:#e6a23c; }
+    .stage-card.s2 { border-left-color:#f56c6c; }
+    .stage-card.s3 { border-left-color:#9c27b0; }
+    .stage-card .stage-title { font-size:14px; font-weight:600; margin-bottom:10px; display:flex; align-items:center; gap:8px; }
+    .stage-fields { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+
+    .matched-strategy-box { background: linear-gradient(90deg, #ecf5ff, #f0f9eb); border:1px solid #b3d8ff; border-radius:6px; padding: 14px 18px; margin: 12px 0; display:flex; justify-content:space-between; align-items:center; }
+    .matched-strategy-box .ms-left { display:flex; align-items:center; gap:10px; }
+    .matched-strategy-box .ms-icon { width:32px; height:32px; border-radius:50%; background:#409eff; color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px; }
+    .matched-strategy-box .ms-name { font-weight:600; color:#1976d2; }
+
+    .footer-bar { position:sticky; bottom:0; margin: 20px -20px -20px; padding: 14px 20px; background:#fff; border-top:1px solid #ebeef5; text-align:right; box-shadow: 0 -2px 8px rgba(0,0,0,0.04); }
+
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-thumb { background: #c1c4cc; border-radius: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    .sidebar ::-webkit-scrollbar-thumb { background: #1f3a5f; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="layout">
+    <!-- ===== SIDEBAR ===== -->
+    <aside class="sidebar">
+      <div class="logo">对账通 <span class="v-badge">v2</span></div>
+      <div class="menu-wrap">
+        <el-menu :default-active="activeMenu" :default-openeds="['customer','recon','collection','report','system']" background-color="transparent" text-color="#c9d1d9" active-text-color="#ffffff" mode="vertical">
+          <el-menu-item index="dashboard" @click="go('dashboard.html')">
+            <el-icon><Odometer /></el-icon>
+            <template #title>工作台</template>
+          </el-menu-item>
+          <el-sub-menu index="customer">
+            <template #title>
+              <el-icon><UserFilled /></el-icon>
+              <span>客户中心</span>
+            </template>
+            <el-menu-item index="customer-ledger" @click="go('customer-ledger.html')">客户往来账</el-menu-item>
+            <el-menu-item index="customer-types" @click="go('customer-types.html')">客户类型</el-menu-item>
+            <el-menu-item index="customer-tags" @click="go('customer-tags.html')">客户标签</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="recon">
+            <template #title>
+              <el-icon><Document /></el-icon>
+              <span>对账管理</span>
+            </template>
+            <el-menu-item index="statement-list" @click="go('statement-list.html')">对账单列表</el-menu-item>
+            <el-menu-item index="statement-create" @click="go('statement-create.html')">发起对账</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="collection">
+            <template #title>
+              <el-icon><Warning /></el-icon>
+              <span>催收中心</span>
+            </template>
+            <el-menu-item index="collection-orders" @click="go('collection-orders.html')">催收工单</el-menu-item>
+            <el-menu-item index="collection-profiles" @click="go('collection-profiles.html')">催收策略</el-menu-item>
+            <el-menu-item index="call-tasks" @click="go('call-tasks.html')">外呼任务</el-menu-item>
+            <el-menu-item index="call-records" @click="go('call-records.html')">外呼记录</el-menu-item>
+          </el-sub-menu>
+          <el-menu-item index="messages" @click="go('messages.html')">
+            <el-icon><ChatDotRound /></el-icon>
+            <template #title>
+              <span style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+                消息中心
+                <el-badge value="12" class="msg-badge" style="margin-right:8px;" />
+              </span>
+            </template>
+          </el-menu-item>
+          <el-sub-menu index="report">
+            <template #title>
+              <el-icon><DataAnalysis /></el-icon>
+              <span>报表分析</span>
+            </template>
+            <el-menu-item index="receivable-report" @click="go('receivable-report.html')">应收报表</el-menu-item>
+            <el-menu-item index="collection-report" @click="go('collection-report.html')">催收报表</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="system">
+            <template #title>
+              <el-icon><Setting /></el-icon>
+              <span>系统设置</span>
+            </template>
+            <el-menu-item index="subjects-filter" @click="go('subjects-filter.html')">科目过滤</el-menu-item>
+            <el-menu-item index="call-scripts" @click="go('call-scripts.html')">AI话术管理</el-menu-item>
+            <el-menu-item index="aliyun-config" @click="go('aliyun-config.html')">阿里云配置</el-menu-item>
+            <el-menu-item index="holiday-calendar" @click="go('holiday-calendar.html')">节假日日历</el-menu-item>
+          </el-sub-menu>
+        </el-menu>
+      </div>
+      <div class="sidebar-footer">© 2026 AutoRecon v2.1</div>
+    </aside>
+
+    <!-- ===== MAIN ===== -->
+    <div class="main">
+      <header class="header">
+        <div class="breadcrumb-wrap">
+          <el-breadcrumb separator="/">
+            <el-breadcrumb-item>首页</el-breadcrumb-item>
+            <el-breadcrumb-item>客户中心</el-breadcrumb-item>
+            <el-breadcrumb-item :to="{path:'customer-ledger.html'}">客户往来账</el-breadcrumb-item>
+            <el-breadcrumb-item>对账配置</el-breadcrumb-item>
+          </el-breadcrumb>
+        </div>
+        <div class="actions">
+          <div class="enterprise">
+            <el-icon><OfficeBuilding /></el-icon>
+            <span>某某钢铁有限公司</span>
+          </div>
+          <div class="icon-btn">
+            <el-badge :value="12" :max="99">
+              <el-icon style="font-size:20px;"><Bell /></el-icon>
+            </el-badge>
+          </div>
+          <el-dropdown>
+            <div class="user">
+              <el-avatar :size="32" style="background:#409eff;">王</el-avatar>
+              <span class="name">王管理员</span>
+              <el-icon><ArrowDown /></el-icon>
+            </div>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item>个人设置</el-dropdown-item>
+                <el-dropdown-item>修改密码</el-dropdown-item>
+                <el-dropdown-item divided>退出登录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+      </header>
+
+      <main class="content">
+        <div class="page-title-bar">
+          <div class="left">
+            <el-button :icon="ArrowLeft" @click="goBack">返回</el-button>
+            <span class="cust-title">某某贸易有限公司</span>
+            <span style="color:#909399;">· 对账配置</span>
+            <el-tag type="success" size="small">C202503001</el-tag>
+          </div>
+          <div>
+            <el-button link type="primary" @click="goDetail">查看往来明细 →</el-button>
+          </div>
+        </div>
+
+        <div class="config-card">
+          <el-tabs v-model="activeTab" tab-position="left" style="min-height:600px;">
+
+            <!-- ===== Tab 1: 基础信息 ===== -->
+            <el-tab-pane label="基础信息" name="basic">
+              <div style="padding: 8px 24px 24px;">
+                <div style="font-size:16px;font-weight:600;color:#303133;margin-bottom:16px;border-left:4px solid #409eff;padding-left:10px;">基础信息</div>
+                <el-form :model="basic" label-width="110px" label-position="right">
+                  <el-row :gutter="20">
+                    <el-col :span="12">
+                      <el-form-item label="客户名称">
+                        <el-input v-model="basic.name" readonly>
+                          <template #suffix><el-icon><Lock /></el-icon></template>
+                        </el-input>
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                      <el-form-item label="客户编码">
+                        <el-input v-model="basic.code" readonly>
+                          <template #suffix><el-icon><Lock /></el-icon></template>
+                        </el-input>
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                      <el-form-item label="客户类型">
+                        <el-select v-model="basic.type" style="width:100%;">
+                          <el-option label="大型终端" value="大型终端" />
+                          <el-option label="经销商" value="经销商" />
+                          <el-option label="同行" value="同行" />
+                          <el-option label="加工厂" value="加工厂" />
+                          <el-option label="贸易商" value="贸易商" />
+                        </el-select>
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                      <el-form-item label="客户等级">
+                        <el-radio-group v-model="basic.level">
+                          <el-radio-button value="A"><span style="color:#f56c6c;">A</span></el-radio-button>
+                          <el-radio-button value="B">B</el-radio-button>
+                          <el-radio-button value="C">C</el-radio-button>
+                          <el-radio-button value="D">D</el-radio-button>
+                        </el-radio-group>
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="24">
+                      <el-form-item label="客户标签">
+                        <el-select v-model="basic.tags" multiple placeholder="选择标签" style="width:60%;">
+                          <el-option label="VIP" value="VIP" />
+                          <el-option label="战略" value="战略" />
+                          <el-option label="月结" value="月结" />
+                          <el-option label="季结" value="季结" />
+                          <el-option label="高风险" value="高风险" />
+                          <el-option label="老客户" value="老客户" />
+                          <el-option label="新客户" value="新客户" />
+                        </el-select>
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                      <el-form-item label="负责销售">
+                        <el-select v-model="basic.sales" style="width:100%;">
+                          <el-option label="张三" value="张三" />
+                          <el-option label="李四" value="李四" />
+                          <el-option label="王五" value="王五" />
+                        </el-select>
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                      <el-form-item label="对账联系人">
+                        <el-input v-model="basic.contact" placeholder="请输入联系人姓名" />
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                      <el-form-item label="联系电话">
+                        <el-input v-model="basic.phone" placeholder="请输入电话" />
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                      <el-form-item label="联系邮箱">
+                        <el-input v-model="basic.email" placeholder="请输入邮箱" />
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="24">
+                      <el-form-item label="通知渠道">
+                        <el-checkbox-group v-model="basic.channels">
+                          <el-checkbox label="email">邮件</el-checkbox>
+                          <el-checkbox label="sms">短信</el-checkbox>
+                          <el-checkbox label="wechat">企业微信</el-checkbox>
+                          <el-checkbox label="ivr">AI外呼</el-checkbox>
+                        </el-checkbox-group>
+                      </el-form-item>
+                    </el-col>
+                  </el-row>
+                </el-form>
+              </div>
+            </el-tab-pane>
+
+            <!-- ===== Tab 2: 对账周期 ===== -->
+            <el-tab-pane label="对账周期" name="cycle">
+              <div style="padding: 8px 24px 24px;">
+                <div style="font-size:16px;font-weight:600;color:#303133;margin-bottom:16px;border-left:4px solid #409eff;padding-left:10px;">对账周期设置</div>
+                <el-form :model="cycle" label-width="120px">
+                  <el-form-item label="对账模式">
+                    <div class="radio-card-group" style="grid-template-columns:repeat(2,1fr);">
+                      <div class="radio-card" :class="{active:cycle.mode==='fixed'}" @click="cycle.mode='fixed'">
+                        <div class="rc-title">
+                          <el-radio v-model="cycle.mode" value="fixed" style="margin-right:0;"><span></span></el-radio>
+                          固定周期
+                        </div>
+                        <div class="rc-desc">每月/每季固定日期对账 · 推荐大型终端</div>
+                      </div>
+                      <div class="radio-card" :class="{active:cycle.mode==='rolling'}" @click="cycle.mode='rolling'">
+                        <div class="rc-title">
+                          <el-radio v-model="cycle.mode" value="rolling" style="margin-right:0;"><span></span></el-radio>
+                          滚动周期
+                        </div>
+                        <div class="rc-desc">按固定间隔天数滚动对账 · 推荐经销商 / 同行</div>
+                      </div>
+                    </div>
+                  </el-form-item>
+
+                  <el-form-item v-if="cycle.mode==='fixed'" label="固定日期">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                      每月
+                      <el-input-number v-model="cycle.dayOfMonth" :min="1" :max="31" style="width:120px;" />
+                      日对上月账
+                    </div>
+                  </el-form-item>
+
+                  <el-form-item v-if="cycle.mode==='rolling'" label="滚动间隔">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                      每
+                      <el-input-number v-model="cycle.interval" :min="1" :max="365" style="width:120px;" />
+                      天对账一次
+                    </div>
+                  </el-form-item>
+
+                  <el-form-item label="节假日策略">
+                    <el-radio-group v-model="cycle.holiday">
+                      <el-radio value="postpone">顺延到下一工作日 <span style="color:#909399;font-size:12px;">(默认)</span></el-radio>
+                      <el-radio value="advance">提前到上一工作日</el-radio>
+                      <el-radio value="none">不调整</el-radio>
+                    </el-radio-group>
+                  </el-form-item>
+
+                  <el-form-item label="发起模式">
+                    <el-radio-group v-model="cycle.trigger">
+                      <el-radio value="auto">自动发起 <span style="color:#909399;font-size:12px;">(到期系统自动生成对账单)</span></el-radio>
+                      <el-radio value="manual">仅手动发起</el-radio>
+                    </el-radio-group>
+                  </el-form-item>
+
+                  <el-form-item label="下次对账日">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                      <el-tag type="primary" size="large" effect="dark" style="font-size:14px; padding: 6px 14px;">
+                        <el-icon style="vertical-align:-2px;"><Calendar /></el-icon> 2026-07-08 (周三)
+                      </el-tag>
+                      <span style="color:#909399; font-size:13px;">系统根据模式自动计算</span>
+                    </div>
+                  </el-form-item>
+
+                  <el-form-item label="视同确认天数">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                      <el-input-number v-model="cycle.deemedDays" :min="0" :max="30" style="width:140px;" />
+                      天
+                      <span style="color:#909399; font-size:13px; margin-left:8px;">
+                        <el-icon><InfoFilled /></el-icon>
+                        对账单发出N天后客户未回复则视同确认。0=不启用。
+                      </span>
+                    </div>
+                  </el-form-item>
+
+                  <el-form-item label="账期截止">
+                    <el-radio-group v-model="cycle.cutoff">
+                      <el-radio value="natural">自然日截止 (T日00:00)</el-radio>
+                      <el-radio value="work">工作日截止 (T日18:00)</el-radio>
+                    </el-radio-group>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </el-tab-pane>
+
+            <!-- ===== Tab 3: 科目过滤 ===== -->
+            <el-tab-pane label="科目过滤" name="filter">
+              <div style="padding: 8px 24px 24px;">
+                <div style="font-size:16px;font-weight:600;color:#303133;margin-bottom:16px;border-left:4px solid #409eff;padding-left:10px;">科目过滤规则 (通配符)</div>
+
+                <el-alert type="info" show-icon :closable="false" style="margin-bottom:16px;">
+                  <template #title>
+                    支持通配符 <span class="code-tag">*</span> (任意字符), <span class="code-tag">?</span> (单字符), <span class="code-tag">!</span> (排除)。
+                    规则示例：<span class="code-tag">HK*</span> 匹配 HK001~HKxxx；<span class="code-tag">!NB998</span> 排除NB998不过滤。
+                    过滤后的科目将从"外部余额"中排除，客户对账单不会看到。
+                  </template>
+                </el-alert>
+
+                <div class="rule-list">
+                  <div class="rule-item">
+                    <el-icon style="color:#409eff;"><Filter /></el-icon>
+                    <span class="code-tag" style="min-width:100px;">HK*</span>
+                    <span class="rule-desc">匹配所有HK开头的科目 (如客户回扣 HK01, HK02...)</span>
+                    <el-tag type="warning" size="small">17 条匹配</el-tag>
+                    <div style="flex:1"></div>
+                    <el-button link type="danger" size="small" :icon="Delete">删除</el-button>
+                  </div>
+                  <div class="rule-item">
+                    <el-icon style="color:#409eff;"><Filter /></el-icon>
+                    <span class="code-tag" style="min-width:100px;">NB*</span>
+                    <span class="rule-desc">匹配所有NB开头的科目 (内部调整 NB01, NB02...)</span>
+                    <el-tag type="warning" size="small">8 条匹配</el-tag>
+                    <div style="flex:1"></div>
+                    <el-button link type="danger" size="small" :icon="Delete">删除</el-button>
+                  </div>
+                  <div class="rule-item exclude">
+                    <el-icon style="color:#67c23a;"><CircleClose /></el-icon>
+                    <span class="code-tag" style="min-width:100px;background:#f0f9eb;color:#67c23a;border-color:#c2e7b0;">!NB998</span>
+                    <span class="rule-desc">排除 NB998 (即 NB998 不过滤，保留在外部余额中)</span>
+                    <el-tag type="success" size="small">例外规则</el-tag>
+                    <div style="flex:1"></div>
+                    <el-button link type="danger" size="small" :icon="Delete">删除</el-button>
+                  </div>
+                  <div class="rule-item">
+                    <el-icon style="color:#409eff;"><Filter /></el-icon>
+                    <span class="code-tag" style="min-width:100px;">调整-*</span>
+                    <span class="rule-desc">匹配"调整-"开头的中文科目</span>
+                    <el-tag type="warning" size="small">3 条匹配</el-tag>
+                    <div style="flex:1"></div>
+                    <el-button link type="danger" size="small" :icon="Delete">删除</el-button>
+                  </div>
+                </div>
+
+                <el-button type="primary" plain :icon="Plus" @click="addRuleDlg=true">添加规则</el-button>
+
+                <el-divider content-position="left">变更预警</el-divider>
+
+                <el-form label-width="180px">
+                  <el-form-item label="修改后处理策略">
+                    <el-radio-group v-model="filterCfg.recalc">
+                      <el-radio value="future">仅影响未来对账 <span style="color:#909399;font-size:12px;">(推荐)</span></el-radio>
+                      <el-radio value="all">重算历史余额 <span style="color:#f56c6c;font-size:12px;">(高风险)</span></el-radio>
+                    </el-radio-group>
+                  </el-form-item>
+                  <el-form-item label="生成余额快照">
+                    <el-switch v-model="filterCfg.snapshot" active-text="每次变更自动生成 FILTER_CHANGE 快照" />
+                  </el-form-item>
+                </el-form>
+
+                <el-alert type="warning" show-icon :closable="false" style="margin-top:12px;">
+                  <template #title>
+                    <b>提示：</b>当前过滤规则影响金额 <b style="color:#f56c6c;">¥1,200</b>。若切换到"重算历史余额"，将影响 <b>3</b> 张历史对账单，需管理员审批。
+                  </template>
+                </el-alert>
+              </div>
+            </el-tab-pane>
+
+            <!-- ===== Tab 4: 催收策略 ===== -->
+            <el-tab-pane label="催收策略" name="collection">
+              <div style="padding: 8px 24px 24px;">
+                <div style="font-size:16px;font-weight:600;color:#303133;margin-bottom:16px;border-left:4px solid #409eff;padding-left:10px;">催收策略</div>
+
+                <el-form label-width="120px">
+                  <el-form-item label="使用策略">
+                    <div class="radio-card-group">
+                      <div class="radio-card" :class="{active:coll.policy==='match'}" @click="coll.policy='match'">
+                        <div class="rc-title">
+                          <el-radio v-model="coll.policy" value="match" style="margin-right:0;"><span></span></el-radio>
+                          使用匹配策略
+                        </div>
+                        <div class="rc-desc">根据 客户类型+等级+标签 自动匹配</div>
+                      </div>
+                      <div class="radio-card" :class="{active:coll.policy==='custom'}" @click="coll.policy='custom'">
+                        <div class="rc-title">
+                          <el-radio v-model="coll.policy" value="custom" style="margin-right:0;"><span></span></el-radio>
+                          使用独立策略
+                        </div>
+                        <div class="rc-desc">仅对本客户生效，不受全局影响</div>
+                      </div>
+                      <div class="radio-card" :class="{active:coll.policy==='off'}" @click="coll.policy='off'">
+                        <div class="rc-title">
+                          <el-radio v-model="coll.policy" value="off" style="margin-right:0;"><span></span></el-radio>
+                          关闭催收
+                        </div>
+                        <div class="rc-desc">本客户不进入任何催收流程</div>
+                      </div>
+                    </div>
+                  </el-form-item>
+
+                  <div v-if="coll.policy==='match'" class="matched-strategy-box">
+                    <div class="ms-left">
+                      <div class="ms-icon"><el-icon><MagicStick /></el-icon></div>
+                      <div>
+                        <div style="font-size:12px;color:#909399;">系统匹配到策略</div>
+                        <div class="ms-name">经销商-B-普通 (JXS-B-STD)</div>
+                      </div>
+                    </div>
+                    <div>
+                      <el-tag type="info" size="small">优先级 20</el-tag>
+                      <el-button link type="primary" size="small" style="margin-left:8px;">查看策略详情 →</el-button>
+                    </div>
+                  </div>
+
+                  <template v-if="coll.policy==='custom'">
+                    <el-form-item label="催收模式">
+                      <el-radio-group v-model="coll.mode">
+                        <el-radio value="full">整单催 <span style="color:#909399;font-size:12px;">(按对账单总金额)</span></el-radio>
+                        <el-radio value="partial">按未付部分催 <span style="color:#909399;font-size:12px;">(仅催 ERP 未付部分，推荐)</span></el-radio>
+                      </el-radio-group>
+                    </el-form-item>
+
+                    <el-form-item label="发送后AI跟单">
+                      <div style="display:flex;align-items:center;gap:12px;">
+                        <el-switch v-model="coll.aiFollow" active-color="#67c23a" />
+                        <span>发送对账单后</span>
+                        <el-input-number v-model="coll.aiDelay" :min="5" :max="1440" style="width:120px;" />
+                        <span>分钟自动 AI 外呼</span>
+                      </div>
+                    </el-form-item>
+
+                    <el-divider content-position="left">阶段配置</el-divider>
+
+                    <div class="stage-card s1">
+                      <div class="stage-title">
+                        <el-tag type="warning" effect="dark" size="small">阶段 1</el-tag>
+                        通知阶段 (温和提醒)
+                      </div>
+                      <div class="stage-fields">
+                        <el-form-item label="起始天数" label-width="80px">
+                          <el-input-number v-model="stage1.start" :min="0" style="width:100%;" />
+                        </el-form-item>
+                        <el-form-item label="间隔天数" label-width="80px">
+                          <el-input-number v-model="stage1.interval" :min="1" style="width:100%;" />
+                        </el-form-item>
+                        <el-form-item label="总次数" label-width="80px">
+                          <el-input-number v-model="stage1.times" :min="1" :max="10" style="width:100%;" />
+                        </el-form-item>
+                        <el-form-item label="渠道" label-width="80px">
+                          <el-select v-model="stage1.channels" multiple placeholder="选择渠道" style="width:100%;">
+                            <el-option label="短信" value="sms" />
+                            <el-option label="邮件" value="email" />
+                            <el-option label="企业微信" value="wechat" />
+                          </el-select>
+                        </el-form-item>
+                      </div>
+                    </div>
+
+                    <div class="stage-card s2">
+                      <div class="stage-title">
+                        <el-tag type="danger" effect="dark" size="small">阶段 2</el-tag>
+                        AI外呼阶段
+                      </div>
+                      <div class="stage-fields">
+                        <el-form-item label="起始天数" label-width="80px">
+                          <el-input-number v-model="stage2.start" :min="0" style="width:100%;" />
+                        </el-form-item>
+                        <el-form-item label="间隔天数" label-width="80px">
+                          <el-input-number v-model="stage2.interval" :min="1" style="width:100%;" />
+                        </el-form-item>
+                        <el-form-item label="总次数" label-width="80px">
+                          <el-input-number v-model="stage2.times" :min="1" :max="10" style="width:100%;" />
+                        </el-form-item>
+                        <el-form-item label="话术风格" label-width="80px">
+                          <el-select v-model="stage2.style" style="width:100%;">
+                            <el-option label="标准正式" value="std" />
+                            <el-option label="温和友好" value="soft" />
+                            <el-option label="严肃催告" value="hard" />
+                          </el-select>
+                        </el-form-item>
+                      </div>
+                    </div>
+
+                    <div class="stage-card s3">
+                      <div class="stage-title">
+                        <el-tag color="#9c27b0" effect="dark" size="small" style="border:none;color:#fff;">阶段 3</el-tag>
+                        转人工阶段 (销售跟进)
+                      </div>
+                      <div class="stage-fields" style="grid-template-columns:repeat(3,1fr);">
+                        <el-form-item label="起始天数" label-width="80px">
+                          <el-input-number v-model="stage3.start" :min="0" style="width:100%;" />
+                        </el-form-item>
+                        <el-form-item label="自动分配" label-width="80px">
+                          <el-select v-model="stage3.assign" style="width:100%;">
+                            <el-option label="分配给负责销售" value="sales" />
+                            <el-option label="分配给部门主管" value="mgr" />
+                            <el-option label="通知法务" value="legal" />
+                          </el-select>
+                        </el-form-item>
+                        <el-form-item label="创建工单" label-width="80px">
+                          <el-switch v-model="stage3.ticket" active-color="#9c27b0" />
+                        </el-form-item>
+                      </div>
+                    </div>
+                  </template>
+
+                  <el-divider content-position="left">暂停催收</el-divider>
+                  <el-form-item label="临时暂停">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                      <el-button type="danger" plain :icon="VideoPause">暂停催收</el-button>
+                      <span>暂停</span>
+                      <el-input-number v-model="pauseDays" :min="1" :max="90" style="width:120px;" />
+                      <span>天</span>
+                      <span style="color:#909399;font-size:13px;margin-left:8px;">暂停期间不发送任何催收通知</span>
+                    </div>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </el-tab-pane>
+
+          </el-tabs>
+
+          <div class="footer-bar">
+            <el-button>取消</el-button>
+            <el-button>重置</el-button>
+            <el-button type="primary" :icon="Check">保存配置</el-button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <el-dialog v-model="addRuleDlg" title="添加过滤规则" width="500px">
+    <el-form label-width="90px">
+      <el-form-item label="规则表达式">
+        <el-input v-model="newRule.expr" placeholder="如 HK* 或 !NB998" />
+      </el-form-item>
+      <el-form-item label="规则说明">
+        <el-input v-model="newRule.desc" type="textarea" :rows="2" placeholder="用于团队理解" />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="addRuleDlg=false">取消</el-button>
+      <el-button type="primary" @click="addRuleDlg=false">确定</el-button>
+    </template>
+  </el-dialog>
+</div>
+
+<script>
+const { createApp, ref, reactive } = Vue;
+const app = createApp({
+  setup() {
+    const activeMenu = ref('customer-ledger');
+    const activeTab = ref('basic');
+    const addRuleDlg = ref(false);
+    const newRule = reactive({ expr:'', desc:'' });
+    const pauseDays = ref(7);
+
+    const basic = reactive({
+      name: '某某贸易有限公司',
+      code: 'C202503001',
+      type: '经销商',
+      level: 'B',
+      tags: ['VIP', '月结'],
+      sales: '张三',
+      contact: '李经理',
+      phone: '138****1234',
+      email: 'liman***@example.com',
+      channels: ['email','wechat','ivr']
+    });
+    const cycle = reactive({
+      mode: 'rolling',
+      dayOfMonth: 25,
+      interval: 5,
+      holiday: 'postpone',
+      trigger: 'auto',
+      deemedDays: 3,
+      cutoff: 'natural'
+    });
+    const filterCfg = reactive({ recalc: 'future', snapshot: true });
+    const coll = reactive({ policy: 'match', mode: 'partial', aiFollow: true, aiDelay: 30 });
+    const stage1 = reactive({ start: 1, interval: 2, times: 3, channels: ['sms','wechat'] });
+    const stage2 = reactive({ start: 7, interval: 3, times: 3, style: 'std' });
+    const stage3 = reactive({ start: 15, assign: 'sales', ticket: true });
+
+    const go = (url) => { window.location.href = url; };
+    const goBack = () => { window.location.href = 'customer-ledger.html'; };
+    const goDetail = () => { window.location.href = 'customer-ledger-detail.html'; };
+
+    return { activeMenu, activeTab, addRuleDlg, newRule, pauseDays, basic, cycle, filterCfg, coll, stage1, stage2, stage3, go, goBack, goDetail,
+      ArrowLeft: ElementPlusIconsVue.ArrowLeft, Lock: ElementPlusIconsVue.Lock, Calendar: ElementPlusIconsVue.Calendar,
+      InfoFilled: ElementPlusIconsVue.InfoFilled, Filter: ElementPlusIconsVue.Filter, CircleClose: ElementPlusIconsVue.CircleClose,
+      Delete: ElementPlusIconsVue.Delete, Plus: ElementPlusIconsVue.Plus, MagicStick: ElementPlusIconsVue.MagicStick,
+      VideoPause: ElementPlusIconsVue.VideoPause, Check: ElementPlusIconsVue.Check };
+  }
+});
+app.use(ElementPlus);
+for (const key in ElementPlusIconsVue) { app.component(key, ElementPlusIconsVue[key]); }
+app.mount('#app');
+</script>
+</body>
+</html>
