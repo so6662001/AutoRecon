@@ -1058,13 +1058,11 @@
             <span v-if="view === 'detail'" class="back" @click="view = 'statements'">‹</span>
             <span v-if="view === 'home'">🏠 首页</span>
             <span v-else-if="view === 'statements'">📋 我的对账单</span>
-            <span v-else-if="view === 'payable'">💰 应付款管理</span>
             <span v-else-if="view === 'profile'">👤 我的</span>
             <span v-else>对账单详情</span>
           </div>
           <div v-if="view === 'home'" style="font-size:13px">某某钢铁 等 8 家 ⋯</div>
           <div v-else-if="view === 'statements'" style="font-size:13px">共 8 张 · 3 待确认</div>
-          <div v-else-if="view === 'payable'" style="font-size:13px">应付总额 ¥368,900</div>
           <div v-else-if="view === 'profile'" style="font-size:13px">某某贸易 · 李经理</div>
           <div v-else style="font-size:12px;opacity:0.85">R202503001</div>
         </div>
@@ -1084,29 +1082,25 @@
             <div class="summary-divider"></div>
             <div class="summary-small">
               <div class="item">
-                <div class="lbl">应付款</div>
-                <div class="val">¥368,900</div>
+                <div class="lbl">本月对账</div>
+                <div class="val">8<small>笔</small></div>
               </div>
               <div class="item">
                 <div class="lbl">供应商</div>
                 <div class="val">8 家</div>
               </div>
               <div class="item">
-                <div class="lbl">本月已付</div>
-                <div class="val">¥125,800</div>
+                <div class="lbl">异议中</div>
+                <div class="val">1<small>笔</small></div>
               </div>
             </div>
           </div>
 
           <!-- Quick actions -->
           <div class="quick-actions">
-            <div class="quick-action" @click="showToast('对账单列表')">
+            <div class="quick-action" @click="view='statements'">
               <div class="icon a1"><el-icon><Document/></el-icon></div>
               <div class="lbl">对账单</div>
-            </div>
-            <div class="quick-action" @click="showToast('应付款')">
-              <div class="icon a2"><el-icon><Money/></el-icon></div>
-              <div class="lbl">应付款</div>
             </div>
             <div class="quick-action" @click="showToast('供应商')">
               <div class="icon a3"><el-icon><OfficeBuilding/></el-icon></div>
@@ -1116,6 +1110,10 @@
               <div class="icon a4"><el-icon><Bell/></el-icon></div>
               <div class="lbl">消息</div>
               <span class="dot"></span>
+            </div>
+            <div class="quick-action" @click="view='profile'">
+              <div class="icon a2"><el-icon><User/></el-icon></div>
+              <div class="lbl">我的</div>
             </div>
           </div>
 
@@ -1138,7 +1136,7 @@
                   <div class="status-tag">🟡 待确认</div>
                 </div>
                 <div class="amt-row">
-                  <span class="lbl">应付金额</span>
+                  <span class="lbl">余额</span>
                   <span class="amt">¥75,800</span>
                 </div>
                 <div class="info-row">
@@ -1169,7 +1167,7 @@
                   <div class="status-tag">🔴 异议处理中</div>
                 </div>
                 <div class="amt-row">
-                  <span class="lbl">应付金额</span>
+                  <span class="lbl">余额</span>
                   <span class="amt">¥125,000</span>
                 </div>
                 <div class="info-row">
@@ -1199,7 +1197,7 @@
                   <div class="status-tag">🟢 已确认</div>
                 </div>
                 <div class="amt-row">
-                  <span class="lbl">应付金额</span>
+                  <span class="lbl">余额</span>
                   <span class="amt">¥89,500</span>
                 </div>
                 <div class="info-row">
@@ -1281,107 +1279,6 @@
                 <span v-else-if="s.confirmedAt"> · 确认 {{ s.confirmedAt }}</span>
                 <span style="margin-left:auto;color:#409eff;">查看 ›</span>
               </div>
-            </div>
-          </div>
-          <div style="height:20px"></div>
-        </div>
-
-        <!-- ============ PAYABLE VIEW (应付款管理) ============ -->
-        <div v-else-if="view === 'payable'" class="app-content">
-          <!-- Payable summary card -->
-          <div class="pay-summary-card">
-            <div class="pay-title">应付总额</div>
-            <div class="pay-amount">¥368,900<span class="unit">.00</span></div>
-            <div class="pay-stats">
-              <div class="pay-stat">
-                <div class="label">本月已付</div>
-                <div class="value">¥125,800</div>
-              </div>
-              <div class="divider"></div>
-              <div class="pay-stat">
-                <div class="label">已逾期</div>
-                <div class="value" style="color:#ff7875">¥45,600</div>
-              </div>
-              <div class="divider"></div>
-              <div class="pay-stat">
-                <div class="label">供应商</div>
-                <div class="value">8 家</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Quick actions -->
-          <div class="quick-grid">
-            <div class="quick-item" @click="showToast('立即付款')">
-              <div class="q-icon" style="background:linear-gradient(135deg,#ff7875,#ff4d4f)"><el-icon><Money/></el-icon></div>
-              <div>立即付款</div>
-            </div>
-            <div class="quick-item" @click="showToast('付款计划')">
-              <div class="q-icon" style="background:linear-gradient(135deg,#ffa940,#fa8c16)"><el-icon><Calendar/></el-icon></div>
-              <div>付款计划</div>
-            </div>
-            <div class="quick-item" @click="showToast('付款记录')">
-              <div class="q-icon" style="background:linear-gradient(135deg,#52c41a,#389e0d)"><el-icon><Tickets/></el-icon></div>
-              <div>付款记录</div>
-            </div>
-            <div class="quick-item" @click="showToast('付款方式')">
-              <div class="q-icon" style="background:linear-gradient(135deg,#40a9ff,#1890ff)"><el-icon><CreditCard/></el-icon></div>
-              <div>付款方式</div>
-            </div>
-          </div>
-
-          <!-- Payable filter tabs -->
-          <div class="filter-chip-row">
-            <div class="chip" :class="{active: payFilter==='all'}" @click="payFilter='all'">全部 6</div>
-            <div class="chip" :class="{active: payFilter==='overdue'}" @click="payFilter='overdue'">已逾期 1</div>
-            <div class="chip" :class="{active: payFilter==='due-soon'}" @click="payFilter='due-soon'">即将到期 2</div>
-            <div class="chip" :class="{active: payFilter==='partial'}" @click="payFilter='partial'">部分付款 1</div>
-          </div>
-
-          <!-- Payable list -->
-          <div v-for="p in filteredPayables" :key="p.no" class="pay-card">
-            <div class="pay-card-header">
-              <div class="pay-supplier">
-                <div class="logo" :style="{background: p.logoColor}">{{ p.supplier[0] }}</div>
-                <div>
-                  <div class="supplier-name">{{ p.supplier }}</div>
-                  <div class="pay-meta">{{ p.no }}</div>
-                </div>
-              </div>
-              <div class="pay-tag" :class="p.tagClass">{{ p.tagLabel }}</div>
-            </div>
-            <div class="pay-card-body">
-              <div class="pay-row">
-                <span class="pay-label">应付金额</span>
-                <span class="pay-value" style="font-size:18px;font-weight:700;color:#f5222d">¥{{ p.amount.toLocaleString() }}</span>
-              </div>
-              <div class="pay-row" v-if="p.paid">
-                <span class="pay-label">已付</span>
-                <span class="pay-value" style="color:#52c41a">¥{{ p.paid.toLocaleString() }}</span>
-              </div>
-              <div class="pay-row" v-if="p.paid">
-                <span class="pay-label">剩余</span>
-                <span class="pay-value">¥{{ (p.amount - p.paid).toLocaleString() }}</span>
-              </div>
-              <div class="pay-row">
-                <span class="pay-label">到期日</span>
-                <span class="pay-value">
-                  {{ p.dueDate }}
-                  <span v-if="p.overdue" style="color:#f5222d;font-weight:600;margin-left:6px">已逾期 {{ p.overdue }} 天</span>
-                  <span v-else-if="p.daysLeft <= 7" style="color:#faad14;font-weight:600;margin-left:6px">还有 {{ p.daysLeft }} 天</span>
-                </span>
-              </div>
-            </div>
-            <div class="pay-card-actions">
-              <button class="mini-btn primary" @click="showToast('正在跳转付款...')">
-                <el-icon><Money/></el-icon> 立即付款
-              </button>
-              <button class="mini-btn" @click="showToast('拨打 138****1234')">
-                <el-icon><Phone/></el-icon> 联系
-              </button>
-              <button class="mini-btn" @click="view='detail'">
-                <el-icon><Document/></el-icon> 详情
-              </button>
             </div>
           </div>
           <div style="height:20px"></div>
@@ -1769,10 +1666,6 @@
             <div class="icon"><el-icon><Document/></el-icon></div>
             <div>对账单</div>
           </div>
-          <div class="tab-item" :class="{active: view==='payable'}" @click="view='payable'">
-            <div class="icon"><el-icon><Money/></el-icon></div>
-            <div>应付</div>
-          </div>
           <div class="tab-item" :class="{active: view==='profile'}" @click="view='profile'">
             <div class="icon"><el-icon><User/></el-icon></div>
             <div>我的</div>
@@ -1804,7 +1697,6 @@
           accItem: false,
           toast: '',
           stmtFilter: 'all',
-          payFilter: 'all',
           statements: [
             { no:'R202503001', supplier:'某某钢铁', logoColor:'#1890ff', period:'2025年3月',
               balance:75800, statusLabel:'🟡 待确认', color:'#faad14',
@@ -1830,26 +1722,6 @@
             { no:'R202503008', supplier:'某某无缝', logoColor:'#fa8c16', period:'2025年3月',
               balance:67800, statusLabel:'🟢 已确认', color:'#52c41a',
               recv:'6天前', deadline:null, confirmedAt:'03-13', cat:'done' }
-          ],
-          payables: [
-            { no:'PAY202503001', supplier:'某某钢构', logoColor:'#f5222d',
-              amount:125000, paid:0, dueDate:'2025-03-15', overdue:15, daysLeft:0,
-              tagLabel:'已逾期', tagClass:'overdue', cat:'overdue' },
-            { no:'PAY202503002', supplier:'某某钢铁', logoColor:'#1890ff',
-              amount:75800, paid:0, dueDate:'2025-04-05', overdue:0, daysLeft:5,
-              tagLabel:'即将到期', tagClass:'due-soon', cat:'due-soon' },
-            { no:'PAY202503003', supplier:'某某建材', logoColor:'#722ed1',
-              amount:45600, paid:0, dueDate:'2025-04-08', overdue:0, daysLeft:7,
-              tagLabel:'即将到期', tagClass:'due-soon', cat:'due-soon' },
-            { no:'PAY202503004', supplier:'某某物流', logoColor:'#13c2c2',
-              amount:25000, paid:12700, dueDate:'2025-04-15', overdue:0, daysLeft:14,
-              tagLabel:'部分付款', tagClass:'partial', cat:'partial' },
-            { no:'PAY202503005', supplier:'某某无缝', logoColor:'#fa8c16',
-              amount:67800, paid:0, dueDate:'2025-04-25', overdue:0, daysLeft:24,
-              tagLabel:'待付款', tagClass:'normal', cat:'normal' },
-            { no:'PAY202503006', supplier:'某某加工', logoColor:'#8c8c8c',
-              amount:29700, paid:0, dueDate:'2025-05-01', overdue:0, daysLeft:30,
-              tagLabel:'待付款', tagClass:'normal', cat:'normal' }
           ]
         };
       },
@@ -1858,11 +1730,6 @@
           return this.stmtFilter === 'all'
             ? this.statements
             : this.statements.filter(s => s.cat === this.stmtFilter);
-        },
-        filteredPayables() {
-          return this.payFilter === 'all'
-            ? this.payables
-            : this.payables.filter(p => p.cat === this.payFilter);
         }
       },
       methods: {
