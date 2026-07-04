@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>客户类型管理 - 对账通v2原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; background: #f0f2f5; color: #303133; }
+    #app { height: 100%; }
+    .layout { display: flex; height: 100vh; overflow: hidden; }
+    .sidebar { width: 220px; background: #001529; color: #fff; flex-shrink: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    .sidebar .logo { height: 60px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; letter-spacing: 1px; color: #fff; border-bottom: 1px solid #0a2540; background: linear-gradient(135deg, #002140, #001529); }
+    .sidebar .logo .v-badge { font-size: 11px; background: #409eff; color: #fff; border-radius: 3px; padding: 1px 6px; margin-left: 6px; font-weight: 500; }
+    .sidebar .menu-wrap { flex: 1; overflow-y: auto; overflow-x: hidden; }
+    .sidebar .el-menu { border-right: none; background: transparent; }
+    .sidebar .el-menu--dark { --el-menu-bg-color: transparent; --el-menu-text-color: #c9d1d9; --el-menu-hover-bg-color: #0a2540; --el-menu-active-color: #fff; }
+    .sidebar .el-sub-menu__title:hover, .sidebar .el-menu-item:hover { background-color: #0a2540 !important; }
+    .sidebar .el-menu-item.is-active { background: linear-gradient(90deg, #409eff, #1976d2) !important; color: #fff !important; }
+    .sidebar .el-menu-item.is-active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: #fff; }
+    .sidebar-footer { padding: 12px 16px; border-top: 1px solid #0a2540; font-size: 12px; color: #7a8ca0; text-align: center; }
+
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .header { height: 60px; background: #fff; border-bottom: 1px solid #ebeef5; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04); }
+    .header .breadcrumb-wrap { display: flex; align-items: center; gap: 16px; }
+    .header .enterprise { display: flex; align-items: center; gap: 8px; padding: 4px 12px; background: linear-gradient(135deg, #ecf5ff, #e6f7ff); border-radius: 16px; font-size: 13px; color: #1976d2; font-weight: 500; }
+    .header .actions { display: flex; align-items: center; gap: 20px; }
+    .header .icon-btn { position: relative; cursor: pointer; color: #606266; font-size: 18px; }
+    .header .icon-btn:hover { color: #409eff; }
+    .header .user { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .header .user .name { font-size: 14px; color: #303133; }
+
+    .content { flex: 1; overflow-y: auto; padding: 20px; }
+    .page-title-bar { background:#fff; padding: 16px 20px; border-radius: 6px; margin-bottom:16px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04); display:flex; align-items:center; justify-content:space-between; }
+    .page-title { font-size:20px; font-weight:600; color:#303133; display:flex; align-items:center; gap:10px; margin:0; }
+    .page-title .tag { font-size:12px; background:#409eff; color:#fff; padding:2px 8px; border-radius:3px; font-weight:400; }
+
+    .stat-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:16px; }
+    .stat-card { background:#fff; border-radius:8px; padding: 16px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04); position:relative; overflow:hidden; }
+    .stat-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; }
+    .stat-card.c1::before { background:#f56c6c; }
+    .stat-card.c2::before { background:#409eff; }
+    .stat-card.c3::before { background:#e6a23c; }
+    .stat-card.c4::before { background:#67c23a; }
+    .stat-card.c5::before { background:#9c27b0; }
+    .stat-card .title { font-size:13px; color:#909399; margin-bottom:6px; }
+    .stat-card .value { font-size:22px; font-weight:700; color:#303133; }
+    .stat-card .sub { font-size:12px; color:#c0c4cc; margin-top:2px; }
+
+    .table-card { background:#fff; border-radius:6px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04); overflow:hidden; }
+    .code-tag { display:inline-block; padding:2px 10px; background:#f0f9ff; color:#1976d2; border:1px solid #b3d8ff; border-radius:3px; font-family: monospace; font-weight:600; font-size:13px; }
+    .drag-handle { color:#c0c4cc; cursor: move; }
+
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-thumb { background: #c1c4cc; border-radius: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    .sidebar ::-webkit-scrollbar-thumb { background: #1f3a5f; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="logo">对账通 <span class="v-badge">v2</span></div>
+      <div class="menu-wrap">
+        <el-menu :default-active="activeMenu" :default-openeds="['customer','recon','collection','report','system']" background-color="transparent" text-color="#c9d1d9" active-text-color="#ffffff" mode="vertical">
+          <el-menu-item index="dashboard" @click="go('dashboard.html')">
+            <el-icon><Odometer /></el-icon>
+            <template #title>工作台</template>
+          </el-menu-item>
+          <el-sub-menu index="customer">
+            <template #title>
+              <el-icon><UserFilled /></el-icon>
+              <span>客户中心</span>
+            </template>
+            <el-menu-item index="customer-ledger" @click="go('customer-ledger.html')">客户往来账</el-menu-item>
+            <el-menu-item index="customer-types" @click="go('customer-types.html')">客户类型</el-menu-item>
+            <el-menu-item index="customer-tags" @click="go('customer-tags.html')">客户标签</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="recon">
+            <template #title>
+              <el-icon><Document /></el-icon>
+              <span>对账管理</span>
+            </template>
+            <el-menu-item index="statement-list" @click="go('statement-list.html')">对账单列表</el-menu-item>
+            <el-menu-item index="statement-create" @click="go('statement-create.html')">发起对账</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="collection">
+            <template #title>
+              <el-icon><Warning /></el-icon>
+              <span>催收中心</span>
+            </template>
+            <el-menu-item index="collection-orders" @click="go('collection-orders.html')">催收工单</el-menu-item>
+            <el-menu-item index="collection-profiles" @click="go('collection-profiles.html')">催收策略</el-menu-item>
+            <el-menu-item index="call-tasks" @click="go('call-tasks.html')">外呼任务</el-menu-item>
+            <el-menu-item index="call-records" @click="go('call-records.html')">外呼记录</el-menu-item>
+          </el-sub-menu>
+          <el-menu-item index="messages" @click="go('messages.html')">
+            <el-icon><ChatDotRound /></el-icon>
+            <template #title>
+              <span style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+                消息中心
+                <el-badge value="12" class="msg-badge" style="margin-right:8px;" />
+              </span>
+            </template>
+          </el-menu-item>
+          <el-sub-menu index="report">
+            <template #title>
+              <el-icon><DataAnalysis /></el-icon>
+              <span>报表分析</span>
+            </template>
+            <el-menu-item index="receivable-report" @click="go('receivable-report.html')">应收报表</el-menu-item>
+            <el-menu-item index="collection-report" @click="go('collection-report.html')">催收报表</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="system">
+            <template #title>
+              <el-icon><Setting /></el-icon>
+              <span>系统设置</span>
+            </template>
+            <el-menu-item index="subjects-filter" @click="go('subjects-filter.html')">科目过滤</el-menu-item>
+            <el-menu-item index="call-scripts" @click="go('call-scripts.html')">AI话术管理</el-menu-item>
+            <el-menu-item index="aliyun-config" @click="go('aliyun-config.html')">阿里云配置</el-menu-item>
+            <el-menu-item index="holiday-calendar" @click="go('holiday-calendar.html')">节假日日历</el-menu-item>
+          </el-sub-menu>
+        </el-menu>
+      </div>
+      <div class="sidebar-footer">© 2026 AutoRecon v2.1</div>
+    </aside>
+
+    <div class="main">
+      <header class="header">
+        <div class="breadcrumb-wrap">
+          <el-breadcrumb separator="/">
+            <el-breadcrumb-item>首页</el-breadcrumb-item>
+            <el-breadcrumb-item>客户中心</el-breadcrumb-item>
+            <el-breadcrumb-item>客户类型</el-breadcrumb-item>
+          </el-breadcrumb>
+        </div>
+        <div class="actions">
+          <div class="enterprise">
+            <el-icon><OfficeBuilding /></el-icon>
+            <span>某某钢铁有限公司</span>
+          </div>
+          <div class="icon-btn">
+            <el-badge :value="12" :max="99">
+              <el-icon style="font-size:20px;"><Bell /></el-icon>
+            </el-badge>
+          </div>
+          <el-dropdown>
+            <div class="user">
+              <el-avatar :size="32" style="background:#409eff;">王</el-avatar>
+              <span class="name">王管理员</span>
+              <el-icon><ArrowDown /></el-icon>
+            </div>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item>个人设置</el-dropdown-item>
+                <el-dropdown-item>修改密码</el-dropdown-item>
+                <el-dropdown-item divided>退出登录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+      </header>
+
+      <main class="content">
+        <div class="page-title-bar">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <h1 class="page-title">客户类型 <span class="tag">共 {{ tableData.length }} 种</span></h1>
+            <span style="color:#909399;font-size:13px;">· 用于客户分类和策略匹配</span>
+          </div>
+          <div>
+            <el-button :icon="Refresh">刷新</el-button>
+            <el-button type="primary" :icon="Plus" @click="openAdd">新增类型</el-button>
+          </div>
+        </div>
+
+        <div class="stat-grid">
+          <div v-for="(row, i) in tableData" :key="i" :class="'stat-card c' + ((i%5)+1)">
+            <div class="title">{{ row.name }}</div>
+            <div class="value">{{ row.count }}<span style="font-size:13px; color:#909399; font-weight:normal;"> 客户</span></div>
+            <div class="sub">默认策略: {{ row.policy }}</div>
+          </div>
+        </div>
+
+        <div class="table-card" style="padding:0;">
+          <el-table :data="tableData" style="width: 100%;" :header-cell-style="{background:'#fafafa',color:'#606266',fontWeight:600}">
+            <el-table-column label="排序" width="60" align="center">
+              <template #default="{row}">
+                <el-icon class="drag-handle"><Rank /></el-icon>
+                <span style="margin-left:4px;">{{ row.sort }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="类型编码" width="120">
+              <template #default="{row}"><span class="code-tag">{{ row.code }}</span></template>
+            </el-table-column>
+            <el-table-column label="类型名称" width="150">
+              <template #default="{row}">
+                <span style="font-weight:500; color:#303133;">{{ row.name }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="默认催收策略" min-width="200">
+              <template #default="{row}">
+                <el-tag type="info" effect="plain" size="small">
+                  <el-icon style="vertical-align:-2px;"><Aim /></el-icon>
+                  {{ row.policy }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="客户数量" width="120" align="center">
+              <template #default="{row}">
+                <el-tag :type="row.count > 30 ? 'danger' : (row.count > 15 ? 'warning' : 'success')" size="small">{{ row.count }} 个客户</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="典型标签" min-width="180">
+              <template #default="{row}">
+                <el-tag v-for="t in row.tagHints" :key="t" size="small" style="margin-right:4px;" effect="light">{{ t }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="updateAt" label="更新时间" width="150" />
+            <el-table-column label="操作" width="180" fixed="right">
+              <template #default="{row}">
+                <el-button link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
+                <el-button link type="primary" size="small">查看客户</el-button>
+                <el-popconfirm :title="`确定删除 ${row.name} 吗？`" width="220">
+                  <template #reference>
+                    <el-button link type="danger" size="small">删除</el-button>
+                  </template>
+                </el-popconfirm>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <el-dialog v-model="dialogVisible" :title="dialogMode==='add' ? '新增客户类型' : '编辑客户类型'" width="520px">
+    <el-form :model="form" label-width="120px">
+      <el-form-item label="类型编码" required>
+        <el-input v-model="form.code" placeholder="如 DALX, JXS" :disabled="dialogMode==='edit'" />
+      </el-form-item>
+      <el-form-item label="类型名称" required>
+        <el-input v-model="form.name" placeholder="如 大型终端, 经销商" />
+      </el-form-item>
+      <el-form-item label="默认催收策略" required>
+        <el-select v-model="form.policy" style="width:100%;">
+          <el-option label="战略大客户策略" value="战略大客户策略" />
+          <el-option label="经销商标准策略" value="经销商标准策略" />
+          <el-option label="同行温和策略" value="同行温和策略" />
+          <el-option label="激进策略" value="激进策略" />
+          <el-option label="无催收 (仅通知)" value="无催收" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="排序">
+        <el-input-number v-model="form.sort" :min="1" :max="99" style="width:100%;" />
+      </el-form-item>
+      <el-form-item label="典型标签建议">
+        <el-select v-model="form.tagHints" multiple placeholder="选择典型标签" style="width:100%;">
+          <el-option label="VIP" value="VIP" />
+          <el-option label="战略" value="战略" />
+          <el-option label="月结" value="月结" />
+          <el-option label="季结" value="季结" />
+          <el-option label="高风险" value="高风险" />
+          <el-option label="老客户" value="老客户" />
+          <el-option label="新客户" value="新客户" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="描述">
+        <el-input v-model="form.desc" type="textarea" :rows="2" placeholder="类型说明，便于团队理解" />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="dialogVisible=false">取消</el-button>
+      <el-button type="primary" @click="dialogVisible=false">保存</el-button>
+    </template>
+  </el-dialog>
+</div>
+
+<script>
+const { createApp, ref, reactive } = Vue;
+const app = createApp({
+  setup() {
+    const activeMenu = ref('customer-types');
+    const dialogVisible = ref(false);
+    const dialogMode = ref('add');
+    const form = reactive({ code:'', name:'', policy:'', sort:1, tagHints:[], desc:'' });
+
+    const tableData = ref([
+      { code: 'DALX', name: '大型终端', policy: '战略大客户策略', count: 12, sort: 1, tagHints: ['VIP','战略','月结'], updateAt: '2026-03-01 10:20' },
+      { code: 'JXS',  name: '经销商',   policy: '经销商标准策略', count: 45, sort: 2, tagHints: ['月结','老客户'],    updateAt: '2026-03-05 14:30' },
+      { code: 'TX',   name: '同行',     policy: '同行温和策略',   count: 8,  sort: 3, tagHints: ['免催','现金客户'],  updateAt: '2026-02-20 09:15' },
+      { code: 'JGC',  name: '加工厂',   policy: '经销商标准策略', count: 23, sort: 4, tagHints: ['季结','高风险'],   updateAt: '2026-03-10 16:45' },
+      { code: 'MYS',  name: '贸易商',   policy: '经销商标准策略', count: 15, sort: 5, tagHints: ['月结','新客户'],   updateAt: '2026-03-12 11:00' }
+    ]);
+
+    const openAdd = () => {
+      dialogMode.value = 'add';
+      Object.assign(form, { code:'', name:'', policy:'', sort: tableData.value.length + 1, tagHints:[], desc:'' });
+      dialogVisible.value = true;
+    };
+    const openEdit = (row) => {
+      dialogMode.value = 'edit';
+      Object.assign(form, { code: row.code, name: row.name, policy: row.policy, sort: row.sort, tagHints: [...row.tagHints], desc:'' });
+      dialogVisible.value = true;
+    };
+    const go = (url) => { window.location.href = url; };
+
+    return { activeMenu, dialogVisible, dialogMode, form, tableData, openAdd, openEdit, go,
+      Plus: ElementPlusIconsVue.Plus, Refresh: ElementPlusIconsVue.Refresh, Rank: ElementPlusIconsVue.Rank, Aim: ElementPlusIconsVue.Aim };
+  }
+});
+app.use(ElementPlus);
+for (const key in ElementPlusIconsVue) { app.component(key, ElementPlusIconsVue[key]); }
+app.mount('#app');
+</script>
+</body>
+</html>
