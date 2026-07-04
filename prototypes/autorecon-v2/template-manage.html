@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>对账单模板管理 - 对账通v2原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; background: #f0f2f5; }
+    #app { height: 100%; }
+    .layout { display: flex; height: 100vh; overflow: hidden; }
+
+    /* Sidebar */
+    .sidebar { width: 220px; background: #001529; color: #fff; flex-shrink: 0; display: flex; flex-direction: column; }
+    .sidebar-logo { height: 64px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600; color: #fff; border-bottom: 1px solid #1f3448; letter-spacing: 2px; background: linear-gradient(90deg,#001529 0%, #002140 100%); }
+    .sidebar-logo .logo-badge { display: inline-block; width: 24px; height: 24px; border-radius: 4px; background: linear-gradient(135deg,#40a9ff,#1890ff); margin-right: 8px; text-align: center; line-height: 24px; font-size: 13px; font-weight: 700; }
+    .el-menu.sidebar-menu { border-right: none; background: transparent; flex: 1; overflow-y: auto; }
+    .sidebar-menu:not(.el-menu--collapse) { --el-menu-bg-color: transparent; --el-menu-text-color: rgba(255,255,255,0.75); --el-menu-hover-bg-color: #000c17; --el-menu-active-color: #fff; --el-menu-hover-text-color:#fff;}
+    .sidebar-menu .el-sub-menu__title { color: rgba(255,255,255,0.75) !important; }
+    .sidebar-menu .el-sub-menu__title:hover { background: #000c17 !important; color:#fff !important; }
+    .sidebar-menu .el-menu-item { color: rgba(255,255,255,0.75); }
+    .sidebar-menu .el-menu-item:hover { background: #000c17 !important; color:#fff !important; }
+    .sidebar-menu .el-menu-item.is-active { background: #1890ff !important; color: #fff !important; }
+    .sidebar-menu .el-sub-menu .el-menu { background: #000c17 !important; }
+    .sidebar-menu .el-sub-menu .el-menu-item { background: #000c17 !important; }
+    .sidebar-menu .el-sub-menu .el-menu-item.is-active { background: #1890ff !important; }
+
+    /* Main */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .header { height: 64px; background: #fff; border-bottom: 1px solid #eaeef3; display: flex; align-items: center; padding: 0 24px; justify-content: space-between; box-shadow: 0 1px 4px rgba(0,21,41,.06); }
+    .header .left { display: flex; align-items: center; gap: 16px; }
+    .header .right { display: flex; align-items: center; gap: 20px; }
+    .company-badge { display: flex; align-items: center; gap:8px; color:#333; font-weight:500; padding:6px 12px; background:#f5f7fa; border-radius:6px;}
+    .content { flex: 1; overflow-y: auto; padding: 20px 24px; }
+    .page-title { font-size: 20px; font-weight: 600; color: #262626; margin: 0 0 16px 0; display:flex; align-items:center; gap:8px;}
+
+    .card { background:#fff; border-radius:8px; box-shadow: 0 1px 3px rgba(0,0,0,.04); padding:20px; margin-bottom:16px; }
+    .filter-bar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+    .filter-bar .spacer { flex:1; }
+
+    /* Template grid */
+    .tpl-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:16px; }
+    .tpl-card { background:#fff; border-radius:10px; border:1px solid #e8e8e8; overflow:hidden; transition:all .2s; display:flex; flex-direction:column; position:relative;}
+    .tpl-card:hover { border-color:#1890ff; box-shadow: 0 4px 16px rgba(24,144,255,0.12); transform: translateY(-2px);}
+    .tpl-card.default-tpl { border-color:#faad14; box-shadow: 0 2px 8px rgba(250,173,20,0.15);}
+    .tpl-card.disabled-tpl { opacity: .72; }
+    .tpl-card .badge-default { position:absolute; top:12px; left:12px; z-index:2; background:linear-gradient(135deg,#faad14,#f5a623); color:#fff; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:600; display:flex; align-items:center; gap:4px;}
+    .tpl-card .badge-status { position:absolute; top:12px; right:12px; z-index:2; }
+
+    /* Mini PDF preview thumb */
+    .tpl-thumb { height: 200px; background:#f5f7fa; border-bottom:1px solid #e8e8e8; padding:14px; position:relative; overflow:hidden;}
+    .thumb-doc { background:#fff; height:100%; border-radius:3px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding:10px 12px; display:flex; flex-direction:column; gap:4px; overflow:hidden; transform: scale(0.95);}
+    .thumb-doc .th-header { display:flex; justify-content:space-between; align-items:center; padding-bottom:4px; border-bottom:1px solid #e8e8e8;}
+    .thumb-doc .th-logo { width:22px; height:22px; background:linear-gradient(135deg,#40a9ff,#1890ff); border-radius:3px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:9px; font-weight:700;}
+    .thumb-doc .th-company { font-size:6px; color:#595959; font-weight:600;}
+    .thumb-doc .th-title { text-align:center; font-size:9px; color:#262626; font-weight:600; letter-spacing:2px; margin:2px 0;}
+    .thumb-doc .th-sub { text-align:center; font-size:5px; color:#8c8c8c;}
+    .thumb-doc .th-parties { display:flex; justify-content:space-between; font-size:5px; color:#595959; padding:2px 0; border-top:1px dashed #f0f0f0; border-bottom:1px dashed #f0f0f0;}
+    .thumb-doc .th-table { flex:1; display:flex; flex-direction:column; gap:1px; margin-top:2px;}
+    .thumb-doc .th-tr { display:grid; grid-template-columns: 20px 22px 1fr 22px 22px; gap:2px; padding:1px 2px; font-size:4px; color:#595959; align-items:center;}
+    .thumb-doc .th-tr.head { background:#fafafa; color:#8c8c8c; font-weight:600; border-bottom:0.5px solid #e8e8e8;}
+    .thumb-doc .th-tr .bar { height:4px; background:#e6f7ff; border-radius:1px;}
+    .thumb-doc .th-tr .bar.dark { background:#bae7ff;}
+    .thumb-doc .th-tr .bar.gray { background:#f0f0f0;}
+    .thumb-doc .th-summary { display:flex; justify-content:space-between; padding:3px 4px; background:#fafafa; margin-top:2px; border-radius:2px;}
+    .thumb-doc .th-summary .lbl { font-size:5px; color:#8c8c8c;}
+    .thumb-doc .th-summary .val { font-size:6px; color:#1890ff; font-weight:700;}
+    .thumb-doc .th-sign { display:flex; justify-content:space-between; padding-top:3px; border-top:1px dashed #f0f0f0;}
+    .thumb-doc .th-sign .seal { width:14px; height:14px; border:1px dashed #f5222d; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:4px; color:#f5222d;}
+
+    /* Variant thumbnails */
+    .thumb-doc.detailed { padding:6px 8px;}
+    .thumb-doc.detailed .th-tr { grid-template-columns: 14px 18px 1fr 14px 14px 18px 18px; font-size:3.5px;}
+    .thumb-doc.simple .th-title { letter-spacing:1px; margin:6px 0;}
+    .thumb-doc.simple .th-tr { grid-template-columns: 24px 1fr 30px; font-size:5px;}
+    .thumb-doc.terminal { border:1.5px solid #faad14; padding: 8px 10px;}
+    .thumb-doc.terminal .th-title { color:#faad14;}
+    .thumb-doc.foreign .th-title:after { content: " / STATEMENT"; font-size:5px; color:#8c8c8c; letter-spacing:1px; font-weight:400;}
+
+    .tpl-body { padding: 14px 16px; flex:1; display:flex; flex-direction:column; gap:10px;}
+    .tpl-name { font-size:15px; font-weight:600; color:#262626; display:flex; align-items:center; gap:6px;}
+    .tpl-type-row { display:flex; gap:6px; flex-wrap:wrap; }
+    .tpl-meta { font-size:12px; color:#595959; line-height:1.7;}
+    .tpl-meta .lbl { color:#8c8c8c; display:inline-block; width:44px;}
+    .tpl-usage { display:flex; justify-content:space-between; align-items:center; padding-top:8px; border-top:1px dashed #eaeef3;}
+    .tpl-usage .usage-count { font-size:16px; color:#1890ff; font-weight:700; font-family:"SF Mono",Consolas,monospace;}
+    .tpl-usage .usage-count .unit { font-size:11px; color:#8c8c8c; font-weight:400; margin-left:2px;}
+
+    .tpl-actions { padding: 8px 12px; background:#fafafa; border-top:1px solid #eaeef3; display:flex; flex-wrap:wrap; gap:2px; justify-content:space-around;}
+    .tpl-actions .el-button { padding: 4px 8px; font-size:12px; }
+
+    /* Usage chart */
+    .chart-container { padding: 20px 16px 12px 16px;}
+    .chart-legend { display:flex; gap:16px; margin-bottom:16px; flex-wrap:wrap;}
+    .chart-legend .item { display:flex; align-items:center; gap:6px; font-size:12px; color:#595959;}
+    .chart-legend .swatch { width:12px; height:12px; border-radius:2px;}
+    .chart-svg { width:100%; height:280px; }
+    .chart-title { font-size:15px; font-weight:600; color:#262626; margin-bottom:6px;}
+    .chart-sub { font-size:12px; color:#8c8c8c; margin-bottom:12px;}
+
+    .status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle;}
+    .info-alert :deep(.el-alert__title) { font-size:13px;}
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="layout">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-logo"><span class="logo-badge">对</span>对账通 v2</div>
+        <el-menu class="sidebar-menu" default-active="template-manage" :default-openeds="['recon']">
+          <el-menu-item index="dashboard" @click="nav('dashboard.html')">
+            <el-icon><component :is="Icons.Odometer" /></el-icon><span>工作台</span>
+          </el-menu-item>
+          <el-sub-menu index="customer">
+            <template #title>
+              <el-icon><component :is="Icons.User" /></el-icon><span>客户中心</span>
+            </template>
+            <el-menu-item index="customer-ledger" @click="nav('customer-ledger.html')">客户往来账</el-menu-item>
+            <el-menu-item index="customer-types" @click="nav('customer-types.html')">客户类型</el-menu-item>
+            <el-menu-item index="customer-tags" @click="nav('customer-tags.html')">客户标签</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="recon">
+            <template #title>
+              <el-icon><component :is="Icons.Document" /></el-icon><span>对账管理</span>
+            </template>
+            <el-menu-item index="statement-list" @click="nav('statement-list.html')">对账单列表</el-menu-item>
+            <el-menu-item index="statement-create" @click="nav('statement-create.html')">发起对账</el-menu-item>
+            <el-menu-item index="template-manage" @click="nav('template-manage.html')">对账单模板</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="collect">
+            <template #title>
+              <el-icon><component :is="Icons.Bell" /></el-icon><span>催收中心</span>
+            </template>
+            <el-menu-item index="collection-orders" @click="nav('collection-orders.html')">催收工单</el-menu-item>
+            <el-menu-item index="collection-profiles" @click="nav('collection-profiles.html')">催收策略</el-menu-item>
+            <el-menu-item index="call-tasks" @click="nav('call-tasks.html')">外呼任务</el-menu-item>
+            <el-menu-item index="call-records" @click="nav('call-records.html')">外呼记录</el-menu-item>
+          </el-sub-menu>
+          <el-menu-item index="messages" @click="nav('messages.html')"><el-icon><component :is="Icons.ChatDotRound" /></el-icon><span>消息中心</span></el-menu-item>
+          <el-menu-item index="report"><el-icon><component :is="Icons.DataAnalysis" /></el-icon><span>报表分析</span></el-menu-item>
+          <el-menu-item index="system"><el-icon><component :is="Icons.Setting" /></el-icon><span>系统设置</span></el-menu-item>
+        </el-menu>
+      </aside>
+
+      <!-- Main -->
+      <div class="main">
+        <div class="header">
+          <div class="left">
+            <el-breadcrumb separator="/">
+              <el-breadcrumb-item>首页</el-breadcrumb-item>
+              <el-breadcrumb-item>对账管理</el-breadcrumb-item>
+              <el-breadcrumb-item>对账单模板</el-breadcrumb-item>
+            </el-breadcrumb>
+          </div>
+          <div class="right">
+            <div class="company-badge"><el-icon><component :is="Icons.OfficeBuilding" /></el-icon><span>某某钢铁有限公司</span></div>
+            <el-badge :value="12" :max="99"><el-icon size="20" color="#595959"><component :is="Icons.Bell" /></el-icon></el-badge>
+            <el-dropdown>
+              <span style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <el-avatar :size="32" style="background:#1890ff;">张</el-avatar>
+                <span>张财务</span>
+                <el-icon><component :is="Icons.ArrowDown" /></el-icon>
+              </span>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item>个人设置</el-dropdown-item>
+                  <el-dropdown-item>修改密码</el-dropdown-item>
+                  <el-dropdown-item divided>退出登录</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+        </div>
+
+        <div class="content">
+          <h2 class="page-title">
+            <el-icon><component :is="Icons.Files" /></el-icon>
+            对账单模板管理
+          </h2>
+
+          <el-alert
+            class="info-alert"
+            type="info"
+            :closable="false"
+            show-icon
+            style="margin-bottom:16px;"
+            title="对账单模板决定了PDF的样式和内容布局。可创建多个模板对应不同客户场景。默认模板为「标准银行对账单模板」，客户未指定时自动使用。"
+          />
+
+          <!-- Filter + action bar -->
+          <div class="card" style="padding:16px 20px;">
+            <div class="filter-bar">
+              <span style="color:#595959; font-size:13px;">筛选：</span>
+              <el-select v-model="filter.status" placeholder="状态" clearable style="width:130px" size="default">
+                <el-option label="全部状态" value="" />
+                <el-option label="启用" value="enabled" />
+                <el-option label="禁用" value="disabled" />
+              </el-select>
+              <el-select v-model="filter.type" placeholder="模板类型" clearable style="width:160px" size="default">
+                <el-option label="全部类型" value="" />
+                <el-option label="银行式" value="bank" />
+                <el-option label="明细式" value="detailed" />
+                <el-option label="简化式" value="simple" />
+              </el-select>
+              <el-input v-model="filter.keyword" placeholder="搜索模板名称" clearable style="width:200px" size="default">
+                <template #prefix><el-icon><component :is="Icons.Search"/></el-icon></template>
+              </el-input>
+              <div class="spacer"></div>
+              <el-button :icon="Icons.Refresh" @click="refresh">刷新</el-button>
+              <el-button type="primary" :icon="Icons.Plus" @click="createTpl">新建模板</el-button>
+            </div>
+          </div>
+
+          <!-- Template Grid -->
+          <div class="tpl-grid">
+            <div v-for="tpl in filteredTemplates" :key="tpl.id" class="tpl-card" :class="{ 'default-tpl': tpl.isDefault, 'disabled-tpl': !tpl.enabled }">
+              <div v-if="tpl.isDefault" class="badge-default">
+                <el-icon :size="12"><component :is="Icons.Star"/></el-icon>默认
+              </div>
+              <div class="badge-status">
+                <el-tag v-if="tpl.enabled" type="success" size="small" effect="light">启用</el-tag>
+                <el-tag v-else type="info" size="small" effect="light">禁用</el-tag>
+              </div>
+
+              <!-- Mini PDF thumbnail -->
+              <div class="tpl-thumb">
+                <div class="thumb-doc" :class="tpl.thumbVariant">
+                  <div class="th-header">
+                    <div style="display:flex; align-items:center; gap:4px;">
+                      <div class="th-logo">钢</div>
+                      <div class="th-company">某某钢铁有限公司</div>
+                    </div>
+                    <div style="font-size:5px; color:#8c8c8c;">No.R202503{{ tpl.id }}</div>
+                  </div>
+                  <div class="th-title">对 账 单</div>
+                  <div class="th-sub">对账周期: 2025-03-01 ~ 2025-03-31</div>
+                  <div class="th-parties">
+                    <span>卖方: 某某钢铁</span>
+                    <span>买方: 某某贸易</span>
+                  </div>
+                  <div class="th-table">
+                    <div class="th-tr head" v-if="tpl.thumbVariant !== 'simple'">
+                      <span>日期</span><span>单号</span><span>摘要</span><span>应收</span><span>余额</span>
+                    </div>
+                    <div class="th-tr head" v-else>
+                      <span>日期</span><span>摘要</span><span>余额</span>
+                    </div>
+                    <template v-if="tpl.thumbVariant !== 'simple'">
+                      <div class="th-tr"><span>03-01</span><span>S001</span><div class="bar dark"></div><div class="bar"></div><div class="bar gray"></div></div>
+                      <div class="th-tr"><span>03-10</span><span>R001</span><div class="bar"></div><div class="bar dark"></div><div class="bar gray"></div></div>
+                      <div class="th-tr"><span>03-20</span><span>S002</span><div class="bar dark"></div><div class="bar"></div><div class="bar gray"></div></div>
+                      <div class="th-tr" v-if="tpl.thumbVariant==='detailed'"><span>03-25</span><span>S003</span><div class="bar dark"></div><div class="bar"></div><div class="bar gray"></div></div>
+                    </template>
+                    <template v-else>
+                      <div class="th-tr"><span>03-01</span><div class="bar"></div><div class="bar gray"></div></div>
+                      <div class="th-tr"><span>03-10</span><div class="bar"></div><div class="bar gray"></div></div>
+                      <div class="th-tr"><span>03-20</span><div class="bar"></div><div class="bar gray"></div></div>
+                    </template>
+                  </div>
+                  <div class="th-summary">
+                    <span class="lbl">期末余额</span>
+                    <span class="val">¥37,500</span>
+                  </div>
+                  <div class="th-sign">
+                    <div class="seal">章</div>
+                    <div class="seal">章</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="tpl-body">
+                <div class="tpl-name">
+                  <el-icon color="#1890ff" :size="16"><component :is="Icons.Document"/></el-icon>
+                  {{ tpl.name }}
+                </div>
+                <div class="tpl-type-row">
+                  <el-tag size="small" :type="typeTagType(tpl.typeCode)" effect="plain">{{ tpl.typeLabel }}</el-tag>
+                  <el-tag v-if="tpl.customized" size="small" type="warning" effect="plain">定制</el-tag>
+                  <el-tag v-if="tpl.bilingual" size="small" type="primary" effect="plain">双语</el-tag>
+                </div>
+                <div class="tpl-meta">
+                  <div><span class="lbl">布局：</span>{{ tpl.layout }}</div>
+                  <div><span class="lbl">适用：</span>{{ tpl.applicable }}</div>
+                </div>
+                <div class="tpl-usage">
+                  <span style="font-size:12px; color:#8c8c8c;">使用次数</span>
+                  <span class="usage-count">{{ tpl.usage }}<span class="unit">次</span></span>
+                </div>
+              </div>
+
+              <div class="tpl-actions">
+                <el-button link type="primary" size="small" :icon="Icons.View" @click="previewTpl(tpl)">预览</el-button>
+                <el-button link type="primary" size="small" :icon="Icons.Edit" @click="editTpl(tpl)">编辑</el-button>
+                <el-button v-if="!tpl.isDefault && tpl.enabled" link type="warning" size="small" :icon="Icons.Star" @click="setDefault(tpl)">设为默认</el-button>
+                <el-button link type="primary" size="small" :icon="Icons.CopyDocument" @click="copyTpl(tpl)">复制</el-button>
+                <el-button v-if="tpl.enabled" link type="danger" size="small" :icon="Icons.CircleClose" @click="toggle(tpl)">禁用</el-button>
+                <el-button v-else link type="success" size="small" :icon="Icons.CircleCheck" @click="toggle(tpl)">启用</el-button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Usage stats chart -->
+          <div class="card" style="margin-top:20px; padding:20px 24px;">
+            <div class="chart-title">
+              <el-icon color="#1890ff"><component :is="Icons.DataLine"/></el-icon>
+              模板使用统计
+            </div>
+            <div class="chart-sub">过去 6 个月各模板的调用次数分布 (每次生成对账单调用一次)</div>
+
+            <div class="chart-legend">
+              <div class="item" v-for="(t, i) in chartLegend" :key="i">
+                <span class="swatch" :style="{background: t.color}"></span>
+                <span>{{ t.name }}</span>
+                <span style="color:#8c8c8c; margin-left:2px;">({{ t.total }})</span>
+              </div>
+            </div>
+
+            <svg class="chart-svg" viewBox="0 0 800 280" preserveAspectRatio="none">
+              <!-- Y grid lines -->
+              <g stroke="#eaeef3" stroke-width="1">
+                <line x1="60" y1="30"  x2="780" y2="30" />
+                <line x1="60" y1="80"  x2="780" y2="80" />
+                <line x1="60" y1="130" x2="780" y2="130" />
+                <line x1="60" y1="180" x2="780" y2="180" />
+                <line x1="60" y1="230" x2="780" y2="230" />
+              </g>
+              <!-- Y axis labels -->
+              <g fill="#8c8c8c" font-size="11" font-family="monospace">
+                <text x="52" y="34" text-anchor="end">40</text>
+                <text x="52" y="84" text-anchor="end">30</text>
+                <text x="52" y="134" text-anchor="end">20</text>
+                <text x="52" y="184" text-anchor="end">10</text>
+                <text x="52" y="234" text-anchor="end">0</text>
+              </g>
+              <!-- X axis -->
+              <line x1="60" y1="230" x2="780" y2="230" stroke="#8c8c8c" stroke-width="1.5" />
+
+              <!-- Bars: grouped -->
+              <g v-for="(m, mi) in months" :key="mi">
+                <g v-for="(bar, bi) in m.bars" :key="bi">
+                  <rect
+                    :x="60 + 30 + mi*115 + bi*17"
+                    :y="230 - bar.h"
+                    :width="14"
+                    :height="bar.h"
+                    :fill="bar.color"
+                    rx="2"
+                  />
+                  <text
+                    :x="60 + 30 + mi*115 + bi*17 + 7"
+                    :y="230 - bar.h - 4"
+                    text-anchor="middle"
+                    fill="#595959"
+                    font-size="9"
+                    font-family="monospace"
+                  >{{ bar.v }}</text>
+                </g>
+                <text
+                  :x="60 + 30 + mi*115 + 42"
+                  y="250"
+                  text-anchor="middle"
+                  fill="#595959"
+                  font-size="12"
+                >{{ m.label }}</text>
+              </g>
+            </svg>
+
+            <div style="display:flex; justify-content:space-around; gap:12px; margin-top:16px; padding-top:16px; border-top:1px dashed #eaeef3;">
+              <div style="text-align:center;">
+                <div style="color:#8c8c8c; font-size:12px;">6个月累计</div>
+                <div style="font-size:20px; font-weight:600; color:#262626;">217<span style="font-size:12px;color:#8c8c8c;">次</span></div>
+              </div>
+              <div style="text-align:center;">
+                <div style="color:#8c8c8c; font-size:12px;">最热门模板</div>
+                <div style="font-size:16px; font-weight:600; color:#1890ff;">标准银行对账单模板</div>
+              </div>
+              <div style="text-align:center;">
+                <div style="color:#8c8c8c; font-size:12px;">环比增长</div>
+                <div style="font-size:20px; font-weight:600; color:#52c41a;">+18.5%</div>
+              </div>
+              <div style="text-align:center;">
+                <div style="color:#8c8c8c; font-size:12px;">未使用模板</div>
+                <div style="font-size:20px; font-weight:600; color:#f5222d;">1<span style="font-size:12px;color:#8c8c8c;">个 (外贸)</span></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Preview Dialog -->
+    <el-dialog v-model="previewVisible" :title="'模板预览: ' + (currentTpl?.name || '')" width="900px" top="5vh">
+      <div style="background:#f0f2f5; padding:24px; border-radius:6px; max-height:70vh; overflow-y:auto;">
+        <div style="background:#fff; padding:48px; box-shadow:0 4px 16px rgba(0,0,0,0.08); font-family:'PingFang SC','Microsoft YaHei',sans-serif;">
+          <div style="display:flex; align-items:center; gap:12px; padding-bottom:16px; border-bottom:2px solid #1890ff;">
+            <div style="width:48px; height:48px; background:linear-gradient(135deg,#40a9ff,#1890ff); border-radius:6px; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:20px;">钢</div>
+            <div>
+              <div style="font-size:18px; font-weight:600; color:#262626;">某某钢铁有限公司</div>
+              <div style="font-size:12px; color:#8c8c8c;">Statement of Account</div>
+            </div>
+          </div>
+          <h2 style="text-align:center; letter-spacing:12px; margin:24px 0 8px 0;">对 账 单</h2>
+          <div style="text-align:center; color:#8c8c8c; margin-bottom:24px; font-size:13px;">对账周期：2025-03-01 至 2025-03-31</div>
+
+          <div style="display:flex; justify-content:space-between; padding:12px 0; border-top:1px solid #eaeef3; border-bottom:1px solid #eaeef3; font-size:13px;">
+            <div>
+              <div><b>卖方：</b>某某钢铁有限公司</div>
+              <div style="color:#8c8c8c; margin-top:4px;">地址：XXX市XXX区XXX路100号</div>
+              <div style="color:#8c8c8c;">电话：138xxxx8888</div>
+            </div>
+            <div style="text-align:right;">
+              <div><b>买方：</b>某某贸易有限公司</div>
+              <div style="color:#8c8c8c; margin-top:4px;">地址：XXX市XXX区XXX路200号</div>
+              <div style="color:#8c8c8c;">电话：138xxxx9999</div>
+            </div>
+          </div>
+
+          <div style="margin-top:16px; color:#262626; font-size:13px;"><b>期初余额：</b>¥20,500.00</div>
+
+          <table style="width:100%; border-collapse:collapse; margin-top:12px; font-size:12px;">
+            <thead>
+              <tr style="background:#fafafa;">
+                <th style="padding:8px; border:1px solid #e8e8e8;">日期</th>
+                <th style="padding:8px; border:1px solid #e8e8e8;">单号</th>
+                <th style="padding:8px; border:1px solid #e8e8e8;">单据类型</th>
+                <th style="padding:8px; border:1px solid #e8e8e8;">摘要</th>
+                <th style="padding:8px; border:1px solid #e8e8e8; text-align:right;">应收</th>
+                <th style="padding:8px; border:1px solid #e8e8e8; text-align:right;">实收</th>
+                <th style="padding:8px; border:1px solid #e8e8e8; text-align:right;">余额</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td style="padding:6px 8px;border:1px solid #e8e8e8;">03-01</td><td style="padding:6px 8px;border:1px solid #e8e8e8;">S001</td><td style="padding:6px 8px;border:1px solid #e8e8e8;">销售单</td><td style="padding:6px 8px;border:1px solid #e8e8e8;">螺纹钢Φ20</td><td style="padding:6px 8px;border:1px solid #e8e8e8;text-align:right;color:#52c41a;">+10,000.00</td><td style="padding:6px 8px;border:1px solid #e8e8e8;text-align:right;color:#bfbfbf;">-</td><td style="padding:6px 8px;border:1px solid #e8e8e8;text-align:right;font-weight:600;">30,500.00</td></tr>
+              <tr><td style="padding:6px 8px;border:1px solid #e8e8e8;">03-10</td><td style="padding:6px 8px;border:1px solid #e8e8e8;">R001</td><td style="padding:6px 8px;border:1px solid #e8e8e8;">收款单</td><td style="padding:6px 8px;border:1px solid #e8e8e8;">银行转账</td><td style="padding:6px 8px;border:1px solid #e8e8e8;text-align:right;color:#bfbfbf;">-</td><td style="padding:6px 8px;border:1px solid #e8e8e8;text-align:right;color:#f5222d;">-8,000.00</td><td style="padding:6px 8px;border:1px solid #e8e8e8;text-align:right;font-weight:600;">22,500.00</td></tr>
+              <tr><td style="padding:6px 8px;border:1px solid #e8e8e8;">03-20</td><td style="padding:6px 8px;border:1px solid #e8e8e8;">S002</td><td style="padding:6px 8px;border:1px solid #e8e8e8;">销售单</td><td style="padding:6px 8px;border:1px solid #e8e8e8;">盘螺Φ10</td><td style="padding:6px 8px;border:1px solid #e8e8e8;text-align:right;color:#52c41a;">+15,000.00</td><td style="padding:6px 8px;border:1px solid #e8e8e8;text-align:right;color:#bfbfbf;">-</td><td style="padding:6px 8px;border:1px solid #e8e8e8;text-align:right;font-weight:600;">37,500.00</td></tr>
+            </tbody>
+          </table>
+
+          <div style="margin-top:16px; padding:16px; background:#f6ffed; border-radius:4px; text-align:right; font-size:14px;">
+            <div>本期应收：<b style="color:#52c41a;">+¥25,000.00</b></div>
+            <div>本期实收：<b style="color:#f5222d;">-¥8,000.00</b></div>
+            <div style="font-size:16px; margin-top:8px; padding-top:8px; border-top:1px solid #b7eb8f;">
+              期末余额：<b style="color:#1890ff; font-size:20px;">¥37,500.00</b>
+            </div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="previewVisible = false">关闭</el-button>
+        <el-button type="primary" @click="editTpl(currentTpl); previewVisible=false">编辑此模板</el-button>
+      </template>
+    </el-dialog>
+  </div>
+
+  <script>
+    const { createApp, ref, reactive, computed } = Vue;
+    const Icons = ElementPlusIconsVue;
+
+    const app = createApp({
+      setup() {
+        const filter = reactive({ status:'', type:'', keyword:'' });
+        const previewVisible = ref(false);
+        const currentTpl = ref(null);
+
+        const templates = ref([
+          {
+            id: '001',
+            name: '标准银行对账单模板',
+            typeCode: 'bank',
+            typeLabel: '银行式',
+            layout: '头部信息 + 往来流水表 + 应收明细附件 + 签章区',
+            applicable: '大部分客户 (通用)',
+            usage: 128,
+            enabled: true,
+            isDefault: true,
+            customized: false,
+            bilingual: false,
+            thumbVariant: ''
+          },
+          {
+            id: '002',
+            name: '详细对账模板',
+            typeCode: 'detailed',
+            typeLabel: '明细式',
+            layout: '增加了产品分类小计、税额栏',
+            applicable: '大型终端客户',
+            usage: 45,
+            enabled: true,
+            isDefault: false,
+            customized: false,
+            bilingual: false,
+            thumbVariant: 'detailed'
+          },
+          {
+            id: '003',
+            name: '简化对账模板',
+            typeCode: 'simple',
+            typeLabel: '简化式',
+            layout: '仅流水表 + 期末余额',
+            applicable: '小额频繁交易客户',
+            usage: 32,
+            enabled: true,
+            isDefault: false,
+            customized: false,
+            bilingual: false,
+            thumbVariant: 'simple'
+          },
+          {
+            id: '004',
+            name: '大型终端专用模板',
+            typeCode: 'bank',
+            typeLabel: '银行式',
+            layout: '带专用抬头、多印章位、详细付款条款',
+            applicable: '战略客户 (定制)',
+            usage: 12,
+            enabled: true,
+            isDefault: false,
+            customized: true,
+            bilingual: false,
+            thumbVariant: 'terminal'
+          },
+          {
+            id: '005',
+            name: '外贸客户模板',
+            typeCode: 'bank',
+            typeLabel: '银行式',
+            layout: '双语(中英文)、外币显示',
+            applicable: '外贸客户',
+            usage: 0,
+            enabled: false,
+            isDefault: false,
+            customized: false,
+            bilingual: true,
+            thumbVariant: 'foreign'
+          }
+        ]);
+
+        const filteredTemplates = computed(() => {
+          return templates.value.filter(t => {
+            if (filter.status === 'enabled' && !t.enabled) return false;
+            if (filter.status === 'disabled' && t.enabled) return false;
+            if (filter.type && t.typeCode !== filter.type) return false;
+            if (filter.keyword && !t.name.includes(filter.keyword)) return false;
+            return true;
+          });
+        });
+
+        const chartLegend = [
+          { name: '标准银行', color: '#1890ff', total: 128 },
+          { name: '详细', color: '#52c41a', total: 45 },
+          { name: '简化', color: '#faad14', total: 32 },
+          { name: '大型终端', color: '#722ed1', total: 12 },
+          { name: '外贸', color: '#bfbfbf', total: 0 }
+        ];
+
+        // Chart bars: h = value * 5 (max 40 -> h=200)
+        const rawData = [
+          { label:'10月', values:[18, 6, 4, 1, 0] },
+          { label:'11月', values:[22, 7, 5, 2, 0] },
+          { label:'12月', values:[20, 8, 5, 2, 0] },
+          { label:'1月',  values:[24, 9, 6, 2, 0] },
+          { label:'2月',  values:[19, 6, 5, 2, 0] },
+          { label:'3月',  values:[25, 9, 7, 3, 0] }
+        ];
+        const colors = ['#1890ff','#52c41a','#faad14','#722ed1','#bfbfbf'];
+        const months = rawData.map(m => ({
+          label: m.label,
+          bars: m.values.map((v, i) => ({ v, h: v * 5, color: colors[i] }))
+        }));
+
+        function nav(page){ window.location.href='./'+page; }
+        function refresh(){ ElementPlus.ElMessage.success('已刷新模板列表'); }
+        function createTpl(){ ElementPlus.ElMessage.info('新建模板 - 跳转到模板编辑器'); setTimeout(()=> window.location.href='./template-edit.html?mode=new', 400); }
+        function editTpl(tpl){ window.location.href='./template-edit.html?id=' + tpl.id; }
+        function previewTpl(tpl){ currentTpl.value = tpl; previewVisible.value = true; }
+        function copyTpl(tpl){
+          ElementPlus.ElMessageBox.confirm(`确认复制模板「${tpl.name}」？将生成一个副本供编辑。`, '复制模板', { type:'info' })
+            .then(() => ElementPlus.ElMessage.success('已复制，请编辑新模板'))
+            .catch(()=>{});
+        }
+        function setDefault(tpl){
+          ElementPlus.ElMessageBox.confirm(`确认将「${tpl.name}」设为默认模板？之后未指定模板的对账单将使用它。`, '设为默认', { type:'warning' })
+            .then(() => {
+              templates.value.forEach(t => t.isDefault = false);
+              tpl.isDefault = true;
+              ElementPlus.ElMessage.success('已设为默认模板');
+            }).catch(()=>{});
+        }
+        function toggle(tpl){
+          if (tpl.isDefault && tpl.enabled) {
+            ElementPlus.ElMessage.warning('默认模板不能禁用，请先设置其他模板为默认');
+            return;
+          }
+          const action = tpl.enabled ? '禁用' : '启用';
+          ElementPlus.ElMessageBox.confirm(`确认${action}模板「${tpl.name}」？`, `${action}模板`, { type: tpl.enabled ? 'warning' : 'info' })
+            .then(() => {
+              tpl.enabled = !tpl.enabled;
+              ElementPlus.ElMessage.success(`已${action}`);
+            }).catch(()=>{});
+        }
+
+        function typeTagType(t){
+          return { bank:'primary', detailed:'success', simple:'warning' }[t] || '';
+        }
+
+        return { Icons, filter, previewVisible, currentTpl, templates, filteredTemplates,
+                 chartLegend, months, nav, refresh, createTpl, editTpl, previewTpl,
+                 copyTpl, setDefault, toggle, typeTagType };
+      }
+    });
+    app.use(ElementPlus);
+    for (const [k, v] of Object.entries(ElementPlusIconsVue)) { app.component(k, v); }
+    app.mount('#app');
+  </script>
+</body>
+</html>

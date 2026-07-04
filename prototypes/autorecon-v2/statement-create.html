@@ -78,6 +78,48 @@
 
     .step-actions { display:flex; justify-content:space-between; align-items:center; margin-top:24px; padding-top:20px; border-top:1px solid #eaeef3;}
     .required-star { color:#f56c6c; margin-right:2px;}
+
+    /* Contact recipient cards */
+    .contact-card { border:1px solid #e8e8e8; border-radius:6px; padding:12px 14px; margin-bottom:8px; cursor:pointer; transition: all .18s ease; background:#fff;}
+    .contact-card:hover { border-color:#40a9ff; background:#fafcff; }
+    .contact-card.selected { border-color:#1890ff; background:#e6f7ff; box-shadow: 0 0 0 2px rgba(24,144,255,.12); }
+    .contact-card .top { display:flex; align-items:center; gap:8px; }
+    .contact-card .meta { color:#8c8c8c; font-size:12px; margin-top:6px; display:flex; gap:16px; flex-wrap:wrap; align-items:center; }
+    .contact-card .meta .item { display:inline-flex; align-items:center; gap:4px; }
+    .contact-card .last { color:#8c8c8c; font-size:12px; margin-top:4px; padding-left:2px;}
+
+    /* Data source / upload-mode selectable cards */
+    .choice-cards { display:flex; gap:12px; }
+    .choice-card { flex:1; border:2px solid #e8e8e8; border-radius:8px; padding:14px 16px; cursor:pointer; transition:all .18s ease; background:#fff; }
+    .choice-card:hover { border-color:#40a9ff; }
+    .choice-card.active { border-color:#1890ff; background:#e6f7ff; box-shadow: 0 0 0 2px rgba(24,144,255,.08);}
+    .choice-card .c-title { font-weight:600; font-size:14px; color:#262626; display:flex; align-items:center; gap:6px; }
+    .choice-card .c-desc { color:#8c8c8c; font-size:12px; margin-top:6px; line-height:1.55; padding-left:24px;}
+
+    /* Excel upload area */
+    .excel-section { margin-bottom:20px; }
+    .excel-section > h4 { margin:0 0 10px 0; color:#262626; font-size:14px; display:flex; align-items:center; gap:6px;}
+    .excel-upload-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:8px; }
+    .upload-label { color:#595959; font-size:13px; margin-bottom:8px; font-weight:600; display:flex; align-items:center; gap:4px;}
+    .upload-success { margin-top:8px; padding:10px 12px; background:#f6ffed; border:1px solid #b7eb8f; border-left:3px solid #52c41a; border-radius:4px;}
+    .upload-success .fname { color:#262626; font-size:13px; font-weight:600;}
+    .upload-success .fmeta { color:#8c8c8c; font-size:12px; margin-top:3px;}
+    .section-divider { border-top:1px dashed #e8e8e8; margin:18px 0; }
+
+    /* Validation result */
+    .validation-box { border:1px solid #d9f7be; background:#f6ffed; border-radius:6px; padding:16px; }
+    .validation-cell { }
+    .validation-cell .head { font-weight:600; color:#262626; margin-bottom:6px; display:flex; align-items:center; gap:6px;}
+    .validation-cell .rows { color:#595959; font-size:13px; padding-left:6px; line-height:1.9;}
+    .validation-issues { margin-top:12px; padding:10px 12px; background:#fffbe6; border:1px solid #ffe58f; border-left:3px solid #faad14; border-radius:4px;}
+    .validation-issues .title { color:#ad6800; font-weight:600; font-size:13px; display:flex; align-items:center; gap:4px;}
+    .validation-issues ul { margin:6px 0 0 0; padding-left:22px; color:#8c6e00; font-size:12px; line-height:1.7;}
+
+    /* Recipient info box (Step 4 preview sidebar) */
+    .recipient-info-box { padding:12px 14px; background:#e6f7ff; border:1px solid #91d5ff; border-left:4px solid #1890ff; border-radius:4px; margin-bottom:12px;}
+    .recipient-info-box .r-title { display:flex; align-items:center; gap:8px; margin-bottom:6px; color:#262626; font-weight:600; font-size:13px;}
+    .recipient-info-box .r-line { color:#595959; font-size:12px; padding-left:22px; line-height:1.7;}
+    .recipient-info-box .r-line b { color:#0958d9;}
   </style>
 </head>
 <body>

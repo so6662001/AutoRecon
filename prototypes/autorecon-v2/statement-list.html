@@ -235,7 +235,7 @@
                   <el-tag size="small" :type="levelTagType(row.level)" style="margin-left:4px;">{{ row.level }}</el-tag>
                 </template>
               </el-table-column>
-              <el-table-column prop="period" label="对账周期" width="150" />
+              <el-table-column prop="period" label="对账周期" width="210" />
               <el-table-column label="触发" width="70" align="center">
                 <template #default="{row}">
                   <el-tag size="small" :type="row.trigger==='自动'?'':'warning'" effect="plain">{{ row.trigger }}</el-tag>
@@ -320,16 +320,16 @@
         const searchForm = reactive({ no:'', customer:'', type:'', level:'', status:'', range:null, trigger:'' });
 
         const tableData = ref([
-          { no:'R202503001', customer:'某某贸易',  type:'经销商', level:'B', period:'03-01~03-31', trigger:'自动', balance:75800,  status:'PENDING',          sentAt:'2026-03-17 10:30', confirmedAt:'-' },
-          { no:'R202503002', customer:'某某制造',  type:'经销商', level:'B', period:'03-01~03-31', trigger:'自动', balance:89500,  status:'CONFIRMED',        sentAt:'2026-03-14 15:00', confirmedAt:'2026-03-15 09:20' },
-          { no:'R202503003', customer:'某某科技',  type:'大型终端', level:'A', period:'03-01~03-31', trigger:'自动', balance:156300, status:'DISPUTING',        sentAt:'2026-03-16 09:00', confirmedAt:'-' },
-          { no:'R202503004', customer:'某某建材',  type:'加工厂', level:'C', period:'03-01~03-31', trigger:'自动', balance:67200,  status:'CONFIRMED',        sentAt:'2026-03-13 10:00', confirmedAt:'2026-03-14 14:20' },
-          { no:'R202503005', customer:'某某物流',  type:'同行',   level:'C', period:'03-01~03-31', trigger:'手动', balance:0,      status:'DONE',             sentAt:'2026-03-10 09:00', confirmedAt:'2026-03-11 10:30' },
-          { no:'R202503006', customer:'某某建筑',  type:'经销商', level:'D', period:'03-01~03-31', trigger:'自动', balance:98600,  status:'DEEMED_CONFIRMED', sentAt:'2026-03-08 10:00', confirmedAt:'2026-03-15 (视同)' },
-          { no:'R202503007', customer:'某某钢构',  type:'加工厂', level:'B', period:'03-01~03-05', trigger:'自动', balance:45800,  status:'SENT',             sentAt:'2026-03-06 10:00', confirmedAt:'-' },
-          { no:'R202503008', customer:'YY建设',   type:'大型终端', level:'A', period:'03-01~03-31', trigger:'自动', balance:285600, status:'CONFIRMED',        sentAt:'2026-03-05 15:00', confirmedAt:'2026-03-06 11:00' },
-          { no:'R202503009', customer:'ZZ贸易',   type:'经销商', level:'C', period:'03-01~03-25', trigger:'自动', balance:178400, status:'REVISED',          sentAt:'2026-03-26 09:00', confirmedAt:'-' },
-          { no:'R202503010', customer:'AA工程',   type:'大型终端', level:'B', period:'03-01~03-31', trigger:'手动', balance:125000, status:'DRAFT',            sentAt:'-',                confirmedAt:'-' }
+          { no:'R202503001', customer:'某某贸易',  type:'经销商', level:'B', period:'2025-03-01 ~ 2025-03-31', trigger:'自动', balance:75800,  status:'PENDING',          sentAt:'2026-03-17 10:30', confirmedAt:'-' },
+          { no:'R202503002', customer:'某某制造',  type:'经销商', level:'B', period:'2025-03-01 ~ 2025-03-31', trigger:'自动', balance:89500,  status:'CONFIRMED',        sentAt:'2026-03-14 15:00', confirmedAt:'2026-03-15 09:20' },
+          { no:'R202503003', customer:'某某科技',  type:'大型终端', level:'A', period:'2025-03-01 ~ 2025-03-31', trigger:'自动', balance:156300, status:'DISPUTING',        sentAt:'2026-03-16 09:00', confirmedAt:'-' },
+          { no:'R202503004', customer:'某某建材',  type:'加工厂', level:'C', period:'2025-03-01 ~ 2025-03-31', trigger:'自动', balance:67200,  status:'CONFIRMED',        sentAt:'2026-03-13 10:00', confirmedAt:'2026-03-14 14:20' },
+          { no:'R202503005', customer:'某某物流',  type:'同行',   level:'C', period:'2025-03-01 ~ 2025-03-31', trigger:'手动', balance:0,      status:'DONE',             sentAt:'2026-03-10 09:00', confirmedAt:'2026-03-11 10:30' },
+          { no:'R202503006', customer:'某某建筑',  type:'经销商', level:'D', period:'2025-03-01 ~ 2025-03-31', trigger:'自动', balance:98600,  status:'DEEMED_CONFIRMED', sentAt:'2026-03-08 10:00', confirmedAt:'2026-03-15 (视同)' },
+          { no:'R202503007', customer:'某某钢构',  type:'加工厂', level:'B', period:'2025-03-01 ~ 2025-03-05', trigger:'自动', balance:45800,  status:'SENT',             sentAt:'2026-03-06 10:00', confirmedAt:'-' },
+          { no:'R202503008', customer:'YY建设',   type:'大型终端', level:'A', period:'2025-03-01 ~ 2025-03-31', trigger:'自动', balance:285600, status:'CONFIRMED',        sentAt:'2026-03-05 15:00', confirmedAt:'2026-03-06 11:00' },
+          { no:'R202503009', customer:'ZZ贸易',   type:'经销商', level:'C', period:'2025-03-01 ~ 2025-03-25', trigger:'自动', balance:178400, status:'REVISED',          sentAt:'2026-03-26 09:00', confirmedAt:'-' },
+          { no:'R202503010', customer:'AA工程',   type:'大型终端', level:'B', period:'2025-03-01 ~ 2025-03-31', trigger:'手动', balance:125000, status:'DRAFT',            sentAt:'-',                confirmedAt:'-' }
         ]);
 
         function formatMoney(v){ return '¥' + v.toLocaleString('zh-CN', {minimumFractionDigits:0, maximumFractionDigits:2}); }
