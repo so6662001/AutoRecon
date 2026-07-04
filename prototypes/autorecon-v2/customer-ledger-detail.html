@@ -83,6 +83,18 @@
     .filter-badge { display:inline-flex; align-items:center; gap:2px; color:#f56c6c; font-size:12px; }
     .doc-tag { font-family: monospace; }
 
+    /* stacked cell for 日期/单号/摘要 */
+    .flow-stack { display:flex; flex-direction:column; gap:2px; line-height:1.4; }
+    .flow-stack .flow-date { font-size:12px; color:#909399; }
+    .flow-stack .flow-docno { font-size:13px; color:#303133; font-weight:600; }
+    .flow-stack .flow-memo { font-size:13px; color:#606266; }
+
+    /* standard receivable item table cell helpers */
+    .spec-cell { font-weight:600; color:#303133; }
+    .pricing-tag { font-size:11px; padding:1px 6px; border-radius:3px; }
+    .pricing-tag.pond { background:#e6f7ff; color:#1976d2; border:1px solid #91caff; }
+    .pricing-tag.theory { background:#f6ffed; color:#389e0d; border:1px solid #b7eb8f; }
+
     .summary-bar { margin-top:12px; padding: 12px 16px; background: linear-gradient(90deg, #f5f7fa, #ecf5ff); border-radius:4px; display:flex; justify-content:space-between; align-items:center; font-size:13px; color:#606266; }
     .summary-bar .highlight { color:#f56c6c; font-weight:600; }
 
@@ -313,9 +325,14 @@
               </div>
 
               <el-table :data="filteredFlowRows" style="width: 100%" class="bank-table" :row-class-name="rowClassName" size="default" :header-cell-style="{background:'#fafafa',color:'#606266',fontWeight:600}">
-                <el-table-column prop="date" label="日期" width="90" fixed="left" />
-                <el-table-column prop="docNo" label="单号" width="90" fixed="left">
-                  <template #default="{row}"><span class="doc-tag">{{ row.docNo }}</span></template>
+                <el-table-column label="日期 / 单号 / 摘要" min-width="200" fixed="left">
+                  <template #default="{row}">
+                    <div class="flow-stack">
+                      <div class="flow-date">{{ row.date }}</div>
+                      <div class="flow-docno"><span class="doc-tag">{{ row.docNo }}</span></div>
+                      <div class="flow-memo">{{ row.memo }}</div>
+                    </div>
+                  </template>
                 </el-table-column>
                 <el-table-column label="单据类型" width="110">
                   <template #default="{row}">
@@ -325,7 +342,6 @@
                     <span v-else style="color:#909399;">-</span>
                   </template>
                 </el-table-column>
-                <el-table-column prop="memo" label="摘要" min-width="150" />
                 <el-table-column label="结算数量" width="90" align="right">
                   <template #default="{row}">
                     <span v-if="row.qty">{{ row.qty }}</span>
@@ -387,41 +403,58 @@
 
               <el-alert type="warning" show-icon :closable="false" style="margin-bottom:12px;">
                 <template #title>
-                  数据来源 ERP · 应收明细支持"按未付部分催收"。灰色单据为已结清，橙色为部分未付，红色为逾期未付。
+                  数据来源 ERP · 应收明细按商品行展示（钢材行业规格化）。支持"按未付部分催收"。计价方式：<b>磅计</b>=按实际过磅重量计价，<b>理计</b>=按理论重量计价。
                 </template>
               </el-alert>
 
               <el-table :data="arRows" style="width:100%" size="default" :header-cell-style="{background:'#fafafa',color:'#606266',fontWeight:600}">
-                <el-table-column prop="sourceNo" label="源单号" width="100"><template #default="{row}"><span class="doc-tag">{{ row.sourceNo }}</span></template></el-table-column>
-                <el-table-column prop="docDate" label="单据日期" width="110" />
-                <el-table-column prop="memo" label="摘要" min-width="160" />
-                <el-table-column label="原始金额" width="120" align="right"><template #default="{row}">¥{{ fmt(row.origAmount) }}</template></el-table-column>
-                <el-table-column label="已付 (ERP)" width="120" align="right"><template #default="{row}"><span class="money-in">¥{{ fmt(row.paid) }}</span></template></el-table-column>
-                <el-table-column label="未付金额" width="120" align="right">
+                <el-table-column prop="lineNo" label="行号" width="60" align="center" />
+                <el-table-column prop="spec" label="商品规格" min-width="180">
+                  <template #default="{row}"><span class="spec-cell">{{ row.spec }}</span></template>
+                </el-table-column>
+                <el-table-column prop="qty" label="数量" width="80" align="right" />
+                <el-table-column label="单价" width="100" align="right">
+                  <template #default="{row}">¥{{ fmt(row.price) }}</template>
+                </el-table-column>
+                <el-table-column label="计价方式" width="90" align="center">
                   <template #default="{row}">
-                    <span v-if="row.unpaid > 0" :class="row.overdue?'money-out':'money-adjust'">¥{{ fmt(row.unpaid) }}</span>
-                    <span v-else style="color:#67c23a;">已结清</span>
+                    <span :class="'pricing-tag ' + (row.pricing==='磅计'?'pond':'theory')">{{ row.pricing }}</span>
                   </template>
                 </el-table-column>
-                <el-table-column prop="dueDate" label="到期日" width="110" />
-                <el-table-column label="逾期" width="80" align="center">
+                <el-table-column label="金额" width="120" align="right">
+                  <template #default="{row}"><b>¥{{ fmt(row.amount) }}</b></template>
+                </el-table-column>
+                <el-table-column prop="remark" label="备注" width="110">
+                  <template #default="{row}"><span style="color:#909399;">{{ row.remark || '-' }}</span></template>
+                </el-table-column>
+                <el-table-column label="已付金额" width="120" align="right">
+                  <template #default="{row}"><span class="money-in">¥{{ fmt(row.paid) }}</span></template>
+                </el-table-column>
+                <el-table-column label="未付金额" width="120" align="right">
                   <template #default="{row}">
-                    <span v-if="row.overdue > 0" style="color:#f56c6c; font-weight:600;">{{ row.overdue }}天</span>
+                    <span v-if="row.unpaid > 0" :class="row.overdueDays>0?'money-out':'money-adjust'">¥{{ fmt(row.unpaid) }}</span>
+                    <span v-else style="color:#67c23a;">¥0</span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="dueDate" label="到期日" width="115" />
+                <el-table-column label="逾期天数" width="90" align="center">
+                  <template #default="{row}">
+                    <span v-if="row.overdueDays > 0" style="color:#f56c6c; font-weight:600;">{{ row.overdueDays }}天</span>
                     <span v-else style="color:#c0c4cc;">-</span>
                   </template>
                 </el-table-column>
                 <el-table-column label="状态" width="110">
                   <template #default="{row}">
-                    <el-tag v-if="row.unpaid===0" type="success" size="small">已结清</el-tag>
-                    <el-tag v-else-if="row.overdue > 0" type="danger" size="small">逾期未付</el-tag>
-                    <el-tag v-else-if="row.paid > 0" type="warning" size="small">部分未付</el-tag>
-                    <el-tag v-else type="info" size="small">未付</el-tag>
+                    <el-tag v-if="row.status==='已付清'" type="success" size="small">✓ 已付清</el-tag>
+                    <el-tag v-else-if="row.status==='部分付款'" type="warning" size="small">◐ 部分付款</el-tag>
+                    <el-tag v-else-if="row.status==='逾期'" type="danger" size="small">⚠ 逾期</el-tag>
+                    <el-tag v-else type="info" size="small">○ 未付款</el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column label="操作" width="150" fixed="right">
-                  <template #default="{row}">
-                    <el-button v-if="row.unpaid > 0" link type="danger" size="small">催收此单</el-button>
-                    <el-button link type="primary" size="small">明细</el-button>
+                <el-table-column label="操作" width="160" fixed="right">
+                  <template #default>
+                    <el-button link type="primary" size="small">查看</el-button>
+                    <el-button link type="warning" size="small">同步ERP</el-button>
                   </template>
                 </el-table-column>
               </el-table>
@@ -547,12 +580,14 @@ const app = createApp({
     });
 
     const arRows = ref([
-      { sourceNo: 'S001',  docDate: '2026-03-01', memo: '螺纹钢销售 100件', origAmount: 10000, paid: 10000, unpaid: 0,     dueDate: '2026-04-01', overdue: 0 },
-      { sourceNo: 'S002',  docDate: '2026-03-20', memo: '盘螺销售 50件',    origAmount: 15000, paid: 0,     unpaid: 15000, dueDate: '2026-04-20', overdue: 0 },
-      { sourceNo: 'S003',  docDate: '2026-03-25', memo: '热轧板销售 200件', origAmount: 30000, paid: 0,     unpaid: 30000, dueDate: '2026-04-25', overdue: 0 },
-      { sourceNo: 'S004',  docDate: '2026-03-31', memo: '螺纹钢销售 500件', origAmount: 50300, paid: 20000, unpaid: 30300, dueDate: '2026-05-01', overdue: 0 },
-      { sourceNo: 'S998',  docDate: '2026-02-10', memo: '型钢销售 30件',    origAmount: 8500,  paid: 8500,  unpaid: 0,     dueDate: '2026-03-10', overdue: 0 },
-      { sourceNo: 'S999',  docDate: '2026-02-15', memo: '角钢销售 20件',    origAmount: 3200,  paid: 2700,  unpaid: 500,   dueDate: '2026-03-15', overdue: 45 }
+      { lineNo: 1, spec: '螺纹钢 Φ20 HRB400',   qty: 100, price: 4500, pricing: '磅计', amount: 45000,  remark: '首批',     paid: 45000,  unpaid: 0,     dueDate: '2025-03-15', overdueDays: 0,  status: '已付清'   },
+      { lineNo: 2, spec: '螺纹钢 Φ22 HRB400',   qty: 80,  price: 4520, pricing: '磅计', amount: 36160,  remark: '',         paid: 36160,  unpaid: 0,     dueDate: '2025-03-20', overdueDays: 0,  status: '已付清'   },
+      { lineNo: 3, spec: '盘螺 Φ10 Q235',       qty: 50,  price: 4200, pricing: '理计', amount: 21000,  remark: '',         paid: 10000,  unpaid: 11000, dueDate: '2025-03-25', overdueDays: 0,  status: '部分付款' },
+      { lineNo: 4, spec: '热轧板 3.0mm Q235B',  qty: 200, price: 4100, pricing: '磅计', amount: 82000,  remark: '分批发货', paid: 50000,  unpaid: 32000, dueDate: '2025-04-05', overdueDays: 0,  status: '部分付款' },
+      { lineNo: 5, spec: '螺纹钢 Φ25 HRB400',   qty: 300, price: 4480, pricing: '磅计', amount: 134400, remark: '大宗订单', paid: 100000, unpaid: 34400, dueDate: '2025-04-10', overdueDays: 0,  status: '部分付款' },
+      { lineNo: 6, spec: '冷轧卷板 1.5mm',       qty: 150, price: 5200, pricing: '磅计', amount: 78000,  remark: '',         paid: 0,      unpaid: 78000, dueDate: '2025-03-30', overdueDays: 5,  status: '逾期'     },
+      { lineNo: 7, spec: '焊管 DN50',            qty: 500, price: 3800, pricing: '理计', amount: 19000,  remark: '',         paid: 0,      unpaid: 19000, dueDate: '2025-03-25', overdueDays: 10, status: '逾期'     },
+      { lineNo: 8, spec: '无缝管 DN100',         qty: 80,  price: 6200, pricing: '磅计', amount: 49600,  remark: '待发货',   paid: 0,      unpaid: 49600, dueDate: '2025-04-15', overdueDays: 0,  status: '未付款'   }
     ]);
 
     const historyRows = ref([
