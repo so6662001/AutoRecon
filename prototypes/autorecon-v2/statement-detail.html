@@ -75,6 +75,12 @@
     .amt-pos { color:#52c41a; font-weight:600;}
     .amt-neg { color:#f5222d; font-weight:600;}
     .amt-bal { color:#262626; font-weight:700;}
+    /* 应收明细独立列可视化 */
+    .line-no-badge { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(135deg, #409eff, #1976d2); color: #fff; font-weight: 600; font-size: 12px; font-family: "SF Mono", Consolas, monospace; }
+    .qty-cell { font-weight: 600; color: #262626; font-family: "SF Mono", Consolas, monospace; }
+    .qty-cell .unit { font-weight: normal; color: #909399; font-size: 12px; margin-left: 2px; }
+    .due-date-cell { display: inline-block; padding: 2px 8px; background: #f0f5ff; color: #1976d2; border-radius: 3px; font-size: 12px; font-variant-numeric: tabular-nums; }
+    .due-date-cell.overdue { background: #fff1f0; color: #f5222d; font-weight: 600; }
 
     /* PDF preview */
     .pdf-preview { background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.04); overflow:hidden; position:sticky; top:0;}
@@ -336,39 +342,51 @@
                     </el-alert>
 
                     <el-table :data="arRows" border stripe :header-cell-style="{background:'#fafafa'}">
-                      <el-table-column prop="lineNo" label="行号" width="60" align="center" />
-                      <el-table-column prop="spec" label="商品规格" min-width="180">
+                      <el-table-column label="行号" width="72" align="center" fixed="left">
+                        <template #default="{row}">
+                          <span class="line-no-badge">{{ row.lineNo }}</span>
+                        </template>
+                      </el-table-column>
+                      <el-table-column prop="spec" label="商品规格" min-width="160" fixed="left">
                         <template #default="{row}"><b>{{ row.spec }}</b></template>
                       </el-table-column>
-                      <el-table-column prop="qty" label="数量" width="80" align="right" />
-                      <el-table-column label="单价" width="90" align="right">
+                      <el-table-column label="数量" width="90" align="right">
+                        <template #default="{row}">
+                          <span class="qty-cell">{{ row.qty }}<span class="unit">吨</span></span>
+                        </template>
+                      </el-table-column>
+                      <el-table-column label="单价" width="85" align="right">
                         <template #default="{row}">¥{{ row.price.toLocaleString() }}</template>
                       </el-table-column>
-                      <el-table-column label="计价方式" width="90" align="center">
+                      <el-table-column label="计价方式" width="80" align="center">
                         <template #default="{row}">
                           <el-tag size="small" :type="row.pricing==='磅计'?'primary':'success'" effect="plain">{{ row.pricing }}</el-tag>
                         </template>
                       </el-table-column>
-                      <el-table-column label="金额" width="110" align="right">
+                      <el-table-column label="金额" width="100" align="right">
                         <template #default="{row}"><span class="amt-bal">¥{{ row.amount.toLocaleString() }}</span></template>
                       </el-table-column>
-                      <el-table-column prop="remark" label="备注" width="100">
+                      <el-table-column prop="remark" label="备注" width="90">
                         <template #default="{row}"><span style="color:#8c8c8c;">{{ row.remark || '-' }}</span></template>
                       </el-table-column>
-                      <el-table-column label="已付金额" width="110" align="right">
+                      <el-table-column label="已付金额" width="100" align="right">
                         <template #default="{row}"><span class="amt-pos">¥{{ row.paid.toLocaleString() }}</span></template>
                       </el-table-column>
-                      <el-table-column label="未付金额" width="110" align="right">
+                      <el-table-column label="未付金额" width="100" align="right">
                         <template #default="{row}"><span :class="row.unpaid>0?'amt-neg':''">¥{{ row.unpaid.toLocaleString() }}</span></template>
                       </el-table-column>
-                      <el-table-column prop="dueDate" label="到期日" width="110" />
-                      <el-table-column label="逾期天数" width="90" align="center">
+                      <el-table-column label="到期日" width="110" align="center">
+                        <template #default="{row}">
+                          <span :class="'due-date-cell' + (row.overdueDays>0 ? ' overdue' : '')">{{ row.dueDate }}</span>
+                        </template>
+                      </el-table-column>
+                      <el-table-column label="逾期天数" width="80" align="center">
                         <template #default="{row}">
                           <span v-if="row.overdueDays>0" style="color:#f5222d; font-weight:600;">{{ row.overdueDays }}天</span>
                           <span v-else style="color:#c0c4cc;">-</span>
                         </template>
                       </el-table-column>
-                      <el-table-column label="状态" width="110">
+                      <el-table-column label="状态" width="105">
                         <template #default="{row}">
                           <el-tag v-if="row.status==='已付清'" size="small" type="success">✓ 已付清</el-tag>
                           <el-tag v-else-if="row.status==='部分付款'" size="small" type="warning">◐ 部分付款</el-tag>
