@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>数据分析 - 对账通原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; background: #f0f2f5; }
+    .layout { display: flex; min-height: 100vh; }
+    .sidebar {
+      width: 220px;
+      background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+      color: #fff; flex-shrink: 0; display: flex; flex-direction: column;
+    }
+    .sidebar-logo {
+      padding: 20px; font-size: 18px; font-weight: 700;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .sidebar-logo .dot { width: 10px; height: 10px; background: #67c23a; border-radius: 50%; }
+    .sidebar-menu { padding: 12px 0; flex: 1; }
+    .menu-group-title { padding: 12px 20px 6px; font-size: 11px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 1px; }
+    .menu-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 11px 20px; cursor: pointer; font-size: 14px; color: rgba(255,255,255,0.65);
+      transition: all 0.2s; border-left: 3px solid transparent;
+    }
+    .menu-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .menu-item.active { background: rgba(64,158,255,0.15); color: #409eff; border-left-color: #409eff; }
+    .menu-item .el-icon { font-size: 18px; }
+    .main-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .header {
+      height: 56px; background: #fff; border-bottom: 1px solid #e8e8e8;
+      display: flex; align-items: center; justify-content: space-between; padding: 0 24px;
+    }
+    .header-left { display: flex; align-items: center; gap: 16px; }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .content { flex: 1; padding: 24px; overflow-y: auto; }
+    .page-title { font-size: 20px; font-weight: 700; color: #1a1a2e; margin-bottom: 20px; }
+    .stat-cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 20px; }
+    .stat-card {
+      background: #fff; border-radius: 10px; padding: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04); display: flex; align-items: center; gap: 14px;
+    }
+    .stat-card .icon-box {
+      width: 48px; height: 48px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .stat-card .icon-box .el-icon { font-size: 24px; color: #fff; }
+    .stat-card .info .label { font-size: 13px; color: #909399; margin-bottom: 4px; }
+    .stat-card .info .value { font-size: 24px; font-weight: 700; color: #303133; }
+    .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+    .chart-card { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+    .chart-card .chart-title { font-size: 15px; font-weight: 600; color: #303133; margin-bottom: 12px; }
+    .chart-box { height: 300px; }
+    .table-card { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+    .table-card .table-title { font-size: 15px; font-weight: 600; color: #303133; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-logo"><span class="dot"></span><span>对账通 AutoRecon</span></div>
+      <nav class="sidebar-menu">
+        <div class="menu-group-title">核心功能</div>
+        <div class="menu-item"><el-icon><Odometer /></el-icon><span>工作台</span></div>
+        <div class="menu-item"><el-icon><Document /></el-icon><span>对账单管理</span></div>
+        <div class="menu-item"><el-icon><DataAnalysis /></el-icon><span>比对结果</span></div>
+        <div class="menu-item"><el-icon><Money /></el-icon><span>付款管理</span></div>
+        <div class="menu-group-title">辅助功能</div>
+        <div class="menu-item"><el-icon><Stamp /></el-icon><span>待签章</span></div>
+        <div class="menu-item"><el-icon><TrophyBase /></el-icon><span>信用评分</span></div>
+        <div class="menu-item active"><el-icon><DataLine /></el-icon><span>数据分析</span></div>
+        <div class="menu-group-title">系统</div>
+        <div class="menu-item"><el-icon><Setting /></el-icon><span>系统设置</span></div>
+      </nav>
+    </aside>
+
+    <div class="main-area">
+      <header class="header">
+        <div class="header-left"><span style="font-size:14px;color:#606266;">辅助功能 / 数据分析</span></div>
+        <div class="header-right">
+          <el-badge :value="3" :max="99"><el-icon :size="20"><Bell /></el-icon></el-badge>
+          <el-avatar :size="32" style="background:#409eff;">管</el-avatar>
+          <span style="font-size:14px;color:#303133;">管理员</span>
+        </div>
+      </header>
+
+      <div class="content">
+        <div class="page-title">数据分析</div>
+
+        <!-- Stat Cards -->
+        <div class="stat-cards">
+          <div class="stat-card" v-for="(s, i) in stats" :key="i">
+            <div class="icon-box" :style="{ background: s.bg }">
+              <el-icon><component :is="s.icon" /></el-icon>
+            </div>
+            <div class="info">
+              <div class="label">{{ s.label }}</div>
+              <div class="value">{{ s.value }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="chart-row">
+          <div class="chart-card">
+            <div class="chart-title">24小时PV趋势</div>
+            <div class="chart-box" ref="lineChartRef"></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">系统分布</div>
+            <div class="chart-box" ref="pieChartRef"></div>
+          </div>
+        </div>
+
+        <!-- Page Value Table -->
+        <div class="table-card">
+          <div class="table-title">页面价值排行</div>
+          <el-table :data="pageData" border stripe style="width:100%;">
+            <el-table-column prop="name" label="页面名称" width="150" />
+            <el-table-column prop="module" label="模块" width="90" align="center">
+              <template #default="{ row }">
+                <el-tag size="small" :type="row.module === 'core' ? '' : 'warning'">{{ row.module }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="pv" label="PV" width="90" align="right">
+              <template #default="{ row }">
+                <span style="font-weight: 600;">{{ row.pv.toLocaleString() }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="uv" label="UV" width="90" align="right">
+              <template #default="{ row }">{{ row.uv.toLocaleString() }}</template>
+            </el-table-column>
+            <el-table-column prop="avgStay" label="平均停留" width="110" align="center" />
+            <el-table-column prop="bounceRate" label="跳出率" width="90" align="center" />
+            <el-table-column label="价值评分" width="100" align="center">
+              <template #default="{ row }">
+                <span style="font-weight: 700; font-size: 16px;" :style="{ color: row.score >= 85 ? '#67c23a' : row.score >= 70 ? '#409eff' : '#e6a23c' }">{{ row.score }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="等级" width="80" align="center">
+              <template #default="{ row }">
+                <el-tag :type="row.gradeType" size="small" effect="dark">{{ row.grade }}</el-tag>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const { createApp, ref, onMounted } = Vue;
+const app = createApp({
+  setup() {
+    const lineChartRef = ref(null);
+    const pieChartRef = ref(null);
+
+    const stats = ref([
+      { label: '今日PV', value: '1,280', icon: 'View', bg: 'linear-gradient(135deg, #409eff, #79bbff)' },
+      { label: '今日UV', value: '356', icon: 'User', bg: 'linear-gradient(135deg, #67c23a, #95d475)' },
+      { label: '当前在线', value: '89', icon: 'Connection', bg: 'linear-gradient(135deg, #e6a23c, #eebe77)' },
+      { label: '今日事件', value: '5,630', icon: 'Pointer', bg: 'linear-gradient(135deg, #f56c6c, #f89898)' },
+      { label: '平均停留', value: '4分32秒', icon: 'Timer', bg: 'linear-gradient(135deg, #9c27b0, #ba68c8)' },
+    ]);
+
+    const pageData = ref([
+      { name: '工作台', module: 'core', pv: 890, uv: 320, avgStay: '5分12秒', bounceRate: '8%', score: 92, grade: 'S', gradeType: 'success' },
+      { name: '对账单列表', module: 'recon', pv: 756, uv: 298, avgStay: '3分45秒', bounceRate: '12%', score: 85, grade: 'A', gradeType: '' },
+      { name: '对账单详情', module: 'recon', pv: 623, uv: 245, avgStay: '6分30秒', bounceRate: '5%', score: 88, grade: 'S', gradeType: 'success' },
+      { name: '发起对账', module: 'recon', pv: 412, uv: 189, avgStay: '4分15秒', bounceRate: '15%', score: 76, grade: 'A', gradeType: '' },
+      { name: '比对结果', module: 'recon', pv: 356, uv: 167, avgStay: '5分50秒', bounceRate: '10%', score: 72, grade: 'B', gradeType: 'warning' },
+      { name: '付款管理', module: 'recon', pv: 312, uv: 145, avgStay: '3分20秒', bounceRate: '18%', score: 68, grade: 'B', gradeType: 'warning' },
+      { name: '信用评分', module: 'recon', pv: 289, uv: 132, avgStay: '2分55秒', bounceRate: '22%', score: 62, grade: 'C', gradeType: 'info' },
+      { name: '系统设置', module: 'core', pv: 245, uv: 118, avgStay: '4分40秒', bounceRate: '14%', score: 58, grade: 'C', gradeType: 'info' },
+      { name: '签章管理', module: 'recon', pv: 198, uv: 95, avgStay: '2分10秒', bounceRate: '25%', score: 52, grade: 'C', gradeType: 'info' },
+      { name: '通知中心', module: 'core', pv: 167, uv: 82, avgStay: '1分45秒', bounceRate: '30%', score: 45, grade: 'D', gradeType: 'danger' },
+      { name: '操作日志', module: 'core', pv: 134, uv: 68, avgStay: '1分30秒', bounceRate: '35%', score: 40, grade: 'D', gradeType: 'danger' },
+      { name: '帮助文档', module: 'core', pv: 98, uv: 52, avgStay: '3分05秒', bounceRate: '20%', score: 38, grade: 'D', gradeType: 'danger' },
+      { name: '个人中心', module: 'core', pv: 76, uv: 45, avgStay: '1分15秒', bounceRate: '40%', score: 32, grade: 'D', gradeType: 'danger' },
+    ]);
+
+    onMounted(() => {
+      // Line Chart
+      if (lineChartRef.value) {
+        const lineChart = echarts.init(lineChartRef.value);
+        const hours = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
+        const pvData = [45, 28, 18, 12, 8, 15, 35, 68, 120, 156, 134, 98, 112, 89, 76, 95, 130, 145, 128, 105, 88, 72, 58, 42];
+        lineChart.setOption({
+          tooltip: { trigger: 'axis', backgroundColor: '#fff', borderColor: '#e8e8e8', textStyle: { color: '#303133' } },
+          grid: { top: 20, right: 20, bottom: 30, left: 50 },
+          xAxis: { type: 'category', data: hours, axisLabel: { interval: 3, fontSize: 11 }, axisTick: { show: false } },
+          yAxis: { type: 'value', splitLine: { lineStyle: { type: 'dashed', color: '#f0f0f0' } } },
+          series: [{
+            type: 'line',
+            data: pvData,
+            smooth: true,
+            symbol: 'circle',
+            symbolSize: 6,
+            lineStyle: { width: 3, color: '#409eff' },
+            itemStyle: { color: '#409eff' },
+            areaStyle: {
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: 'rgba(64,158,255,0.3)' },
+                { offset: 1, color: 'rgba(64,158,255,0.02)' }
+              ])
+            }
+          }]
+        });
+        window.addEventListener('resize', () => lineChart.resize());
+      }
+
+      // Pie Chart
+      if (pieChartRef.value) {
+        const pieChart = echarts.init(pieChartRef.value);
+        pieChart.setOption({
+          tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+          legend: { bottom: 10, textStyle: { fontSize: 13 } },
+          series: [{
+            type: 'pie',
+            radius: ['45%', '72%'],
+            center: ['50%', '45%'],
+            avoidLabelOverlap: false,
+            padAngle: 3,
+            itemStyle: { borderRadius: 6 },
+            label: { show: true, formatter: '{b}\n{d}%', fontSize: 13, lineHeight: 18 },
+            labelLine: { length: 15, length2: 10 },
+            data: [
+              { value: 65, name: '对账通', itemStyle: { color: '#409eff' } },
+              { value: 35, name: '提货通', itemStyle: { color: '#67c23a' } },
+            ]
+          }]
+        });
+        window.addEventListener('resize', () => pieChart.resize());
+      }
+    });
+
+    return { stats, pageData, lineChartRef, pieChartRef };
+  }
+});
+for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+  app.component(key, component);
+}
+app.use(ElementPlus);
+app.mount('#app');
+</script>
+</body>
+</html>
