@@ -587,6 +587,88 @@
       margin-top: 2px;
     }
 
+    /* Filter chips row */
+    .filter-chip-row { display: flex; gap: 8px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 4px; }
+    .chip { flex-shrink: 0; padding: 6px 14px; background: #fff; border-radius: 16px; font-size: 13px; color: #595959; border: 1px solid #eaeef3; cursor: pointer; }
+    .chip.active { background: #1890ff; color: #fff; border-color: #1890ff; font-weight: 500; }
+
+    /* Statement card (list view) */
+    .stmt-card { background: #fff; border-radius: 12px; margin-bottom: 12px; overflow: hidden; display: flex; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+    .stmt-bar { width: 4px; flex-shrink: 0; }
+    .stmt-body { flex: 1; padding: 14px 16px; }
+    .stmt-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+    .stmt-supplier { display: flex; align-items: center; gap: 10px; }
+    .stmt-supplier .logo { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; font-size: 16px; }
+    .supplier-name { font-size: 14px; font-weight: 600; color: #262626; }
+    .stmt-meta { font-size: 11px; color: #8c8c8c; margin-top: 2px; }
+    .stmt-amount-block { text-align: right; }
+    .stmt-status { font-size: 11px; font-weight: 500; margin-bottom: 2px; }
+    .stmt-amount { font-size: 17px; font-weight: 700; color: #262626; font-family: "SF Mono", monospace; }
+    .stmt-footer { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #8c8c8c; padding-top: 8px; border-top: 1px dashed #f0f0f0; }
+
+    /* Pay summary card */
+    .pay-summary-card { background: linear-gradient(135deg, #ff7875, #f5222d); border-radius: 14px; padding: 20px; color: #fff; margin-bottom: 14px; box-shadow: 0 4px 12px rgba(245,34,45,.25); }
+    .pay-title { font-size: 12px; opacity: .85; margin-bottom: 4px; }
+    .pay-amount { font-size: 32px; font-weight: 700; font-family: "SF Mono", monospace; margin-bottom: 14px; }
+    .pay-amount .unit { font-size: 16px; opacity: .85; margin-left: 2px; }
+    .pay-stats { display: flex; gap: 8px; align-items: stretch; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.2); }
+    .pay-stat { flex: 1; }
+    .pay-stat .label { font-size: 11px; opacity: .85; margin-bottom: 2px; }
+    .pay-stat .value { font-size: 15px; font-weight: 600; font-family: "SF Mono", monospace; }
+    .pay-stats .divider { width: 1px; background: rgba(255,255,255,.2); flex-shrink: 0; }
+
+    /* Quick actions grid */
+    .quick-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; background: #fff; padding: 16px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+    .quick-item { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; color: #595959; cursor: pointer; }
+    .quick-item .q-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 20px; }
+
+    /* Pay card */
+    .pay-card { background: #fff; border-radius: 12px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.04); overflow: hidden; }
+    .pay-card-header { padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #f5f7fa; }
+    .pay-supplier { display: flex; align-items: center; gap: 10px; }
+    .pay-supplier .logo { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; font-size: 14px; }
+    .pay-meta { font-size: 11px; color: #8c8c8c; margin-top: 2px; }
+    .pay-tag { padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 500; }
+    .pay-tag.overdue { background: #fff1f0; color: #f5222d; }
+    .pay-tag.due-soon { background: #fffbe6; color: #faad14; }
+    .pay-tag.partial { background: #e6f7ff; color: #1890ff; }
+    .pay-tag.normal { background: #f6ffed; color: #52c41a; }
+    .pay-card-body { padding: 12px 16px; }
+    .pay-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 13px; }
+    .pay-label { color: #8c8c8c; }
+    .pay-value { color: #262626; font-family: "SF Mono", monospace; }
+    .pay-card-actions { display: flex; gap: 8px; padding: 10px 16px; background: #fafbfc; }
+    .mini-btn { flex: 1; padding: 7px 8px; background: #fff; border: 1px solid #eaeef3; border-radius: 6px; font-size: 12px; color: #595959; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
+    .mini-btn.primary { background: linear-gradient(90deg,#ff7875,#f5222d); color: #fff; border: none; font-weight: 500; }
+
+    /* Profile page */
+    .profile-header { background: linear-gradient(135deg, #1890ff, #096dd9); border-radius: 14px; padding: 20px 16px; margin-bottom: 14px; display: flex; align-items: center; gap: 14px; color: #fff; box-shadow: 0 4px 12px rgba(24,144,255,.25); }
+    .profile-avatar { width: 60px; height: 60px; border-radius: 50%; background: rgba(255,255,255,.25); display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 600; flex-shrink: 0; }
+    .profile-info { flex: 1; }
+    .profile-name { font-size: 17px; font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+    .v-tag { background: #52c41a; color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 3px; font-weight: normal; }
+    .profile-company { font-size: 13px; opacity: .9; margin-bottom: 2px; }
+    .profile-role { font-size: 11px; opacity: .8; }
+    .profile-arrow { font-size: 18px; opacity: .8; cursor: pointer; }
+
+    .profile-stats { background: #fff; border-radius: 12px; padding: 16px 12px; display: flex; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+    .ps-item { flex: 1; text-align: center; border-right: 1px solid #f0f0f0; }
+    .ps-item:last-child { border-right: none; }
+    .ps-value { font-size: 20px; font-weight: 700; color: #262626; margin-bottom: 2px; font-family: "SF Mono", monospace; }
+    .ps-label { font-size: 11px; color: #8c8c8c; }
+
+    .menu-group { background: #fff; border-radius: 12px; margin-bottom: 14px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+    .menu-group-title { padding: 10px 16px; font-size: 12px; color: #8c8c8c; background: #fafbfc; border-bottom: 1px solid #f0f0f0; }
+    .menu-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #f5f7fa; cursor: pointer; font-size: 14px; color: #262626; }
+    .menu-item:last-child { border-bottom: none; }
+    .menu-item:active { background: #f5f7fa; }
+    .mi-left { display: flex; align-items: center; gap: 12px; }
+    .mi-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    .mi-value { font-size: 13px; color: #8c8c8c; display: flex; align-items: center; gap: 4px; }
+    .mi-arrow { font-size: 14px; color: #c0c4cc; }
+
+    .logout-btn { width: 100%; padding: 13px; background: #fff; border: none; border-radius: 12px; color: #f5222d; font-size: 15px; font-weight: 500; cursor: pointer; margin-bottom: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+
     /* Bottom tab bar */
     .tab-bar {
       height: 56px;
@@ -973,11 +1055,17 @@
         <!-- Sub header (dynamic) -->
         <div class="sub-header">
           <div class="title">
-            <span v-if="view === 'detail'" class="back" @click="view = 'home'">‹</span>
-            <span v-if="view === 'home'">📋 我的对账单</span>
+            <span v-if="view === 'detail'" class="back" @click="view = 'statements'">‹</span>
+            <span v-if="view === 'home'">🏠 首页</span>
+            <span v-else-if="view === 'statements'">📋 我的对账单</span>
+            <span v-else-if="view === 'payable'">💰 应付款管理</span>
+            <span v-else-if="view === 'profile'">👤 我的</span>
             <span v-else>对账单详情</span>
           </div>
           <div v-if="view === 'home'" style="font-size:13px">某某钢铁 等 8 家 ⋯</div>
+          <div v-else-if="view === 'statements'" style="font-size:13px">共 8 张 · 3 待确认</div>
+          <div v-else-if="view === 'payable'" style="font-size:13px">应付总额 ¥368,900</div>
+          <div v-else-if="view === 'profile'" style="font-size:13px">某某贸易 · 李经理</div>
           <div v-else style="font-size:12px;opacity:0.85">R202503001</div>
         </div>
 
@@ -1163,8 +1251,269 @@
           </div>
         </div>
 
+        <!-- ============ STATEMENTS VIEW (对账单列表) ============ -->
+        <div v-else-if="view === 'statements'" class="app-content">
+          <div class="filter-chip-row">
+            <div class="chip" :class="{active: stmtFilter==='all'}" @click="stmtFilter='all'">全部 8</div>
+            <div class="chip" :class="{active: stmtFilter==='pending'}" @click="stmtFilter='pending'">待确认 3</div>
+            <div class="chip" :class="{active: stmtFilter==='dispute'}" @click="stmtFilter='dispute'">异议中 1</div>
+            <div class="chip" :class="{active: stmtFilter==='done'}" @click="stmtFilter='done'">已完成 4</div>
+          </div>
+          <div v-for="s in filteredStatements" :key="s.no" class="stmt-card" @click="view='detail'">
+            <div class="stmt-bar" :style="{background: s.color}"></div>
+            <div class="stmt-body">
+              <div class="stmt-row">
+                <div class="stmt-supplier">
+                  <div class="logo" :style="{background: s.logoColor}">{{ s.supplier[0] }}</div>
+                  <div>
+                    <div class="supplier-name">{{ s.supplier }}</div>
+                    <div class="stmt-meta">{{ s.no }} · {{ s.period }}</div>
+                  </div>
+                </div>
+                <div class="stmt-amount-block">
+                  <div class="stmt-status" :style="{color: s.color}">{{ s.statusLabel }}</div>
+                  <div class="stmt-amount">¥{{ s.balance.toLocaleString() }}</div>
+                </div>
+              </div>
+              <div class="stmt-footer">
+                <span>收到 {{ s.recv }}</span>
+                <span v-if="s.deadline"> · <b :style="{color: s.color}">距超时 {{ s.deadline }}</b></span>
+                <span v-else-if="s.confirmedAt"> · 确认 {{ s.confirmedAt }}</span>
+                <span style="margin-left:auto;color:#409eff;">查看 ›</span>
+              </div>
+            </div>
+          </div>
+          <div style="height:20px"></div>
+        </div>
+
+        <!-- ============ PAYABLE VIEW (应付款管理) ============ -->
+        <div v-else-if="view === 'payable'" class="app-content">
+          <!-- Payable summary card -->
+          <div class="pay-summary-card">
+            <div class="pay-title">应付总额</div>
+            <div class="pay-amount">¥368,900<span class="unit">.00</span></div>
+            <div class="pay-stats">
+              <div class="pay-stat">
+                <div class="label">本月已付</div>
+                <div class="value">¥125,800</div>
+              </div>
+              <div class="divider"></div>
+              <div class="pay-stat">
+                <div class="label">已逾期</div>
+                <div class="value" style="color:#ff7875">¥45,600</div>
+              </div>
+              <div class="divider"></div>
+              <div class="pay-stat">
+                <div class="label">供应商</div>
+                <div class="value">8 家</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick actions -->
+          <div class="quick-grid">
+            <div class="quick-item" @click="showToast('立即付款')">
+              <div class="q-icon" style="background:linear-gradient(135deg,#ff7875,#ff4d4f)"><el-icon><Money/></el-icon></div>
+              <div>立即付款</div>
+            </div>
+            <div class="quick-item" @click="showToast('付款计划')">
+              <div class="q-icon" style="background:linear-gradient(135deg,#ffa940,#fa8c16)"><el-icon><Calendar/></el-icon></div>
+              <div>付款计划</div>
+            </div>
+            <div class="quick-item" @click="showToast('付款记录')">
+              <div class="q-icon" style="background:linear-gradient(135deg,#52c41a,#389e0d)"><el-icon><Tickets/></el-icon></div>
+              <div>付款记录</div>
+            </div>
+            <div class="quick-item" @click="showToast('付款方式')">
+              <div class="q-icon" style="background:linear-gradient(135deg,#40a9ff,#1890ff)"><el-icon><CreditCard/></el-icon></div>
+              <div>付款方式</div>
+            </div>
+          </div>
+
+          <!-- Payable filter tabs -->
+          <div class="filter-chip-row">
+            <div class="chip" :class="{active: payFilter==='all'}" @click="payFilter='all'">全部 6</div>
+            <div class="chip" :class="{active: payFilter==='overdue'}" @click="payFilter='overdue'">已逾期 1</div>
+            <div class="chip" :class="{active: payFilter==='due-soon'}" @click="payFilter='due-soon'">即将到期 2</div>
+            <div class="chip" :class="{active: payFilter==='partial'}" @click="payFilter='partial'">部分付款 1</div>
+          </div>
+
+          <!-- Payable list -->
+          <div v-for="p in filteredPayables" :key="p.no" class="pay-card">
+            <div class="pay-card-header">
+              <div class="pay-supplier">
+                <div class="logo" :style="{background: p.logoColor}">{{ p.supplier[0] }}</div>
+                <div>
+                  <div class="supplier-name">{{ p.supplier }}</div>
+                  <div class="pay-meta">{{ p.no }}</div>
+                </div>
+              </div>
+              <div class="pay-tag" :class="p.tagClass">{{ p.tagLabel }}</div>
+            </div>
+            <div class="pay-card-body">
+              <div class="pay-row">
+                <span class="pay-label">应付金额</span>
+                <span class="pay-value" style="font-size:18px;font-weight:700;color:#f5222d">¥{{ p.amount.toLocaleString() }}</span>
+              </div>
+              <div class="pay-row" v-if="p.paid">
+                <span class="pay-label">已付</span>
+                <span class="pay-value" style="color:#52c41a">¥{{ p.paid.toLocaleString() }}</span>
+              </div>
+              <div class="pay-row" v-if="p.paid">
+                <span class="pay-label">剩余</span>
+                <span class="pay-value">¥{{ (p.amount - p.paid).toLocaleString() }}</span>
+              </div>
+              <div class="pay-row">
+                <span class="pay-label">到期日</span>
+                <span class="pay-value">
+                  {{ p.dueDate }}
+                  <span v-if="p.overdue" style="color:#f5222d;font-weight:600;margin-left:6px">已逾期 {{ p.overdue }} 天</span>
+                  <span v-else-if="p.daysLeft <= 7" style="color:#faad14;font-weight:600;margin-left:6px">还有 {{ p.daysLeft }} 天</span>
+                </span>
+              </div>
+            </div>
+            <div class="pay-card-actions">
+              <button class="mini-btn primary" @click="showToast('正在跳转付款...')">
+                <el-icon><Money/></el-icon> 立即付款
+              </button>
+              <button class="mini-btn" @click="showToast('拨打 138****1234')">
+                <el-icon><Phone/></el-icon> 联系
+              </button>
+              <button class="mini-btn" @click="view='detail'">
+                <el-icon><Document/></el-icon> 详情
+              </button>
+            </div>
+          </div>
+          <div style="height:20px"></div>
+        </div>
+
+        <!-- ============ PROFILE VIEW (我的) ============ -->
+        <div v-else-if="view === 'profile'" class="app-content">
+          <!-- Profile header card -->
+          <div class="profile-header">
+            <div class="profile-avatar">李</div>
+            <div class="profile-info">
+              <div class="profile-name">李经理 <span class="v-tag">已认证</span></div>
+              <div class="profile-company">某某贸易有限公司</div>
+              <div class="profile-role">业务对接人 · 138****1234</div>
+            </div>
+            <el-icon class="profile-arrow" @click="showToast('编辑资料')"><ArrowRight/></el-icon>
+          </div>
+
+          <!-- Data statistics -->
+          <div class="profile-stats">
+            <div class="ps-item">
+              <div class="ps-value">8</div>
+              <div class="ps-label">合作供应商</div>
+            </div>
+            <div class="ps-item">
+              <div class="ps-value">42</div>
+              <div class="ps-label">历史对账单</div>
+            </div>
+            <div class="ps-item">
+              <div class="ps-value">¥3.6M</div>
+              <div class="ps-label">累计交易</div>
+            </div>
+          </div>
+
+          <!-- Menu group 1: Business -->
+          <div class="menu-group">
+            <div class="menu-group-title">业务管理</div>
+            <div class="menu-item" @click="showToast('企业信息')">
+              <div class="mi-left">
+                <div class="mi-icon" style="background:#e6f7ff;color:#1890ff"><el-icon><OfficeBuilding/></el-icon></div>
+                <div>企业信息</div>
+              </div>
+              <el-icon class="mi-arrow"><ArrowRight/></el-icon>
+            </div>
+            <div class="menu-item" @click="showToast('印章管理 · 已上传1枚')">
+              <div class="mi-left">
+                <div class="mi-icon" style="background:#fff2e8;color:#fa541c"><el-icon><Stamp/></el-icon></div>
+                <div>印章管理</div>
+              </div>
+              <div class="mi-value">1 枚 <el-icon class="mi-arrow"><ArrowRight/></el-icon></div>
+            </div>
+            <div class="menu-item" @click="showToast('联系人管理 · 3人')">
+              <div class="mi-left">
+                <div class="mi-icon" style="background:#f6ffed;color:#52c41a"><el-icon><UserFilled/></el-icon></div>
+                <div>联系人管理</div>
+              </div>
+              <div class="mi-value">3 人 <el-icon class="mi-arrow"><ArrowRight/></el-icon></div>
+            </div>
+            <div class="menu-item" @click="showToast('供应商管理')">
+              <div class="mi-left">
+                <div class="mi-icon" style="background:#f9f0ff;color:#722ed1"><el-icon><Connection/></el-icon></div>
+                <div>供应商管理</div>
+              </div>
+              <div class="mi-value">8 家 <el-icon class="mi-arrow"><ArrowRight/></el-icon></div>
+            </div>
+          </div>
+
+          <!-- Menu group 2: Settings -->
+          <div class="menu-group">
+            <div class="menu-group-title">设置与通知</div>
+            <div class="menu-item" @click="showToast('消息通知设置')">
+              <div class="mi-left">
+                <div class="mi-icon" style="background:#fff1f0;color:#f5222d"><el-icon><Bell/></el-icon></div>
+                <div>消息通知</div>
+              </div>
+              <div class="mi-value">全部开启 <el-icon class="mi-arrow"><ArrowRight/></el-icon></div>
+            </div>
+            <div class="menu-item" @click="showToast('付款方式管理')">
+              <div class="mi-left">
+                <div class="mi-icon" style="background:#e6fffb;color:#13c2c2"><el-icon><CreditCard/></el-icon></div>
+                <div>付款方式</div>
+              </div>
+              <div class="mi-value">2 张 <el-icon class="mi-arrow"><ArrowRight/></el-icon></div>
+            </div>
+            <div class="menu-item" @click="showToast('对账偏好')">
+              <div class="mi-left">
+                <div class="mi-icon" style="background:#f0f5ff;color:#2f54eb"><el-icon><Setting/></el-icon></div>
+                <div>对账偏好</div>
+              </div>
+              <el-icon class="mi-arrow"><ArrowRight/></el-icon>
+            </div>
+          </div>
+
+          <!-- Menu group 3: Support -->
+          <div class="menu-group">
+            <div class="menu-group-title">帮助与其他</div>
+            <div class="menu-item" @click="showToast('帮助中心')">
+              <div class="mi-left">
+                <div class="mi-icon" style="background:#f0f5ff;color:#1890ff"><el-icon><QuestionFilled/></el-icon></div>
+                <div>帮助中心</div>
+              </div>
+              <el-icon class="mi-arrow"><ArrowRight/></el-icon>
+            </div>
+            <div class="menu-item" @click="showToast('意见反馈')">
+              <div class="mi-left">
+                <div class="mi-icon" style="background:#fffbe6;color:#faad14"><el-icon><ChatDotRound/></el-icon></div>
+                <div>意见反馈</div>
+              </div>
+              <el-icon class="mi-arrow"><ArrowRight/></el-icon>
+            </div>
+            <div class="menu-item" @click="showToast('关于对账通')">
+              <div class="mi-left">
+                <div class="mi-icon" style="background:#f5f5f5;color:#595959"><el-icon><InfoFilled/></el-icon></div>
+                <div>关于</div>
+              </div>
+              <div class="mi-value">v2.1.0 <el-icon class="mi-arrow"><ArrowRight/></el-icon></div>
+            </div>
+          </div>
+
+          <!-- Logout -->
+          <button class="logout-btn" @click="showToast('退出登录')">
+            <el-icon><SwitchButton/></el-icon> 退出登录
+          </button>
+
+          <div class="app-footer">
+            对账通 v2.1 · 买方小程序<br>
+            © 2026 AutoRecon Team
+          </div>
+        </div>
+
         <!-- ============ DETAIL VIEW ============ -->
-        <div v-else class="app-content">
+        <div v-else-if="view === 'detail'" class="app-content">
 
           <!-- Statement info card -->
           <div class="detail-card">
@@ -1410,21 +1759,21 @@
           </div>
         </div>
 
-        <!-- Tab bar (home only) -->
-        <div v-if="view === 'home'" class="tab-bar">
-          <div class="tab-item active">
+        <!-- Tab bar (all views except detail) -->
+        <div v-if="view !== 'detail'" class="tab-bar">
+          <div class="tab-item" :class="{active: view==='home'}" @click="view='home'">
             <div class="icon"><el-icon><HomeFilled/></el-icon></div>
             <div>首页</div>
           </div>
-          <div class="tab-item" @click="view = 'detail'">
+          <div class="tab-item" :class="{active: view==='statements'}" @click="view='statements'">
             <div class="icon"><el-icon><Document/></el-icon></div>
             <div>对账单</div>
           </div>
-          <div class="tab-item" @click="showToast('应付款')">
+          <div class="tab-item" :class="{active: view==='payable'}" @click="view='payable'">
             <div class="icon"><el-icon><Money/></el-icon></div>
             <div>应付</div>
           </div>
-          <div class="tab-item" @click="showToast('我的')">
+          <div class="tab-item" :class="{active: view==='profile'}" @click="view='profile'">
             <div class="icon"><el-icon><User/></el-icon></div>
             <div>我的</div>
           </div>
@@ -1453,8 +1802,68 @@
           view: 'home',
           accTxn: true,
           accItem: false,
-          toast: ''
+          toast: '',
+          stmtFilter: 'all',
+          payFilter: 'all',
+          statements: [
+            { no:'R202503001', supplier:'某某钢铁', logoColor:'#1890ff', period:'2025年3月',
+              balance:75800, statusLabel:'🟡 待确认', color:'#faad14',
+              recv:'3天前', deadline:'12天', confirmedAt:null, cat:'pending' },
+            { no:'R202503002', supplier:'某某建材', logoColor:'#722ed1', period:'2025年3月',
+              balance:45600, statusLabel:'🟡 待确认', color:'#faad14',
+              recv:'2天前', deadline:'11天', confirmedAt:null, cat:'pending' },
+            { no:'R202503003', supplier:'某某钢构', logoColor:'#f5222d', period:'2025年3月',
+              balance:125000, statusLabel:'🔴 异议中', color:'#f5222d',
+              recv:'5天前', deadline:null, confirmedAt:null, cat:'dispute' },
+            { no:'R202503004', supplier:'某某钢铁', logoColor:'#1890ff', period:'2025年2月',
+              balance:89500, statusLabel:'🟢 已确认', color:'#52c41a',
+              recv:'25天前', deadline:null, confirmedAt:'02-28', cat:'done' },
+            { no:'R202503005', supplier:'某某物流', logoColor:'#13c2c2', period:'2025年3月',
+              balance:12300, statusLabel:'🟡 待确认', color:'#faad14',
+              recv:'4天前', deadline:'10天', confirmedAt:null, cat:'pending' },
+            { no:'R202503006', supplier:'某某加工', logoColor:'#8c8c8c', period:'2025年3月',
+              balance:8900, statusLabel:'⚪ 视同确认', color:'#8c8c8c',
+              recv:'超时', deadline:null, confirmedAt:'视同', cat:'done' },
+            { no:'R202503007', supplier:'某某焊管', logoColor:'#52c41a', period:'2025年3月',
+              balance:0, statusLabel:'🟢 已完成', color:'#52c41a',
+              recv:'5天前', deadline:null, confirmedAt:'03-14', cat:'done' },
+            { no:'R202503008', supplier:'某某无缝', logoColor:'#fa8c16', period:'2025年3月',
+              balance:67800, statusLabel:'🟢 已确认', color:'#52c41a',
+              recv:'6天前', deadline:null, confirmedAt:'03-13', cat:'done' }
+          ],
+          payables: [
+            { no:'PAY202503001', supplier:'某某钢构', logoColor:'#f5222d',
+              amount:125000, paid:0, dueDate:'2025-03-15', overdue:15, daysLeft:0,
+              tagLabel:'已逾期', tagClass:'overdue', cat:'overdue' },
+            { no:'PAY202503002', supplier:'某某钢铁', logoColor:'#1890ff',
+              amount:75800, paid:0, dueDate:'2025-04-05', overdue:0, daysLeft:5,
+              tagLabel:'即将到期', tagClass:'due-soon', cat:'due-soon' },
+            { no:'PAY202503003', supplier:'某某建材', logoColor:'#722ed1',
+              amount:45600, paid:0, dueDate:'2025-04-08', overdue:0, daysLeft:7,
+              tagLabel:'即将到期', tagClass:'due-soon', cat:'due-soon' },
+            { no:'PAY202503004', supplier:'某某物流', logoColor:'#13c2c2',
+              amount:25000, paid:12700, dueDate:'2025-04-15', overdue:0, daysLeft:14,
+              tagLabel:'部分付款', tagClass:'partial', cat:'partial' },
+            { no:'PAY202503005', supplier:'某某无缝', logoColor:'#fa8c16',
+              amount:67800, paid:0, dueDate:'2025-04-25', overdue:0, daysLeft:24,
+              tagLabel:'待付款', tagClass:'normal', cat:'normal' },
+            { no:'PAY202503006', supplier:'某某加工', logoColor:'#8c8c8c',
+              amount:29700, paid:0, dueDate:'2025-05-01', overdue:0, daysLeft:30,
+              tagLabel:'待付款', tagClass:'normal', cat:'normal' }
+          ]
         };
+      },
+      computed: {
+        filteredStatements() {
+          return this.stmtFilter === 'all'
+            ? this.statements
+            : this.statements.filter(s => s.cat === this.stmtFilter);
+        },
+        filteredPayables() {
+          return this.payFilter === 'all'
+            ? this.payables
+            : this.payables.filter(p => p.cat === this.payFilter);
+        }
       },
       methods: {
         showToast(msg) {

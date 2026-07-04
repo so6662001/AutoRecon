@@ -227,8 +227,36 @@
               <el-tooltip content="列设置" placement="top"><el-button :icon="Icons.Setting" circle /></el-tooltip>
             </div>
 
+            <div v-if="selectedIds.length" style="margin-bottom:12px; padding:8px 16px; background:#e6f7ff; border:1px solid #91d5ff; border-radius:6px; display:flex; align-items:center; gap:16px;">
+              <el-icon color="#1890ff"><component :is="Icons.InfoFilled" /></el-icon>
+              <span>已选择 <b style="color:#1890ff;">{{ selectedIds.length }}</b> 项 / 共 {{ tableData.length }} 项</span>
+              <div style="flex:1;"></div>
+              <el-button size="small" type="primary">批量发送</el-button>
+              <el-button size="small">批量催促</el-button>
+              <el-button size="small">批量导出</el-button>
+              <el-button size="small" type="danger" plain>批量作废</el-button>
+              <el-button size="small" text @click="selectedIds=[]">取消选择</el-button>
+            </div>
+
             <el-table :data="tableData" stripe border style="width:100%" :header-cell-style="{background:'#fafafa',color:'#262626',fontWeight:600}">
-              <el-table-column type="selection" label="选择" width="55" align="center" fixed="left" />
+              <el-table-column label="批量选择" width="90" align="center" fixed="left">
+                <template #header>
+                  <div style="display:flex; align-items:center; justify-content:center; gap:6px;">
+                    <el-checkbox
+                      :model-value="allSelected"
+                      :indeterminate="selectedIds.length > 0 && selectedIds.length < tableData.length"
+                      @change="toggleAll"
+                    />
+                    <span style="font-size:12px; color:#606266;">全选</span>
+                  </div>
+                </template>
+                <template #default="{row}">
+                  <el-checkbox
+                    :model-value="selectedIds.includes(row.no)"
+                    @change="toggleRow(row.no)"
+                  />
+                </template>
+              </el-table-column>
               <el-table-column prop="no" label="对账单号" width="130" fixed="left">
                 <template #default="{row}">
                   <el-link type="primary" @click="goDetail(row)">{{ row.no }}</el-link>
@@ -342,6 +370,14 @@
     const app = createApp({
       setup() {
         const searchForm = reactive({ no:'', customer:'', type:'', level:'', status:'', range:null, trigger:'' });
+        const selectedIds = ref([]);
+        const allSelected = Vue.computed(() => tableData.value.length > 0 && selectedIds.value.length === tableData.value.length);
+        function toggleAll(v) { selectedIds.value = v ? tableData.value.map(r => r.no) : []; }
+        function toggleRow(id) {
+          const i = selectedIds.value.indexOf(id);
+          if (i >= 0) selectedIds.value.splice(i, 1);
+          else selectedIds.value.push(id);
+        }
 
         const tableData = ref([
           { no:'R202503001', customer:'某某贸易',  type:'经销商', level:'B', period:'2025-03-01 ~ 2025-03-31', trigger:'自动', balance:75800,  status:'PENDING',          sentAt:'2026-03-17 10:30', confirmedAt:'-' },
@@ -371,7 +407,7 @@
         function goDetail(row){ window.location.href='./statement-detail.html?no='+row.no; }
         function nav(page){ window.location.href='./'+page; }
 
-        return { searchForm, tableData, formatMoney, levelTagType, statusLabel, statusTagType, statusDotColor, goCreate, goDetail, nav, Icons };
+        return { searchForm, tableData, selectedIds, allSelected, toggleAll, toggleRow, formatMoney, levelTagType, statusLabel, statusTagType, statusDotColor, goCreate, goDetail, nav, Icons };
       }
     });
     app.use(ElementPlus);
