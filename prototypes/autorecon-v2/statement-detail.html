@@ -92,6 +92,25 @@
     .pdf-page th, .pdf-page td { padding:4px 6px; border-bottom:1px solid #eaeef3; text-align:right;}
     .pdf-page th:first-child, .pdf-page td:first-child { text-align:left;}
 
+    /* PDF multi-section styles */
+    .pdf-section { margin-bottom:14px; }
+    .pdf-section-title { display:flex; align-items:center; gap:6px; margin:0 0 8px 0; padding:6px 8px; background:linear-gradient(90deg,#001529,#1890ff); color:#fff; font-size:11px; font-weight:600; letter-spacing:1px; border-radius:2px;}
+    .pdf-section-title .badge { background:#fff; color:#1890ff; font-size:9px; padding:1px 5px; border-radius:2px; margin-left:auto; font-weight:700;}
+    .pdf-section-divider { border:none; border-top:2px dashed #d9d9d9; margin:18px -20px; position:relative;}
+    .pdf-section-divider::after { content:'— 分页 —'; position:absolute; top:-8px; left:50%; transform:translateX(-50%); background:#fff; padding:0 8px; font-size:9px; color:#bfbfbf; letter-spacing:2px;}
+    .pdf-attach-note { text-align:center; font-size:9px; color:#8c8c8c; margin-bottom:8px; font-style:italic;}
+    .pdf-signature-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px;}
+    .pdf-sig-box { border:1px solid #d9d9d9; border-radius:4px; padding:10px 8px; text-align:center; min-height:110px; position:relative;}
+    .pdf-sig-box.seller { background:#fff9f9;}
+    .pdf-sig-box.buyer  { background:#fafafa; border-style:dashed;}
+    .pdf-sig-box .sig-title { font-size:10px; font-weight:600; color:#262626; margin-bottom:6px;}
+    .pdf-sig-box .sig-meta { font-size:9px; color:#8c8c8c; margin-top:4px; line-height:1.4;}
+    .pdf-sig-box .sig-seal { display:inline-block; width:50px; height:50px; line-height:46px; border:1.5px solid #f5222d; border-radius:50%; color:#f5222d; font-size:8px; letter-spacing:1px; transform:rotate(-8deg); margin-top:2px; font-family:"KaiTi","楷体",serif;}
+    .pdf-sig-box .sig-pending { color:#bfbfbf; font-size:10px; padding:26px 0 8px;}
+
+    /* Info banner about PDF contents */
+    .pdf-content-info { background:linear-gradient(90deg,#e6f7ff,#f0f7ff); border-left:4px solid #1890ff; padding:10px 14px; margin-bottom:16px; border-radius:4px; font-size:13px; color:#003a8c; display:flex; align-items:center; gap:8px;}
+
     .page-tabs .el-tabs__header { margin: 0 0 16px 0;}
 
     /* Confirm info tab special */
@@ -202,6 +221,12 @@
             </div>
           </div>
 
+          <!-- PDF content composition notice -->
+          <div class="pdf-content-info">
+            <el-icon><component :is="Icons.InfoFilled" /></el-icon>
+            <span><b>PDF内容包含：</b>对账单主体 + 应收明细清单附件，展示买方在我司的完整购货明细（含每笔销售商品行的付款进度与到期状态）。</span>
+          </div>
+
           <!-- DEEMED_CONFIRMED special warning alert -->
           <el-alert type="warning" show-icon :closable="false" style="margin-bottom:16px; align-items:flex-start;">
             <template #title>
@@ -306,40 +331,60 @@
                     <template #label><span><el-icon><component :is="Icons.Document" /></el-icon> 应收明细</span></template>
                     <el-alert type="info" show-icon :closable="false" style="margin-bottom:12px;">
                       <template #title>
-                        应收明细来自 ERP（用友 U8 · 单据表 SA_SaleBillVouch），展示每笔销售订单的付款进度
+                        应收明细来自 ERP（用友 U8 · SA_SaleBillVouch），按<b>钢材商品行</b>展示每笔销售订单的付款进度。计价方式：<b>磅计</b>=按实际过磅重量计价，<b>理计</b>=按理论重量计价。（本页为只读视图）
                       </template>
                     </el-alert>
 
                     <el-table :data="arRows" border stripe :header-cell-style="{background:'#fafafa'}">
-                      <el-table-column prop="no" label="源单号" width="90" />
-                      <el-table-column prop="date" label="日期" width="90" />
-                      <el-table-column prop="memo" label="摘要" min-width="140" />
-                      <el-table-column label="原始金额" width="120" align="right">
-                        <template #default="{row}"><span class="amt-bal">¥{{ row.amount.toLocaleString() }}</span></template>
+                      <el-table-column prop="lineNo" label="行号" width="60" align="center" />
+                      <el-table-column prop="spec" label="商品规格" min-width="180">
+                        <template #default="{row}"><b>{{ row.spec }}</b></template>
                       </el-table-column>
-                      <el-table-column label="已付" width="120" align="right">
-                        <template #default="{row}"><span class="amt-pos">¥{{ row.paid.toLocaleString() }}</span></template>
+                      <el-table-column prop="qty" label="数量" width="80" align="right" />
+                      <el-table-column label="单价" width="90" align="right">
+                        <template #default="{row}">¥{{ row.price.toLocaleString() }}</template>
                       </el-table-column>
-                      <el-table-column label="未付" width="120" align="right">
-                        <template #default="{row}"><span :class="row.unpaid>0?'amt-neg':''">¥{{ row.unpaid.toLocaleString() }}</span></template>
-                      </el-table-column>
-                      <el-table-column prop="due" label="到期日" width="100" />
-                      <el-table-column label="状态" width="110">
+                      <el-table-column label="计价方式" width="90" align="center">
                         <template #default="{row}">
-                          <el-tag size="small" :type="row.statusType">{{ row.statusText }}</el-tag>
+                          <el-tag size="small" :type="row.pricing==='磅计'?'primary':'success'" effect="plain">{{ row.pricing }}</el-tag>
                         </template>
                       </el-table-column>
-                      <el-table-column label="操作" width="100">
-                        <template #default>
-                          <el-link type="primary">查看源单</el-link>
+                      <el-table-column label="金额" width="110" align="right">
+                        <template #default="{row}"><span class="amt-bal">¥{{ row.amount.toLocaleString() }}</span></template>
+                      </el-table-column>
+                      <el-table-column prop="remark" label="备注" width="100">
+                        <template #default="{row}"><span style="color:#8c8c8c;">{{ row.remark || '-' }}</span></template>
+                      </el-table-column>
+                      <el-table-column label="已付金额" width="110" align="right">
+                        <template #default="{row}"><span class="amt-pos">¥{{ row.paid.toLocaleString() }}</span></template>
+                      </el-table-column>
+                      <el-table-column label="未付金额" width="110" align="right">
+                        <template #default="{row}"><span :class="row.unpaid>0?'amt-neg':''">¥{{ row.unpaid.toLocaleString() }}</span></template>
+                      </el-table-column>
+                      <el-table-column prop="dueDate" label="到期日" width="110" />
+                      <el-table-column label="逾期天数" width="90" align="center">
+                        <template #default="{row}">
+                          <span v-if="row.overdueDays>0" style="color:#f5222d; font-weight:600;">{{ row.overdueDays }}天</span>
+                          <span v-else style="color:#c0c4cc;">-</span>
+                        </template>
+                      </el-table-column>
+                      <el-table-column label="状态" width="110">
+                        <template #default="{row}">
+                          <el-tag v-if="row.status==='已付清'" size="small" type="success">✓ 已付清</el-tag>
+                          <el-tag v-else-if="row.status==='部分付款'" size="small" type="warning">◐ 部分付款</el-tag>
+                          <el-tag v-else-if="row.status==='逾期'" size="small" type="danger">⚠ 逾期</el-tag>
+                          <el-tag v-else size="small" type="info">○ 未付款</el-tag>
                         </template>
                       </el-table-column>
                     </el-table>
 
                     <div style="margin-top:12px; padding:12px 16px; background:#fff2e8; border-radius:6px; border-left:4px solid #fa8c16;">
-                      <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span><b>未付合计：</b><span class="amt-neg" style="font-size:16px; font-family:'SF Mono',monospace;">¥88,100</span> <el-icon color="#52c41a"><component :is="Icons.CircleCheck" /></el-icon> <span style="color:#52c41a; font-size:12px;">与期末应收余额一致</span></span>
-                        <span style="color:#8c8c8c; font-size:12px;">2 笔已付清 · 1 笔部分付款 · 1 笔未付款</span>
+                      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                        <span><b>金额合计：</b><span class="amt-bal" style="font-size:16px; font-family:'SF Mono',monospace;">¥465,160</span>
+                          · <b>已付合计：</b><span class="amt-pos" style="font-family:'SF Mono',monospace;">¥241,160</span>
+                          · <b>未付合计：</b><span class="amt-neg" style="font-size:16px; font-family:'SF Mono',monospace;">¥224,000</span>
+                        </span>
+                        <span style="color:#8c8c8c; font-size:12px;">2 笔已付清 · 3 笔部分付款 · 2 笔逾期 · 1 笔未付款</span>
                       </div>
                     </div>
                   </el-tab-pane>
@@ -520,43 +565,123 @@
               </div>
               <div class="pdf-body">
                 <div class="pdf-page">
-                  <h4>对 账 单</h4>
-                  <div class="sub">Statement of Account · R202503006 · 2026-03-31</div>
+                  <!-- ===== Section 1: 主对账单 (往来流水) ===== -->
+                  <div class="pdf-section">
+                    <div class="pdf-section-title">
+                      ① 主对账单 · 往来流水
+                      <span class="badge">P.1</span>
+                    </div>
 
-                  <div class="parties">
-                    <div><b>卖方：</b>某某钢铁</div>
-                    <div><b>买方：</b>某某建筑</div>
+                    <h4>对 账 单</h4>
+                    <div class="sub">Statement of Account · R202503006 · 2026-03-31</div>
+
+                    <div class="parties">
+                      <div><b>卖方：</b>某某钢铁</div>
+                      <div><b>买方：</b>某某建筑</div>
+                    </div>
+
+                    <table>
+                      <thead>
+                        <tr><th>日期</th><th>单号</th><th>摘要</th><th>应收</th><th>实收</th><th>余额</th></tr>
+                      </thead>
+                      <tbody>
+                        <tr><td>03-01</td><td>—</td><td>期初</td><td>—</td><td>—</td><td>12,300</td></tr>
+                        <tr><td>03-01</td><td>PO101</td><td>螺纹钢 ¢12</td><td class="amt-pos">+30,000</td><td>—</td><td>42,300</td></tr>
+                        <tr><td>03-05</td><td>PO102</td><td>盘螺 ¢8</td><td class="amt-pos">+15,000</td><td>—</td><td>57,300</td></tr>
+                        <tr><td>03-10</td><td>PY101</td><td>承兑汇票</td><td>—</td><td class="amt-neg">-30,000</td><td>27,300</td></tr>
+                        <tr><td>03-12</td><td>PY102</td><td>电汇</td><td>—</td><td class="amt-neg">-20,000</td><td>7,300</td></tr>
+                        <tr><td>03-20</td><td>PO103</td><td>热轧板</td><td class="amt-pos">+50,300</td><td>—</td><td>57,600</td></tr>
+                        <tr><td>03-22</td><td>PO104</td><td>螺纹钢 ¢18</td><td class="amt-pos">+12,500</td><td>—</td><td>70,100</td></tr>
+                        <tr><td>03-25</td><td>PO105</td><td>螺纹钢 ¢16</td><td class="amt-pos">+18,000</td><td>—</td><td>88,100</td></tr>
+                      </tbody>
+                    </table>
+
+                    <div class="summary">
+                      <div class="item"><span>期初</span><b>¥12,300</b></div>
+                      <div class="item"><span>本期应收</span><b class="amt-pos">+¥125,800</b></div>
+                      <div class="item"><span>本期实收</span><b class="amt-neg">-¥50,000</b></div>
+                      <div class="item"><span>期末</span><b style="color:#1890ff; font-size:12px;">¥88,100</b></div>
+                    </div>
+
+                    <div style="margin-top:12px; font-size:10px; color:#8c8c8c; line-height:1.6;">
+                      如与贵司账目不符，请于收到后 <b style="color:#f5222d;">15</b> 天内反馈异议，逾期视同确认。
+                    </div>
                   </div>
 
-                  <table>
-                    <thead>
-                      <tr><th>日期</th><th>单号</th><th>摘要</th><th>应收</th><th>实收</th><th>余额</th></tr>
-                    </thead>
-                    <tbody>
-                      <tr><td>03-01</td><td>—</td><td>期初</td><td>—</td><td>—</td><td>12,300</td></tr>
-                      <tr><td>03-01</td><td>PO101</td><td>螺纹钢 ¢12</td><td class="amt-pos">+30,000</td><td>—</td><td>42,300</td></tr>
-                      <tr><td>03-05</td><td>PO102</td><td>盘螺 ¢8</td><td class="amt-pos">+15,000</td><td>—</td><td>57,300</td></tr>
-                      <tr><td>03-10</td><td>PY101</td><td>承兑汇票</td><td>—</td><td class="amt-neg">-30,000</td><td>27,300</td></tr>
-                      <tr><td>03-12</td><td>PY102</td><td>电汇</td><td>—</td><td class="amt-neg">-20,000</td><td>7,300</td></tr>
-                      <tr><td>03-20</td><td>PO103</td><td>热轧板</td><td class="amt-pos">+50,300</td><td>—</td><td>57,600</td></tr>
-                      <tr><td>03-22</td><td>PO104</td><td>螺纹钢 ¢18</td><td class="amt-pos">+12,500</td><td>—</td><td>70,100</td></tr>
-                      <tr><td>03-25</td><td>PO105</td><td>螺纹钢 ¢16</td><td class="amt-pos">+18,000</td><td>—</td><td>88,100</td></tr>
-                    </tbody>
-                  </table>
+                  <hr class="pdf-section-divider" />
 
-                  <div class="summary">
-                    <div class="item"><span>期初</span><b>¥12,300</b></div>
-                    <div class="item"><span>本期应收</span><b class="amt-pos">+¥125,800</b></div>
-                    <div class="item"><span>本期实收</span><b class="amt-neg">-¥50,000</b></div>
-                    <div class="item"><span>期末</span><b style="color:#1890ff; font-size:12px;">¥88,100</b></div>
+                  <!-- ===== Section 2: 附件 - 应收明细清单 ===== -->
+                  <div class="pdf-section">
+                    <div class="pdf-section-title">
+                      ② 附件 · 应收明细清单
+                      <span class="badge">P.2</span>
+                    </div>
+
+                    <h4 style="font-size:13px; letter-spacing:3px;">应收明细清单（附件）</h4>
+                    <div class="pdf-attach-note">Receivable Item Attachment · 买方在我司完整购货明细</div>
+
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>行</th><th>商品规格</th><th>数量</th><th>金额</th><th>已付</th><th>未付</th><th>到期</th><th>状态</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr><td>1</td><td>螺纹钢 Φ20</td><td>100</td><td>45,000</td><td class="amt-pos">45,000</td><td>0</td><td>03-15</td><td style="color:#52c41a;">✓</td></tr>
+                        <tr><td>3</td><td>盘螺 Φ10</td><td>50</td><td>21,000</td><td class="amt-pos">10,000</td><td class="amt-neg">11,000</td><td>03-25</td><td style="color:#faad14;">◐</td></tr>
+                        <tr><td>4</td><td>热轧板 3.0mm</td><td>200</td><td>82,000</td><td class="amt-pos">50,000</td><td class="amt-neg">32,000</td><td>04-05</td><td style="color:#faad14;">◐</td></tr>
+                        <tr><td>5</td><td>螺纹钢 Φ25</td><td>300</td><td>134,400</td><td class="amt-pos">100,000</td><td class="amt-neg">34,400</td><td>04-10</td><td style="color:#faad14;">◐</td></tr>
+                        <tr><td>6</td><td>冷轧卷板 1.5mm</td><td>150</td><td>78,000</td><td>0</td><td class="amt-neg">78,000</td><td>03-30</td><td style="color:#f5222d;">⚠</td></tr>
+                        <tr><td>7</td><td>焊管 DN50</td><td>500</td><td>19,000</td><td>0</td><td class="amt-neg">19,000</td><td>03-25</td><td style="color:#f5222d;">⚠</td></tr>
+                      </tbody>
+                    </table>
+
+                    <div class="summary" style="grid-template-columns:1fr 1fr 1fr;">
+                      <div class="item"><span>金额合计</span><b>¥465,160</b></div>
+                      <div class="item"><span>已付合计</span><b class="amt-pos">¥241,160</b></div>
+                      <div class="item"><span>未付合计</span><b class="amt-neg">¥224,000</b></div>
+                    </div>
+                    <div style="margin-top:10px; font-size:9px; color:#8c8c8c; line-height:1.5;">
+                      注：状态标记 ✓=已付清 ◐=部分付款 ⚠=逾期。计价方式：磅计=实际过磅重量 · 理计=理论重量。
+                    </div>
                   </div>
 
-                  <div style="margin-top:12px; font-size:10px; color:#8c8c8c; line-height:1.6;">
-                    如与贵司账目不符，请于收到后 <b style="color:#f5222d;">15</b> 天内反馈异议，逾期视同确认。
-                  </div>
+                  <hr class="pdf-section-divider" />
 
-                  <div class="stamp">
-                    <div style="display:inline-block; border:1.5px solid #f5222d; border-radius:50%; width:60px; height:60px; line-height:56px; text-align:center; font-size:9px; letter-spacing:1px; transform:rotate(-8deg);">某某钢铁<br/>财务专用</div>
+                  <!-- ===== Section 3: 签章区 ===== -->
+                  <div class="pdf-section">
+                    <div class="pdf-section-title">
+                      ③ 签章区
+                      <span class="badge">P.3</span>
+                    </div>
+
+                    <div class="pdf-signature-grid">
+                      <div class="pdf-sig-box seller">
+                        <div class="sig-title">卖方签章</div>
+                        <div class="sig-seal">某某钢铁<br/>财务专用</div>
+                        <div class="sig-meta">
+                          签章人：张财务<br/>
+                          时间：2026-03-08 10:14<br/>
+                          CFCA-SN...E3A2
+                        </div>
+                      </div>
+
+                      <div class="pdf-sig-box buyer">
+                        <div class="sig-title">买方签章位</div>
+                        <div class="sig-pending">
+                          （待签章）
+                        </div>
+                        <div class="sig-meta">
+                          买方：某某建筑<br/>
+                          状态：视同确认<br/>
+                          可回签后追加正式签章
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style="margin-top:10px; font-size:9px; color:#8c8c8c; text-align:center;">
+                      本对账单一式两份，甲乙双方各执一份，加盖公章后生效。
+                    </div>
                   </div>
                 </div>
               </div>
@@ -577,10 +702,14 @@
         const pdfCollapsed = ref(false);
 
         const arRows = ref([
-          { no:'S001', date:'03-01', memo:'螺纹钢 HRB400E ¢12', amount:30000, paid:30000, unpaid:0,     due:'03-15', statusText:'已付清',  statusType:'success' },
-          { no:'S002', date:'03-05', memo:'盘螺 HPB300 ¢8',    amount:15000, paid:15000, unpaid:0,     due:'03-20', statusText:'已付清',  statusType:'success' },
-          { no:'S003', date:'03-20', memo:'热轧板 Q235 5.5mm',  amount:50300, paid:5000,  unpaid:45300, due:'04-05', statusText:'部分付款', statusType:'warning' },
-          { no:'S004', date:'03-25', memo:'螺纹钢 HRB400E ¢16', amount:42800, paid:0,     unpaid:42800, due:'04-10', statusText:'未付款',  statusType:'danger' },
+          { lineNo:1, spec:'螺纹钢 Φ20 HRB400',   qty:100, price:4500, pricing:'磅计', amount:45000,  remark:'首批',      paid:45000,  unpaid:0,     dueDate:'2025-03-15', overdueDays:0,  status:'已付清'  },
+          { lineNo:2, spec:'螺纹钢 Φ22 HRB400',   qty:80,  price:4520, pricing:'磅计', amount:36160,  remark:'',          paid:36160,  unpaid:0,     dueDate:'2025-03-20', overdueDays:0,  status:'已付清'  },
+          { lineNo:3, spec:'盘螺 Φ10 Q235',       qty:50,  price:4200, pricing:'理计', amount:21000,  remark:'',          paid:10000,  unpaid:11000, dueDate:'2025-03-25', overdueDays:0,  status:'部分付款'},
+          { lineNo:4, spec:'热轧板 3.0mm Q235B',  qty:200, price:4100, pricing:'磅计', amount:82000,  remark:'分批发货',  paid:50000,  unpaid:32000, dueDate:'2025-04-05', overdueDays:0,  status:'部分付款'},
+          { lineNo:5, spec:'螺纹钢 Φ25 HRB400',   qty:300, price:4480, pricing:'磅计', amount:134400, remark:'大宗订单',  paid:100000, unpaid:34400, dueDate:'2025-04-10', overdueDays:0,  status:'部分付款'},
+          { lineNo:6, spec:'冷轧卷板 1.5mm',       qty:150, price:5200, pricing:'磅计', amount:78000,  remark:'',          paid:0,      unpaid:78000, dueDate:'2025-03-30', overdueDays:5,  status:'逾期'    },
+          { lineNo:7, spec:'焊管 DN50',            qty:500, price:3800, pricing:'理计', amount:19000,  remark:'',          paid:0,      unpaid:19000, dueDate:'2025-03-25', overdueDays:10, status:'逾期'    },
+          { lineNo:8, spec:'无缝管 DN100',         qty:80,  price:6200, pricing:'磅计', amount:49600,  remark:'待发货',    paid:0,      unpaid:49600, dueDate:'2025-04-15', overdueDays:0,  status:'未付款'  }
         ]);
 
         function nav(page){ window.location.href='./'+page; }
