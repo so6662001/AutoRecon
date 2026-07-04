@@ -1,0 +1,1483 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>买方移动端(小程序) - 对账通v2买方端原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: radial-gradient(circle at 30% 20%, #2c3e50 0%, #1a1f2e 60%, #0e1218 100%);
+      color: #303133;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 30px 20px 80px;
+      overflow-x: hidden;
+    }
+
+    /* Page-level nav bar (outside phone) */
+    .page-nav {
+      position: fixed;
+      top: 16px;
+      left: 20px;
+      display: flex;
+      gap: 8px;
+      z-index: 200;
+    }
+    .page-nav a {
+      color: #fff;
+      background: rgba(255,255,255,0.12);
+      backdrop-filter: blur(8px);
+      padding: 6px 12px;
+      border-radius: 16px;
+      text-decoration: none;
+      font-size: 12px;
+      border: 1px solid rgba(255,255,255,0.15);
+      transition: all .2s;
+    }
+    .page-nav a:hover { background: rgba(255,255,255,0.22); }
+
+    /* Description box beside phone */
+    .page-info {
+      color: #fff;
+      max-width: 260px;
+      margin-right: 40px;
+      padding-top: 40px;
+    }
+    .page-info h1 {
+      font-size: 22px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .page-info h1 .badge {
+      background: linear-gradient(135deg, #07c160, #10d275);
+      color: #fff;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 500;
+    }
+    .page-info p {
+      font-size: 13px;
+      line-height: 1.7;
+      color: rgba(255,255,255,0.7);
+      margin-bottom: 12px;
+    }
+    .page-info .kv {
+      font-size: 12px;
+      color: rgba(255,255,255,0.85);
+      display: flex;
+      gap: 8px;
+      margin: 5px 0;
+      align-items: center;
+    }
+    .page-info .kv .k { color: rgba(255,255,255,0.5); min-width: 60px; }
+
+    /* Toggle */
+    .toggle-btn {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #07c160;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 24px;
+      box-shadow: 0 8px 24px rgba(7,193,96,0.5);
+      cursor: pointer;
+      z-index: 200;
+      font-size: 13px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border: none;
+      transition: transform .2s;
+    }
+    .toggle-btn:hover { transform: translateY(-2px); }
+
+    /* ================= Phone Frame ================= */
+    .phone-frame {
+      width: 390px;
+      height: 800px;
+      background: #111;
+      border-radius: 48px;
+      padding: 12px;
+      box-shadow:
+        0 0 0 3px #2a2a2a,
+        0 30px 80px rgba(0,0,0,0.6),
+        0 0 100px rgba(64,158,255,0.15);
+      position: relative;
+      flex-shrink: 0;
+    }
+    .phone-frame::before {
+      /* notch */
+      content: '';
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 120px;
+      height: 28px;
+      background: #111;
+      border-radius: 0 0 16px 16px;
+      z-index: 10;
+    }
+    .phone-screen {
+      width: 100%;
+      height: 100%;
+      background: #f5f7fa;
+      border-radius: 36px;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* iOS status bar (mock) */
+    .ios-status {
+      height: 44px;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 26px 0 28px;
+      font-size: 15px;
+      font-weight: 600;
+      color: #000;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 5;
+    }
+    .ios-status .icons {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+      font-size: 12px;
+    }
+    .ios-status .signal {
+      display: flex; gap: 1.5px; align-items: flex-end;
+    }
+    .ios-status .signal span {
+      display: block; width: 3px; background: #000; border-radius: 1px;
+    }
+    .ios-status .signal span:nth-child(1){ height: 4px; }
+    .ios-status .signal span:nth-child(2){ height: 6px; }
+    .ios-status .signal span:nth-child(3){ height: 8px; }
+    .ios-status .signal span:nth-child(4){ height: 10px; }
+    .ios-status .battery {
+      width: 24px; height: 12px;
+      border: 1px solid #000;
+      border-radius: 3px;
+      padding: 1px;
+      position: relative;
+      margin-left: 3px;
+    }
+    .ios-status .battery::after {
+      content: '';
+      position: absolute;
+      right: -3px; top: 3px;
+      width: 2px; height: 4px;
+      background: #000;
+      border-radius: 0 1px 1px 0;
+    }
+    .ios-status .battery-fill {
+      width: 100%; height: 100%;
+      background: #000; border-radius: 1px;
+    }
+
+    /* Mini-program header (WeChat style) */
+    .mp-header {
+      height: 44px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      font-size: 17px;
+      font-weight: 600;
+      color: #000;
+      flex-shrink: 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .mp-header .left { display: flex; align-items: center; gap: 6px; }
+    .mp-header .capsule {
+      display: flex;
+      align-items: center;
+      background: rgba(0,0,0,0.05);
+      border-radius: 20px;
+      padding: 4px 4px;
+      gap: 6px;
+    }
+    .mp-header .capsule .cap-btn {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: #000; font-size: 14px;
+    }
+    .mp-header .capsule .divider {
+      width: 1px; height: 16px; background: rgba(0,0,0,0.15);
+    }
+
+    /* Sub header (green WeChat style) */
+    .sub-header {
+      background: linear-gradient(135deg, #07c160 0%, #10d275 100%);
+      color: #fff;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .sub-header .title {
+      font-size: 16px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .sub-header .back {
+      width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      font-size: 20px;
+    }
+
+    /* Scrollable content area */
+    .app-content {
+      flex: 1;
+      overflow-y: auto;
+      background: #f5f7fa;
+      padding-bottom: 8px;
+    }
+    .app-content::-webkit-scrollbar { display: none; }
+
+    /* Home summary card */
+    .summary-card {
+      margin: 12px;
+      padding: 18px;
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      border-radius: 16px;
+      color: #fff;
+      box-shadow: 0 6px 20px rgba(79,172,254,0.35);
+      position: relative;
+      overflow: hidden;
+    }
+    .summary-card::before {
+      content: '';
+      position: absolute;
+      top: -30px; right: -30px;
+      width: 120px; height: 120px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 50%;
+    }
+    .summary-card::after {
+      content: '';
+      position: absolute;
+      bottom: -50px; left: -20px;
+      width: 100px; height: 100px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 50%;
+    }
+    .summary-card .row {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .summary-card .row:last-child { margin-bottom: 0; }
+    .summary-card .col-l .lbl {
+      font-size: 12px;
+      opacity: 0.85;
+      margin-bottom: 4px;
+    }
+    .summary-card .col-l .val {
+      font-size: 28px;
+      font-weight: 700;
+    }
+    .summary-card .col-l .val small { font-size: 14px; margin-left: 4px; opacity: 0.9; }
+    .summary-card .link {
+      color: #fff;
+      font-size: 13px;
+      background: rgba(255,255,255,0.25);
+      padding: 6px 12px;
+      border-radius: 14px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      align-self: flex-end;
+    }
+    .summary-divider {
+      height: 1px;
+      background: rgba(255,255,255,0.3);
+      margin: 14px 0 10px;
+      position: relative;
+      z-index: 2;
+    }
+    .summary-small {
+      display: flex;
+      justify-content: space-between;
+      position: relative;
+      z-index: 2;
+    }
+    .summary-small .item .lbl { font-size: 11px; opacity: 0.85; }
+    .summary-small .item .val { font-size: 15px; font-weight: 600; margin-top: 2px; }
+
+    /* Quick actions row */
+    .quick-actions {
+      margin: 12px;
+      background: #fff;
+      border-radius: 16px;
+      padding: 16px 12px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .quick-action {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      position: relative;
+    }
+    .quick-action .icon {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+    }
+    .quick-action .icon.a1 { background: #fff2e8; color: #fa8c16; }
+    .quick-action .icon.a2 { background: #fff1f0; color: #f5222d; }
+    .quick-action .icon.a3 { background: #e6f7ff; color: #1890ff; }
+    .quick-action .icon.a4 { background: #f9f0ff; color: #722ed1; }
+    .quick-action .lbl {
+      font-size: 12px;
+      color: #4d5661;
+    }
+    .quick-action .dot {
+      position: absolute;
+      top: 0;
+      right: 12px;
+      width: 8px; height: 8px;
+      background: #f5222d;
+      border-radius: 50%;
+      border: 2px solid #fff;
+    }
+
+    /* Section title */
+    .section-hdr {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 16px 8px;
+      margin-top: 4px;
+    }
+    .section-hdr .t {
+      font-size: 15px;
+      font-weight: 600;
+      color: #262626;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .section-hdr .t::before {
+      content: '';
+      width: 3px; height: 14px;
+      background: #07c160;
+      border-radius: 2px;
+    }
+    .section-hdr .more {
+      font-size: 12px;
+      color: #8c8c8c;
+    }
+
+    /* Statement card list */
+    .stmt-list { padding: 0 12px; }
+    .stmt-card {
+      background: #fff;
+      border-radius: 14px;
+      margin-bottom: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .stmt-card .bar {
+      height: 6px;
+    }
+    .stmt-card.pending .bar { background: linear-gradient(90deg, #fa8c16, #ffa940); }
+    .stmt-card.dispute .bar { background: linear-gradient(90deg, #f5222d, #ff4d4f); }
+    .stmt-card.confirmed .bar { background: linear-gradient(90deg, #52c41a, #73d13d); }
+    .stmt-card .body { padding: 14px; }
+    .stmt-card .hdr {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .stmt-card .hdr .logo {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #4a67d0, #1890ff);
+      color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 600;
+      flex-shrink: 0;
+    }
+    .stmt-card .hdr .logo.g1 { background: linear-gradient(135deg, #722ed1, #b37feb); }
+    .stmt-card .hdr .logo.g2 { background: linear-gradient(135deg, #fa541c, #ff7a45); }
+    .stmt-card .hdr .name {
+      flex: 1; min-width: 0;
+    }
+    .stmt-card .hdr .company {
+      font-size: 14px; font-weight: 600; color: #262626;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .stmt-card .hdr .meta {
+      font-size: 11px; color: #8c8c8c;
+      margin-top: 2px;
+    }
+    .stmt-card .hdr .status-tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      flex-shrink: 0;
+    }
+    .stmt-card.pending .status-tag { background: #fff7e6; color: #fa8c16; }
+    .stmt-card.dispute .status-tag { background: #fff1f0; color: #f5222d; }
+    .stmt-card.confirmed .status-tag { background: #f6ffed; color: #52c41a; }
+    .stmt-card .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 10px 0;
+      border-bottom: 1px dashed #f0f0f0;
+    }
+    .stmt-card .info-row:last-of-type { border-bottom: none; }
+    .stmt-card .info-row .lbl { font-size: 12px; color: #8c8c8c; }
+    .stmt-card .info-row .val { font-size: 13px; color: #262626; font-weight: 500; }
+    .stmt-card .amt-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+    }
+    .stmt-card .amt-row .lbl { font-size: 13px; color: #4d5661; }
+    .stmt-card .amt-row .amt {
+      font-size: 24px;
+      font-weight: 700;
+      color: #f5222d;
+      font-family: "SF Mono", Consolas, monospace;
+    }
+    .stmt-card.confirmed .amt-row .amt { color: #52c41a; }
+    .stmt-card .warn-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #fff2e8;
+      color: #fa8c16;
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 11px;
+      margin-top: 4px;
+    }
+    .stmt-card .warn-tag.danger { background: #fff1f0; color: #f5222d; }
+    .stmt-card .actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #f5f7fa;
+    }
+    .stmt-card .actions button {
+      flex: 1;
+      height: 34px;
+      border-radius: 8px;
+      border: none;
+      font-size: 13px;
+      cursor: pointer;
+      background: #f5f7fa;
+      color: #4d5661;
+      font-weight: 500;
+      transition: all .2s;
+    }
+    .stmt-card .actions button.primary {
+      background: #07c160;
+      color: #fff;
+    }
+    .stmt-card .actions button.danger {
+      background: #fff1f0;
+      color: #f5222d;
+      border: 1px solid #ffccc7;
+    }
+    .stmt-card .actions button:active { transform: scale(0.97); }
+
+    /* full width button */
+    .full-btn {
+      display: block;
+      width: calc(100% - 24px);
+      margin: 8px 12px 20px;
+      background: #fff;
+      color: #07c160;
+      border: 1px solid #b7eb8f;
+      border-radius: 12px;
+      height: 46px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    /* Notice card */
+    .notice-card {
+      margin: 12px;
+      background: #fff;
+      border-radius: 14px;
+      padding: 8px 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .notice-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px 0;
+      border-bottom: 1px solid #f5f7fa;
+    }
+    .notice-item:last-child { border-bottom: none; }
+    .notice-item .icon {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: #e6f4ff;
+      color: #1890ff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .notice-item .icon.msg { background: #f6ffed; color: #52c41a; }
+    .notice-item .body { flex: 1; min-width: 0; }
+    .notice-item .body .src {
+      font-size: 12px; color: #1890ff; font-weight: 500;
+      margin-bottom: 2px;
+    }
+    .notice-item .body .txt {
+      font-size: 13px; color: #262626; line-height: 1.5;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+    .notice-item .time {
+      font-size: 11px; color: #bfbfbf;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    /* Bottom tab bar */
+    .tab-bar {
+      height: 56px;
+      background: #fff;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      border-top: 1px solid #eef2f7;
+      flex-shrink: 0;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .tab-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      color: #8c8c8c;
+      font-size: 10px;
+      cursor: pointer;
+      flex: 1;
+    }
+    .tab-item .icon { font-size: 22px; }
+    .tab-item.active { color: #1890ff; }
+
+    /* Home bar (iOS bottom) */
+    .home-bar {
+      height: 24px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #fff;
+      flex-shrink: 0;
+    }
+    .home-bar .bar {
+      width: 130px;
+      height: 5px;
+      background: #000;
+      border-radius: 3px;
+    }
+
+    /* ============ Detail view ============ */
+    .detail-card {
+      margin: 12px;
+      background: #fff;
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .detail-card .row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px dashed #f0f0f0;
+      font-size: 13px;
+    }
+    .detail-card .row:last-of-type { border-bottom: none; }
+    .detail-card .row .lbl { color: #8c8c8c; }
+    .detail-card .row .val { color: #262626; font-weight: 500; }
+    .detail-card .highlight-row {
+      background: linear-gradient(135deg, #f5222d, #ff7875);
+      color: #fff;
+      padding: 14px 16px;
+      border-radius: 10px;
+      margin-top: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .detail-card .highlight-row .lbl { color: rgba(255,255,255,0.9); font-size: 13px; }
+    .detail-card .highlight-row .val {
+      font-size: 22px; font-weight: 700;
+      font-family: "SF Mono", Consolas, monospace;
+    }
+
+    /* Balance breakdown */
+    .balance-viz {
+      background: linear-gradient(135deg, #fff8e6 0%, #ffffff 100%);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .balance-viz .b-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 0;
+      font-size: 13px;
+    }
+    .balance-viz .b-row .op {
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700;
+      color: #fff;
+      font-size: 14px;
+      margin-right: 8px;
+      flex-shrink: 0;
+    }
+    .balance-viz .b-row.op-plus .op { background: #52c41a; }
+    .balance-viz .b-row.op-minus .op { background: #f5222d; }
+    .balance-viz .b-row.op-eq .op { background: #1890ff; }
+    .balance-viz .b-row .item { flex: 1; }
+    .balance-viz .b-row .item .lbl { color: #8c8c8c; font-size: 12px; }
+    .balance-viz .b-row .amt {
+      font-family: "SF Mono", Consolas, monospace;
+      font-weight: 600;
+    }
+    .balance-viz .b-row.op-plus .amt { color: #52c41a; }
+    .balance-viz .b-row.op-minus .amt { color: #f5222d; }
+    .balance-viz .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #dcdfe6, transparent);
+      margin: 4px 0;
+    }
+    .balance-viz .b-row.total {
+      background: rgba(245,34,45,0.06);
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 6px;
+    }
+    .balance-viz .b-row.total .lbl { font-weight: 600; color: #262626; }
+    .balance-viz .b-row.total .amt {
+      color: #f5222d;
+      font-size: 18px;
+    }
+
+    /* Accordion */
+    .acc-block {
+      margin: 12px;
+      background: #fff;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .acc-hdr {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 16px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .acc-hdr .t {
+      font-size: 14px;
+      font-weight: 600;
+      color: #262626;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .acc-hdr .t .count {
+      background: #e6f4ff;
+      color: #1890ff;
+      font-size: 11px;
+      padding: 1px 8px;
+      border-radius: 8px;
+      font-weight: 500;
+    }
+    .acc-hdr .arrow {
+      color: #bfbfbf;
+      font-size: 14px;
+      transition: transform .25s;
+    }
+    .acc-hdr.open .arrow { transform: rotate(180deg); }
+    .acc-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height .3s ease-out;
+    }
+    .acc-body.open {
+      max-height: 800px;
+    }
+    .acc-inner {
+      padding: 4px 16px 14px;
+      border-top: 1px solid #f5f7fa;
+    }
+
+    /* Txn small list */
+    .txn-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #f5f7fa;
+      font-size: 13px;
+    }
+    .txn-item:last-child { border-bottom: none; }
+    .txn-item .l .date {
+      font-size: 11px; color: #8c8c8c;
+    }
+    .txn-item .l .memo {
+      color: #262626; margin-top: 2px; font-weight: 500;
+    }
+    .txn-item .l .no {
+      font-size: 11px; color: #bfbfbf;
+      font-family: "SF Mono", Consolas, monospace;
+    }
+    .txn-item .r {
+      font-family: "SF Mono", Consolas, monospace;
+      font-weight: 600;
+    }
+    .txn-item .r.pos { color: #52c41a; }
+    .txn-item .r.neg { color: #1890ff; }
+
+    /* Item card list */
+    .item-card {
+      background: #fafbfc;
+      border: 1px solid #eef2f7;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+    .item-card:last-child { margin-bottom: 0; }
+    .item-card .top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .item-card .spec {
+      font-size: 13px;
+      font-weight: 600;
+      color: #262626;
+    }
+    .item-card .item-tag {
+      font-size: 11px;
+      padding: 1px 8px;
+      border-radius: 8px;
+    }
+    .item-card .item-tag.paid { background: #f6ffed; color: #52c41a; }
+    .item-card .item-tag.partial { background: #fff7e6; color: #fa8c16; }
+    .item-card .item-tag.unpaid { background: #fff1f0; color: #f5222d; }
+    .item-card .qty-row {
+      font-size: 12px;
+      color: #4d5661;
+      margin-bottom: 6px;
+    }
+    .item-card .qty-row .mode {
+      display: inline-block;
+      background: #e6f4ff;
+      color: #1890ff;
+      padding: 0 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      margin: 0 4px;
+    }
+    .item-card .pay-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #8c8c8c;
+      padding-top: 8px;
+      border-top: 1px dashed #eef2f7;
+    }
+    .item-card .pay-row .amt-paid { color: #1890ff; font-weight: 500; }
+    .item-card .pay-row .amt-unpaid { color: #f5222d; font-weight: 500; }
+    .item-card .pay-row .amt-unpaid.zero { color: #8c8c8c; }
+
+    /* Sticky bottom buttons */
+    .sticky-bottom {
+      background: #fff;
+      padding: 12px;
+      border-top: 1px solid #eef2f7;
+      box-shadow: 0 -4px 12px rgba(0,0,0,0.04);
+      flex-shrink: 0;
+    }
+    .sticky-bottom .row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .sticky-bottom .row:last-child { margin-bottom: 0; }
+    .sticky-bottom button {
+      flex: 1;
+      height: 42px;
+      border-radius: 10px;
+      border: none;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 4px;
+    }
+    .sticky-bottom .btn-confirm {
+      background: linear-gradient(135deg, #07c160, #10d275);
+      color: #fff;
+    }
+    .sticky-bottom .btn-dispute {
+      background: #fff1f0;
+      color: #f5222d;
+      border: 1px solid #ffccc7 !important;
+    }
+    .sticky-bottom .btn-download {
+      background: #f5f7fa;
+      color: #4d5661;
+    }
+
+    /* Verification/confirmed banner */
+    .status-banner {
+      margin: 12px;
+      padding: 14px 16px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #f6ffed 0%, #ffffff 100%);
+      border: 1px solid #b7eb8f;
+      color: #262626;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .status-banner .badge {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #52c41a, #73d13d);
+      color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    .status-banner .info { flex: 1; }
+    .status-banner .t { font-size: 13px; font-weight: 600; color: #52c41a; }
+    .status-banner .meta {
+      font-size: 11px; color: #8c8c8c; margin-top: 4px;
+    }
+
+    /* Toast */
+    .my-toast {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.8);
+      color: #fff;
+      padding: 14px 20px;
+      border-radius: 10px;
+      font-size: 13px;
+      z-index: 100;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="page-nav">
+      <a href="index.html">← 原型导航</a>
+      <a href="guest.html">免注册视图</a>
+      <a href="buyer-pc.html">PC 端</a>
+    </div>
+
+    <div class="page-info">
+      <h1>买方端 · 小程序<span class="badge">MP</span></h1>
+      <p>模拟微信小程序中运行的对账通买方端，扫描发货短信中的小程序码或从"对账通"公众号进入。</p>
+      <div class="kv"><span class="k">机型:</span><span>iPhone 14 (390 × 800)</span></div>
+      <div class="kv"><span class="k">框架:</span><span>WeChat Mini-Program 模拟</span></div>
+      <div class="kv"><span class="k">主题:</span><span>#07c160 微信绿</span></div>
+      <div class="kv"><span class="k">用户:</span><span>李经理 · 采购部</span></div>
+      <div class="kv"><span class="k">供应商:</span><span>8 家 · 待确认 3</span></div>
+      <p style="margin-top:16px;font-size:12px;color:rgba(255,255,255,0.5)">
+        右下角"切换视图"可在首页 / 对账单详情之间切换。<br>
+        点击首页对账单卡片"查看详情"也可跳转。
+      </p>
+    </div>
+
+    <!-- ================= PHONE FRAME ================= -->
+    <div class="phone-frame">
+      <div class="phone-screen">
+
+        <!-- iOS status bar -->
+        <div class="ios-status">
+          <span>9:41</span>
+          <div class="icons">
+            <div class="signal">
+              <span></span><span></span><span></span><span></span>
+            </div>
+            <span style="font-size:11px;margin-left:4px">中国移动</span>
+            <span style="margin-left:8px;font-size:12px">📶</span>
+            <div class="battery"><div class="battery-fill"></div></div>
+          </div>
+        </div>
+
+        <!-- Mini-program header -->
+        <div class="mp-header">
+          <div class="left">
+            <div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#07c160,#10d275);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600">对</div>
+            <span>对账通</span>
+          </div>
+          <div class="capsule">
+            <div class="cap-btn">···</div>
+            <div class="divider"></div>
+            <div class="cap-btn">○</div>
+          </div>
+        </div>
+
+        <!-- Sub header (dynamic) -->
+        <div class="sub-header">
+          <div class="title">
+            <span v-if="view === 'detail'" class="back" @click="view = 'home'">‹</span>
+            <span v-if="view === 'home'">📋 我的对账单</span>
+            <span v-else>对账单详情</span>
+          </div>
+          <div v-if="view === 'home'" style="font-size:13px">某某钢铁 等 8 家 ⋯</div>
+          <div v-else style="font-size:12px;opacity:0.85">R202503001</div>
+        </div>
+
+        <!-- ============ HOME VIEW ============ -->
+        <div v-if="view === 'home'" class="app-content">
+
+          <!-- Summary card -->
+          <div class="summary-card">
+            <div class="row">
+              <div class="col-l">
+                <div class="lbl">🔔 待确认对账单</div>
+                <div class="val">3<small>笔</small></div>
+              </div>
+              <a href="javascript:;" class="link" @click="view = 'detail'">查看全部 →</a>
+            </div>
+            <div class="summary-divider"></div>
+            <div class="summary-small">
+              <div class="item">
+                <div class="lbl">应付款</div>
+                <div class="val">¥368,900</div>
+              </div>
+              <div class="item">
+                <div class="lbl">供应商</div>
+                <div class="val">8 家</div>
+              </div>
+              <div class="item">
+                <div class="lbl">本月已付</div>
+                <div class="val">¥125,800</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick actions -->
+          <div class="quick-actions">
+            <div class="quick-action" @click="showToast('对账单列表')">
+              <div class="icon a1"><el-icon><Document/></el-icon></div>
+              <div class="lbl">对账单</div>
+            </div>
+            <div class="quick-action" @click="showToast('应付款')">
+              <div class="icon a2"><el-icon><Money/></el-icon></div>
+              <div class="lbl">应付款</div>
+            </div>
+            <div class="quick-action" @click="showToast('供应商')">
+              <div class="icon a3"><el-icon><OfficeBuilding/></el-icon></div>
+              <div class="lbl">供应商</div>
+            </div>
+            <div class="quick-action" @click="showToast('消息中心')">
+              <div class="icon a4"><el-icon><Bell/></el-icon></div>
+              <div class="lbl">消息</div>
+              <span class="dot"></span>
+            </div>
+          </div>
+
+          <!-- Latest statements -->
+          <div class="section-hdr">
+            <div class="t">最新对账单</div>
+            <div class="more" @click="showToast('查看全部')">查看全部 →</div>
+          </div>
+          <div class="stmt-list">
+            <!-- Card 1: 待确认 -->
+            <div class="stmt-card pending">
+              <div class="bar"></div>
+              <div class="body">
+                <div class="hdr">
+                  <div class="logo">钢铁</div>
+                  <div class="name">
+                    <div class="company">某某钢铁有限公司</div>
+                    <div class="meta">R202503001 · 2025年3月</div>
+                  </div>
+                  <div class="status-tag">🟡 待确认</div>
+                </div>
+                <div class="amt-row">
+                  <span class="lbl">应付金额</span>
+                  <span class="amt">¥75,800</span>
+                </div>
+                <div class="info-row">
+                  <span class="lbl">收到时间</span>
+                  <span class="val">3 天前</span>
+                </div>
+                <div class="warn-tag">
+                  ⏳ 距超时确认还有 12 天
+                </div>
+                <div class="actions">
+                  <button @click="view = 'detail'">查看详情</button>
+                  <button class="danger" @click="showToast('已提交异议')">异议</button>
+                  <button class="primary" @click="showToast('对账单已确认')">确认</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Card 2: 异议中 -->
+            <div class="stmt-card dispute">
+              <div class="bar"></div>
+              <div class="body">
+                <div class="hdr">
+                  <div class="logo g1">钢构</div>
+                  <div class="name">
+                    <div class="company">某某钢构有限公司</div>
+                    <div class="meta">R202503003 · 2025年3月</div>
+                  </div>
+                  <div class="status-tag">🔴 异议处理中</div>
+                </div>
+                <div class="amt-row">
+                  <span class="lbl">应付金额</span>
+                  <span class="amt">¥125,000</span>
+                </div>
+                <div class="info-row">
+                  <span class="lbl">收到时间</span>
+                  <span class="val">5 天前</span>
+                </div>
+                <div class="warn-tag danger">
+                  💬 差额 ¥3,200 · 供应商已查阅
+                </div>
+                <div class="actions">
+                  <button @click="showToast('查看异议进度')">查看进度</button>
+                  <button class="primary" @click="showToast('已发送追加消息')">追加沟通</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Card 3: 已确认 -->
+            <div class="stmt-card confirmed">
+              <div class="bar"></div>
+              <div class="body">
+                <div class="hdr">
+                  <div class="logo">钢铁</div>
+                  <div class="name">
+                    <div class="company">某某钢铁有限公司</div>
+                    <div class="meta">R202503004 · 2025年2月</div>
+                  </div>
+                  <div class="status-tag">🟢 已确认</div>
+                </div>
+                <div class="amt-row">
+                  <span class="lbl">应付金额</span>
+                  <span class="amt">¥89,500</span>
+                </div>
+                <div class="info-row">
+                  <span class="lbl">确认时间</span>
+                  <span class="val">2月28日 15:23</span>
+                </div>
+                <div class="info-row">
+                  <span class="lbl">电子凭据</span>
+                  <span class="val" style="font-family:'SF Mono',Consolas,monospace;font-size:12px">EC202502280001</span>
+                </div>
+                <div class="actions">
+                  <button @click="showToast('正在下载 PDF …')">下载 PDF</button>
+                  <button @click="view = 'detail'">查看详情</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button class="full-btn" @click="showToast('查看全部对账单')">
+            <el-icon><View/></el-icon>查看全部对账单 →
+          </button>
+
+          <!-- Notice -->
+          <div class="section-hdr">
+            <div class="t">消息通知</div>
+            <div class="more" @click="showToast('全部消息')">全部消息 →</div>
+          </div>
+          <div class="notice-card">
+            <div class="notice-item" @click="showToast('打开消息')">
+              <div class="icon"><el-icon><ChatDotRound/></el-icon></div>
+              <div class="body">
+                <div class="src">💬 某某钢铁有限公司</div>
+                <div class="txt">您的对账单 R202503001 已送达，请及时确认，超时将视为默认确认。</div>
+              </div>
+              <div class="time">2 小时前</div>
+            </div>
+            <div class="notice-item" @click="showToast('打开消息')">
+              <div class="icon msg"><el-icon><CircleCheck/></el-icon></div>
+              <div class="body">
+                <div class="src">💬 某某建材有限公司</div>
+                <div class="txt">您的异议已收到，我们的对账员正在核实，会尽快回复您。</div>
+              </div>
+              <div class="time">昨天</div>
+            </div>
+          </div>
+
+          <div style="text-align:center;padding:16px;color:#bfbfbf;font-size:11px">
+            —— 已到底部 · 对账通 v2.1 ——
+          </div>
+        </div>
+
+        <!-- ============ DETAIL VIEW ============ -->
+        <div v-else class="app-content">
+
+          <!-- Statement info card -->
+          <div class="detail-card">
+            <div class="row">
+              <span class="lbl">对账单号</span>
+              <span class="val" style="font-family:'SF Mono',Consolas,monospace">R202503001</span>
+            </div>
+            <div class="row">
+              <span class="lbl">供应商</span>
+              <span class="val">某某钢铁有限公司</span>
+            </div>
+            <div class="row">
+              <span class="lbl">对账周期</span>
+              <span class="val">2025年3月 (03-01 ~ 03-31)</span>
+            </div>
+            <div class="row">
+              <span class="lbl">收到时间</span>
+              <span class="val">03-17 10:30</span>
+            </div>
+            <div class="row">
+              <span class="lbl">状态</span>
+              <span class="val" style="color:#fa8c16">🟡 待确认 (剩 12 天)</span>
+            </div>
+            <div class="highlight-row">
+              <span class="lbl">期末应收余额</span>
+              <span class="val">¥75,800</span>
+            </div>
+          </div>
+
+          <!-- Balance breakdown -->
+          <div class="section-hdr">
+            <div class="t">余额构成</div>
+          </div>
+          <div class="detail-card" style="padding:0">
+            <div class="balance-viz">
+              <div class="b-row">
+                <div class="op" style="background:#8c8c8c">=</div>
+                <div class="item"><div class="lbl">期初余额</div></div>
+                <div class="amt" style="color:#595959">¥20,500</div>
+              </div>
+              <div class="b-row op-plus">
+                <div class="op">+</div>
+                <div class="item"><div class="lbl">本期应收（销售）</div></div>
+                <div class="amt">+¥125,800</div>
+              </div>
+              <div class="b-row op-minus">
+                <div class="op">−</div>
+                <div class="item"><div class="lbl">本期实收（付款）</div></div>
+                <div class="amt">−¥50,000</div>
+              </div>
+              <div class="divider"></div>
+              <div class="b-row total">
+                <div class="op" style="background:#f5222d">＝</div>
+                <div class="item"><div class="lbl">期末余额</div></div>
+                <div class="amt">¥75,800</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Accordion: 往来流水 -->
+          <div class="acc-block">
+            <div :class="['acc-hdr', accTxn ? 'open' : '']" @click="accTxn = !accTxn">
+              <div class="t">
+                <el-icon><Tickets/></el-icon>
+                往来流水
+                <span class="count">6 笔</span>
+              </div>
+              <span class="arrow">⌄</span>
+            </div>
+            <div :class="['acc-body', accTxn ? 'open' : '']">
+              <div class="acc-inner">
+                <div class="txn-item">
+                  <div class="l">
+                    <div class="date">03-01</div>
+                    <div class="memo">螺纹钢销售 HRB400 φ12</div>
+                    <div class="no">S001 · 100件</div>
+                  </div>
+                  <div class="r pos">+¥45,000</div>
+                </div>
+                <div class="txn-item">
+                  <div class="l">
+                    <div class="date">03-05</div>
+                    <div class="memo">盘螺销售 HRB400 φ8</div>
+                    <div class="no">S002 · 50件</div>
+                  </div>
+                  <div class="r pos">+¥21,000</div>
+                </div>
+                <div class="txn-item">
+                  <div class="l">
+                    <div class="date">03-10</div>
+                    <div class="memo">银行收款（工行网银）</div>
+                    <div class="no">R001</div>
+                  </div>
+                  <div class="r neg">−¥20,000</div>
+                </div>
+                <div class="txn-item">
+                  <div class="l">
+                    <div class="date">03-15</div>
+                    <div class="memo">H型钢销售 Q235B 200*200</div>
+                    <div class="no">S003 · 20件</div>
+                  </div>
+                  <div class="r pos">+¥28,800</div>
+                </div>
+                <div class="txn-item">
+                  <div class="l">
+                    <div class="date">03-20</div>
+                    <div class="memo">银行收款（招行网银）</div>
+                    <div class="no">R002</div>
+                  </div>
+                  <div class="r neg">−¥30,000</div>
+                </div>
+                <div class="txn-item">
+                  <div class="l">
+                    <div class="date">03-28</div>
+                    <div class="memo">角钢销售 40*40*4</div>
+                    <div class="no">S005 · 25件</div>
+                  </div>
+                  <div class="r pos">+¥15,500</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Accordion: 应收明细 -->
+          <div class="acc-block">
+            <div :class="['acc-hdr', accItem ? 'open' : '']" @click="accItem = !accItem">
+              <div class="t">
+                <el-icon><Goods/></el-icon>
+                应收明细
+                <span class="count">5 项</span>
+              </div>
+              <span class="arrow">⌄</span>
+            </div>
+            <div :class="['acc-body', accItem ? 'open' : '']" style="max-height:1200px" v-if="accItem">
+              <div class="acc-inner">
+                <!-- Item 1 -->
+                <div class="item-card">
+                  <div class="top-row">
+                    <div class="spec">螺纹钢 Φ20 HRB400</div>
+                    <span class="item-tag paid">✓ 已付清</span>
+                  </div>
+                  <div class="qty-row">
+                    数量: 100 × ¥4,500<span class="mode">磅计</span>= <strong>¥45,000</strong>
+                  </div>
+                  <div class="pay-row">
+                    <span>已付: <span class="amt-paid">¥45,000</span></span>
+                    <span>未付: <span class="amt-unpaid zero">¥0</span></span>
+                    <span>到期: 03-15</span>
+                  </div>
+                </div>
+                <!-- Item 2 -->
+                <div class="item-card">
+                  <div class="top-row">
+                    <div class="spec">盘螺 Φ10 Q235</div>
+                    <span class="item-tag partial">◐ 部分付款</span>
+                  </div>
+                  <div class="qty-row">
+                    数量: 50 × ¥4,200<span class="mode">理计</span>= <strong>¥21,000</strong>
+                  </div>
+                  <div class="pay-row">
+                    <span>已付: <span class="amt-paid">¥10,000</span></span>
+                    <span>未付: <span class="amt-unpaid">¥11,000</span></span>
+                    <span>到期: 03-25</span>
+                  </div>
+                </div>
+                <!-- Item 3 -->
+                <div class="item-card">
+                  <div class="top-row">
+                    <div class="spec">H型钢 Q235B 200*200</div>
+                    <span class="item-tag unpaid">✗ 未付</span>
+                  </div>
+                  <div class="qty-row">
+                    数量: 20 × ¥5,500<span class="mode">磅计</span>= <strong>¥28,800</strong>
+                  </div>
+                  <div class="pay-row">
+                    <span>已付: <span class="amt-paid">¥0</span></span>
+                    <span>未付: <span class="amt-unpaid">¥28,800</span></span>
+                    <span>到期: 04-10</span>
+                  </div>
+                </div>
+                <!-- Item 4 -->
+                <div class="item-card">
+                  <div class="top-row">
+                    <div class="spec">无缝钢管 Φ108×5</div>
+                    <span class="item-tag unpaid">✗ 未付</span>
+                  </div>
+                  <div class="qty-row">
+                    数量: 30 × ¥5,200<span class="mode">磅计</span>= <strong>¥15,500</strong>
+                  </div>
+                  <div class="pay-row">
+                    <span>已付: <span class="amt-paid">¥0</span></span>
+                    <span>未付: <span class="amt-unpaid">¥15,500</span></span>
+                    <span>到期: 04-15</span>
+                  </div>
+                </div>
+                <!-- Item 5 -->
+                <div class="item-card">
+                  <div class="top-row">
+                    <div class="spec">角钢 40*40*4</div>
+                    <span class="item-tag partial">◐ 部分付款</span>
+                  </div>
+                  <div class="qty-row">
+                    数量: 25 × ¥3,200<span class="mode">理计</span>= <strong>¥15,500</strong>
+                  </div>
+                  <div class="pay-row">
+                    <span>已付: <span class="amt-paid">¥5,000</span></span>
+                    <span>未付: <span class="amt-unpaid">¥10,500</span></span>
+                    <span>到期: 04-20</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Notice about confirming -->
+          <div class="status-banner" style="background:linear-gradient(135deg,#e6f4ff 0%,#ffffff 100%);border-color:#91d5ff;color:#0958d9">
+            <div class="badge" style="background:linear-gradient(135deg,#1890ff,#40a9ff)">
+              <el-icon><InfoFilled/></el-icon>
+            </div>
+            <div class="info">
+              <div class="t" style="color:#0958d9">请核对内容并及时反馈</div>
+              <div class="meta">确认即视为无异议 · 生成电子凭据 · 具有同等法律效力</div>
+            </div>
+          </div>
+
+          <div style="height:20px"></div>
+        </div>
+
+        <!-- Sticky bottom (detail only) -->
+        <div v-if="view === 'detail'" class="sticky-bottom">
+          <div class="row">
+            <button class="btn-download" @click="showToast('正在下载 PDF …')">
+              <el-icon><Download/></el-icon>下载 PDF
+            </button>
+            <button class="btn-dispute" @click="showToast('已提交异议')">
+              <el-icon><Warning/></el-icon>有异议
+            </button>
+          </div>
+          <div class="row">
+            <button class="btn-confirm" @click="doConfirm">
+              <el-icon><CircleCheckFilled/></el-icon>确认无异议
+            </button>
+          </div>
+        </div>
+
+        <!-- Tab bar (home only) -->
+        <div v-if="view === 'home'" class="tab-bar">
+          <div class="tab-item active">
+            <div class="icon"><el-icon><HomeFilled/></el-icon></div>
+            <div>首页</div>
+          </div>
+          <div class="tab-item" @click="view = 'detail'">
+            <div class="icon"><el-icon><Document/></el-icon></div>
+            <div>对账单</div>
+          </div>
+          <div class="tab-item" @click="showToast('应付款')">
+            <div class="icon"><el-icon><Money/></el-icon></div>
+            <div>应付</div>
+          </div>
+          <div class="tab-item" @click="showToast('我的')">
+            <div class="icon"><el-icon><User/></el-icon></div>
+            <div>我的</div>
+          </div>
+        </div>
+
+        <!-- Home bar -->
+        <div class="home-bar"><div class="bar"></div></div>
+
+        <!-- Custom toast -->
+        <div v-if="toast" class="my-toast">{{ toast }}</div>
+      </div>
+    </div>
+
+    <!-- Toggle button -->
+    <button class="toggle-btn" @click="view = (view === 'home' ? 'detail' : 'home')">
+      <el-icon><Switch/></el-icon>
+      切换视图: {{ view === 'home' ? '首页 → 详情' : '详情 → 首页' }}
+    </button>
+  </div>
+
+  <script>
+    const { createApp } = Vue;
+    const app = createApp({
+      data() {
+        return {
+          view: 'home',
+          accTxn: true,
+          accItem: false,
+          toast: ''
+        };
+      },
+      methods: {
+        showToast(msg) {
+          this.toast = msg;
+          clearTimeout(this._t);
+          this._t = setTimeout(() => { this.toast = ''; }, 1400);
+        },
+        doConfirm() {
+          ElementPlus.ElMessageBox.confirm(
+            '确认后将生成电子确认凭据，法律效力等同签署，是否继续？',
+            '确认对账单',
+            { confirmButtonText: '确认', cancelButtonText: '取消', type: 'success' }
+          ).then(() => {
+            this.showToast('✅ 对账单已确认');
+          }).catch(() => {});
+        }
+      }
+    });
+    app.use(ElementPlus);
+    for (const [k, v] of Object.entries(ElementPlusIconsVue)) {
+      app.component(k, v);
+    }
+    app.mount('#app');
+  </script>
+</body>
+</html>

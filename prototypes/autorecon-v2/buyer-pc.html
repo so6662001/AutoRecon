@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>买方PC端 - 对账通v2买方端原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f0f2f5;
+      color: #303133;
+    }
+    #app { height: 100%; }
+    .layout { display: flex; min-height: 100vh; }
+
+    /* ============ Sidebar (light theme with blue accent) ============ */
+    .sidebar {
+      width: 220px;
+      background: #ffffff;
+      border-right: 1px solid #e6ebf2;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      overflow-y: auto;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar-logo {
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1890ff 0%, #4a67d0 100%);
+      color: #fff;
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .sidebar-logo .badge {
+      background: rgba(255,255,255,0.24);
+      padding: 1px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0;
+    }
+    .user-card {
+      padding: 16px;
+      border-bottom: 1px solid #eef2f7;
+      background: linear-gradient(135deg, #f5faff 0%, #eef4ff 100%);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .user-card .avatar {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #1890ff, #6dd5ff);
+      color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 600; font-size: 15px;
+    }
+    .user-card .info { min-width: 0; flex: 1; }
+    .user-card .company {
+      font-size: 13px;
+      font-weight: 600;
+      color: #262626;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .user-card .name {
+      font-size: 12px;
+      color: #8c8c8c;
+      margin-top: 2px;
+    }
+    .user-card .tag {
+      display: inline-block;
+      background: #e6f4ff;
+      color: #1890ff;
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 8px;
+      margin-top: 3px;
+    }
+    .el-menu.sidebar-menu {
+      background: transparent;
+      border-right: none;
+      flex: 1;
+    }
+    .el-menu.sidebar-menu .el-menu-item,
+    .el-menu.sidebar-menu .el-sub-menu__title {
+      color: #4d5661;
+      height: 42px;
+      line-height: 42px;
+      font-size: 14px;
+    }
+    .el-menu.sidebar-menu .el-menu-item.is-active {
+      color: #1890ff;
+      background: #e6f4ff !important;
+      border-right: 3px solid #1890ff;
+    }
+    .el-menu.sidebar-menu .el-menu-item:hover,
+    .el-menu.sidebar-menu .el-sub-menu__title:hover {
+      background: #f5f7fa !important;
+      color: #1890ff !important;
+    }
+    .el-menu.sidebar-menu .el-sub-menu .el-menu-item {
+      padding-left: 48px !important;
+      font-size: 13px;
+    }
+    .sidebar-footer {
+      padding: 12px 16px;
+      border-top: 1px solid #eef2f7;
+      text-align: center;
+      color: #8c8c8c;
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+    .sidebar-footer a { color: #1890ff; text-decoration: none; }
+
+    /* ============ Main ============ */
+    .main { flex: 1; margin-left: 220px; display: flex; flex-direction: column; min-width: 0; }
+    .header {
+      height: 60px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      box-shadow: 0 1px 4px rgba(0,21,41,.05);
+      position: sticky; top: 0; z-index: 5;
+    }
+    .breadcrumb-wrap { display: flex; align-items: center; gap: 12px; font-size: 14px; color: #4d5661; }
+    .breadcrumb-wrap .role-tag {
+      background: linear-gradient(135deg, #52c41a, #73d13d);
+      color: #fff;
+      padding: 2px 10px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    .header-right { display: flex; align-items: center; gap: 20px; }
+    .header-right .icon-btn {
+      cursor: pointer;
+      color: #595959;
+      font-size: 18px;
+      position: relative;
+    }
+    .header-right .icon-btn:hover { color: #1890ff; }
+    .header-right .avatar-wrap {
+      display: flex; align-items: center; gap: 8px;
+      cursor: pointer; padding: 4px 10px;
+      border-radius: 20px;
+    }
+    .header-right .avatar-wrap:hover { background: #f5f7fa; }
+    .header-right .avatar-wrap .avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: linear-gradient(135deg, #1890ff, #6dd5ff);
+      color: #fff; font-weight: 600; font-size: 13px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .header-right .avatar-wrap .name { font-size: 13px; color: #262626; }
+
+    .content { flex: 1; padding: 20px 24px; overflow-y: auto; }
+
+    /* Stat cards */
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .stat-card {
+      background: #fff;
+      border-radius: 8px;
+      padding: 18px 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.05);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      border-left: 4px solid #1890ff;
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card .icon-wrap {
+      width: 48px; height: 48px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 22px;
+      flex-shrink: 0;
+    }
+    .stat-card .info { flex: 1; min-width: 0; }
+    .stat-card .label { font-size: 13px; color: #8c8c8c; margin-bottom: 4px; }
+    .stat-card .value {
+      font-size: 24px; font-weight: 600;
+      font-family: "SF Mono", Consolas, monospace;
+    }
+    .stat-card .sub { font-size: 12px; color: #8c8c8c; margin-top: 2px; }
+    .stat-card.warn { border-left-color: #fa8c16; }
+    .stat-card.warn .icon-wrap { background: linear-gradient(135deg, #fa8c16, #ffa940); }
+    .stat-card.warn .value { color: #fa8c16; }
+    .stat-card.danger { border-left-color: #f5222d; }
+    .stat-card.danger .icon-wrap { background: linear-gradient(135deg, #f5222d, #ff4d4f); }
+    .stat-card.danger .value { color: #f5222d; }
+    .stat-card.success { border-left-color: #52c41a; }
+    .stat-card.success .icon-wrap { background: linear-gradient(135deg, #52c41a, #73d13d); }
+    .stat-card.success .value { color: #52c41a; }
+    .stat-card.info { border-left-color: #1890ff; }
+    .stat-card.info .icon-wrap { background: linear-gradient(135deg, #1890ff, #40a9ff); }
+    .stat-card.info .value { color: #1890ff; }
+
+    /* Card / panel */
+    .panel {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.05);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .panel-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #262626;
+      margin-bottom: 16px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .panel-title .accent {
+      width: 3px; height: 14px;
+      background: #1890ff; border-radius: 2px;
+    }
+    .panel-title .spacer { flex: 1; }
+
+    /* Filter bar */
+    .filter-form .el-form-item { margin-bottom: 0; }
+
+    /* Table cells */
+    .seller-cell {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .seller-logo {
+      width: 28px; height: 28px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #4a67d0, #1890ff);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .seller-logo.g1 { background: linear-gradient(135deg, #fa541c, #ff7a45); }
+    .seller-logo.g2 { background: linear-gradient(135deg, #722ed1, #b37feb); }
+    .seller-logo.g3 { background: linear-gradient(135deg, #13c2c2, #36cfc9); }
+    .seller-logo.g4 { background: linear-gradient(135deg, #eb2f96, #ff85c0); }
+    .seller-logo.g5 { background: linear-gradient(135deg, #52c41a, #73d13d); }
+    .amount-cell {
+      font-family: "SF Mono", Consolas, monospace;
+      font-weight: 600;
+      color: #262626;
+    }
+    .amount-cell.red { color: #f5222d; }
+    .amount-cell.zero { color: #8c8c8c; font-weight: 500; }
+    .status-tag { font-weight: 500; }
+    .days-cell.warn { color: #fa8c16; font-weight: 500; }
+    .days-cell.danger { color: #f5222d; font-weight: 500; }
+    .days-cell.safe { color: #8c8c8c; }
+    .days-cell.expired {
+      color: #8c8c8c;
+      text-decoration: line-through;
+      font-style: italic;
+    }
+
+    /* ========= Detail Drawer ========= */
+    .detail-body { padding: 0 0 20px; }
+    .detail-body .section-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #262626;
+      margin: 16px 0 12px;
+      padding-left: 10px;
+      border-left: 3px solid #1890ff;
+    }
+
+    /* Bank-style statement inside drawer */
+    .bank-header {
+      background: linear-gradient(135deg, #001529 0%, #003a70 100%);
+      color: #fff;
+      padding: 20px 24px;
+      display: flex; justify-content: space-between; align-items: flex-start;
+      border-radius: 8px 8px 0 0;
+    }
+    .bank-header .title h2 {
+      font-size: 22px; font-weight: 600; letter-spacing: 2px; margin-bottom: 4px;
+    }
+    .bank-header .title .period { font-size: 13px; opacity: 0.85; }
+    .bank-header .no { text-align: right; font-size: 12px; opacity: 0.85; }
+    .bank-header .no .code {
+      font-family: "SF Mono", Consolas, monospace;
+      font-size: 14px; font-weight: 500; margin-top: 4px;
+    }
+    .bank-info {
+      padding: 16px 24px;
+      background: #fafbfc;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+      border-bottom: 1px solid #ebeef5;
+    }
+    .bank-info .row {
+      display: flex; align-items: center; gap: 10px; font-size: 13px;
+    }
+    .bank-info .row .lbl { color: #8c8c8c; min-width: 60px; }
+    .bank-info .row .val { color: #262626; font-weight: 500; }
+    .balance-panel {
+      padding: 18px 24px;
+      background: linear-gradient(135deg, #fff8e6 0%, #fff 100%);
+      border-bottom: 1px solid #ebeef5;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      align-items: stretch;
+    }
+    .balance-item {
+      display: flex; flex-direction: column;
+      padding: 0 6px;
+      border-right: 1px dashed #dcdfe6;
+    }
+    .balance-item:last-child { border-right: none; }
+    .balance-item .lbl { font-size: 12px; color: #8c8c8c; margin-bottom: 6px; }
+    .balance-item .val {
+      font-size: 18px; font-weight: 600;
+      font-family: "SF Mono", Consolas, monospace;
+    }
+    .balance-item.income .val { color: #52c41a; }
+    .balance-item.paid .val { color: #1890ff; }
+    .balance-item.opening .val { color: #595959; }
+    .balance-item.closing {
+      background: linear-gradient(135deg, #f5222d, #ff7875);
+      color: #fff;
+      border-radius: 6px;
+      border-right: none;
+      padding: 12px;
+    }
+    .balance-item.closing .lbl { color: rgba(255,255,255,0.9); }
+    .balance-item.closing .val {
+      color: #fff;
+      font-size: 22px;
+      font-weight: 700;
+    }
+    .bank-body {
+      background: #fff;
+      border-radius: 0 0 8px 8px;
+      border: 1px solid #ebeef5;
+      border-top: none;
+      overflow: hidden;
+    }
+
+    /* Confirm action panel */
+    .action-panel {
+      background: linear-gradient(135deg, #f6ffed 0%, #e6f4ff 100%);
+      border: 1px solid #d9f7be;
+      border-radius: 8px;
+      padding: 24px;
+      display: flex; align-items: center; gap: 20px;
+    }
+    .action-panel .desc { flex: 1; }
+    .action-panel .desc h3 {
+      font-size: 16px; color: #262626; margin-bottom: 6px;
+    }
+    .action-panel .desc p { color: #8c8c8c; font-size: 13px; line-height: 1.6; }
+    .action-panel .buttons { display: flex; gap: 12px; }
+
+    .confirmed-panel {
+      background: linear-gradient(135deg, #f6ffed 0%, #ffffff 100%);
+      border: 1px solid #b7eb8f;
+      border-radius: 8px;
+      padding: 20px 24px;
+      display: flex; align-items: center; gap: 16px;
+    }
+    .confirmed-panel .badge {
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #52c41a, #73d13d);
+      color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px;
+      flex-shrink: 0;
+    }
+    .confirmed-panel .info { flex: 1; }
+    .confirmed-panel .info .t {
+      font-size: 15px; font-weight: 600; color: #52c41a; margin-bottom: 6px;
+    }
+    .confirmed-panel .info .meta {
+      font-size: 13px; color: #595959;
+      display: flex; gap: 18px; flex-wrap: wrap;
+    }
+    .confirmed-panel .info .meta span { display: inline-flex; align-items: center; gap: 4px; }
+    .seal {
+      width: 76px; height: 76px;
+      border-radius: 50%;
+      border: 2px solid #f5222d;
+      color: #f5222d;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 600;
+      transform: rotate(-8deg);
+      flex-shrink: 0;
+      background: rgba(255,255,255,0.6);
+    }
+    .seal .top { font-size: 10px; letter-spacing: 1px; }
+    .seal .mid { font-size: 13px; margin: 2px 0; letter-spacing: 2px; }
+    .seal .btm { font-size: 9px; opacity: 0.8; }
+
+    /* Chat */
+    .chat-list {
+      max-height: 340px;
+      overflow-y: auto;
+      padding: 8px 12px;
+      background: #fafbfc;
+      border: 1px solid #ebeef5;
+      border-radius: 6px;
+      margin-bottom: 12px;
+    }
+    .chat-msg {
+      display: flex; gap: 10px;
+      margin: 12px 0;
+    }
+    .chat-msg .avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: #1890ff; color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 600;
+      flex-shrink: 0;
+    }
+    .chat-msg .avatar.seller { background: #fa541c; }
+    .chat-msg .bubble {
+      max-width: 70%;
+      background: #fff;
+      border: 1px solid #eef2f7;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #262626;
+      line-height: 1.6;
+      position: relative;
+    }
+    .chat-msg .bubble .who {
+      font-size: 11px; color: #8c8c8c;
+      margin-bottom: 4px;
+      display: flex; gap: 8px;
+    }
+    .chat-msg .bubble .who .time { color: #bfbfbf; }
+    .chat-msg.mine { flex-direction: row-reverse; }
+    .chat-msg.mine .bubble {
+      background: #e6f4ff;
+      border-color: #bae0ff;
+    }
+    .chat-input-bar { display: flex; gap: 8px; }
+    .chat-input-bar .el-input { flex: 1; }
+
+    /* Header nav quick links */
+    .quick-nav {
+      display: flex; gap: 8px; margin-left: 16px;
+    }
+    .quick-nav a {
+      font-size: 12px; color: #8c8c8c; text-decoration: none;
+      padding: 3px 10px; border-radius: 12px;
+      background: #f5f7fa; border: 1px solid transparent;
+    }
+    .quick-nav a:hover { color: #1890ff; background: #e6f4ff; border-color: #91d5ff; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="layout">
+      <!-- ==================== SIDEBAR ==================== -->
+      <div class="sidebar">
+        <div class="sidebar-logo">
+          <el-icon><Document/></el-icon>
+          对账通<span class="badge">买方端</span>
+        </div>
+        <div class="user-card">
+          <div class="avatar">李</div>
+          <div class="info">
+            <div class="company">某某贸易有限公司</div>
+            <div class="name">李经理 · 采购部</div>
+            <span class="tag">已认证企业</span>
+          </div>
+        </div>
+
+        <el-menu :default-active="active" class="sidebar-menu" @select="onMenuSelect" :default-openeds="['statements','payables','profile']">
+          <el-menu-item index="dashboard">
+            <el-icon><Odometer/></el-icon>
+            <span>工作台</span>
+          </el-menu-item>
+
+          <el-sub-menu index="statements">
+            <template #title>
+              <el-icon><Document/></el-icon>
+              <span>我的对账单</span>
+            </template>
+            <el-menu-item index="statements-pending">
+              待确认
+              <el-tag size="small" type="warning" style="margin-left:6px">3</el-tag>
+            </el-menu-item>
+            <el-menu-item index="statements-confirmed">已确认</el-menu-item>
+            <el-menu-item index="statements-deemed">视同确认</el-menu-item>
+            <el-menu-item index="statements-dispute">
+              异议中
+              <el-tag size="small" type="danger" style="margin-left:6px">1</el-tag>
+            </el-menu-item>
+            <el-menu-item index="statements-done">已完成</el-menu-item>
+          </el-sub-menu>
+
+          <el-sub-menu index="payables">
+            <template #title>
+              <el-icon><Money/></el-icon>
+              <span>应付款管理</span>
+            </template>
+            <el-menu-item index="payables-bill">应付账单</el-menu-item>
+            <el-menu-item index="payables-record">付款记录</el-menu-item>
+            <el-menu-item index="payables-invoice">发票管理</el-menu-item>
+          </el-sub-menu>
+
+          <el-menu-item index="suppliers">
+            <el-icon><UserFilled/></el-icon>
+            <span>我的供应商</span>
+            <el-tag size="small" style="margin-left:auto;margin-right:8px">8</el-tag>
+          </el-menu-item>
+
+          <el-menu-item index="messages">
+            <el-icon><Bell/></el-icon>
+            <span>消息中心</span>
+            <el-badge :value="5" class="msg-badge" style="margin-left:auto;margin-right:8px" />
+          </el-menu-item>
+
+          <el-sub-menu index="profile">
+            <template #title>
+              <el-icon><User/></el-icon>
+              <span>我的信息</span>
+            </template>
+            <el-menu-item index="profile-company">企业信息</el-menu-item>
+            <el-menu-item index="profile-contacts">联系人管理</el-menu-item>
+            <el-menu-item index="profile-seal">印章管理</el-menu-item>
+          </el-sub-menu>
+        </el-menu>
+
+        <div class="sidebar-footer">
+          <a href="index.html">← 返回原型导航</a><br>
+          <span style="color:#bfbfbf">对账通 v2.1 · 买方端</span>
+        </div>
+      </div>
+
+      <!-- ==================== MAIN ==================== -->
+      <div class="main">
+        <div class="header">
+          <div class="breadcrumb-wrap">
+            <el-breadcrumb separator="/">
+              <el-breadcrumb-item>买方工作区</el-breadcrumb-item>
+              <el-breadcrumb-item>我的对账单</el-breadcrumb-item>
+            </el-breadcrumb>
+            <span class="role-tag">买方视角</span>
+            <div class="quick-nav">
+              <a href="guest.html">→ 免注册视图</a>
+              <a href="buyer-mp.html">→ 移动端预览</a>
+            </div>
+          </div>
+          <div class="header-right">
+            <span class="icon-btn" @click="doSearch">
+              <el-icon><Search/></el-icon>
+            </span>
+            <el-badge :value="5" :max="99">
+              <span class="icon-btn"><el-icon><Bell/></el-icon></span>
+            </el-badge>
+            <el-dropdown>
+              <div class="avatar-wrap">
+                <div class="avatar">李</div>
+                <span class="name">李经理</span>
+                <el-icon><ArrowDown/></el-icon>
+              </div>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item><el-icon><User/></el-icon>个人中心</el-dropdown-item>
+                  <el-dropdown-item><el-icon><Setting/></el-icon>账号设置</el-dropdown-item>
+                  <el-dropdown-item divided><el-icon><SwitchButton/></el-icon>退出登录</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+        </div>
+
+        <div class="content">
+          <!-- Stat cards -->
+          <div class="stat-row">
+            <div class="stat-card warn">
+              <div class="icon-wrap"><el-icon><WarnTriangleFilled/></el-icon></div>
+              <div class="info">
+                <div class="label">待确认对账单</div>
+                <div class="value">3</div>
+                <div class="sub">需在超时前处理</div>
+              </div>
+            </div>
+            <div class="stat-card danger">
+              <div class="icon-wrap"><el-icon><Wallet/></el-icon></div>
+              <div class="info">
+                <div class="label">应付总额</div>
+                <div class="value">¥368,900</div>
+                <div class="sub">涵盖 8 家供应商</div>
+              </div>
+            </div>
+            <div class="stat-card success">
+              <div class="icon-wrap"><el-icon><Money/></el-icon></div>
+              <div class="info">
+                <div class="label">已付本月</div>
+                <div class="value">¥125,800</div>
+                <div class="sub">较上月 <span style="color:#52c41a">↑ 12%</span></div>
+              </div>
+            </div>
+            <div class="stat-card info">
+              <div class="icon-wrap"><el-icon><OfficeBuilding/></el-icon></div>
+              <div class="info">
+                <div class="label">供应商数</div>
+                <div class="value">8</div>
+                <div class="sub">长期合作 6 家</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Filter panel -->
+          <div class="panel">
+            <div class="panel-title">
+              <span class="accent"></span>筛选条件
+              <span class="spacer"></span>
+              <el-button size="small" plain @click="resetFilter">重置</el-button>
+            </div>
+            <el-form :inline="true" class="filter-form">
+              <el-form-item label="供应商">
+                <el-select v-model="filter.seller" placeholder="全部供应商" clearable style="width:200px">
+                  <el-option v-for="s in sellers" :key="s" :label="s" :value="s"/>
+                </el-select>
+              </el-form-item>
+              <el-form-item label="对账周期">
+                <el-date-picker
+                  v-model="filter.dateRange"
+                  type="daterange"
+                  range-separator="至"
+                  start-placeholder="开始日期"
+                  end-placeholder="结束日期"
+                  style="width:260px"
+                />
+              </el-form-item>
+              <el-form-item label="状态">
+                <el-select v-model="filter.status" placeholder="全部状态" clearable style="width:140px">
+                  <el-option label="待确认" value="pending"/>
+                  <el-option label="已确认" value="confirmed"/>
+                  <el-option label="视同确认" value="deemed"/>
+                  <el-option label="异议中" value="dispute"/>
+                  <el-option label="已完成" value="done"/>
+                </el-select>
+              </el-form-item>
+              <el-form-item>
+                <el-button type="primary" @click="doSearch"><el-icon><Search/></el-icon>查询</el-button>
+              </el-form-item>
+            </el-form>
+          </div>
+
+          <!-- Table -->
+          <div class="panel">
+            <div class="panel-title">
+              <span class="accent"></span>对账单列表 (来自各供应商)
+              <span class="spacer"></span>
+              <el-button size="small" plain><el-icon><Download/></el-icon>导出</el-button>
+              <el-button size="small" type="primary" plain><el-icon><Refresh/></el-icon>刷新</el-button>
+            </div>
+
+            <el-table :data="rows" style="width:100%" @row-click="openDetail" size="default" row-class-name="clickable-row">
+              <el-table-column label="供应商" min-width="180">
+                <template #default="{row}">
+                  <div class="seller-cell">
+                    <div :class="['seller-logo', row.logoClass]">{{ row.sellerShort }}</div>
+                    <span>{{ row.seller }}</span>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column prop="no" label="对账单号" width="130">
+                <template #default="{row}">
+                  <span style="font-family:'SF Mono',Consolas,monospace;font-size:12px">{{ row.no }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="period" label="对账周期" width="180"/>
+              <el-table-column label="期末应收余额" width="140" align="right">
+                <template #default="{row}">
+                  <span :class="['amount-cell', row.balance === 0 ? 'zero' : 'red']">
+                    ¥{{ row.balance.toLocaleString() }}
+                  </span>
+                </template>
+              </el-table-column>
+              <el-table-column label="状态" width="120" align="center">
+                <template #default="{row}">
+                  <el-tag :type="row.statusType" :effect="row.statusEffect" size="small" class="status-tag">
+                    {{ row.statusText }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="receivedAt" label="收到时间" width="130"/>
+              <el-table-column label="距超时天数" width="120" align="center">
+                <template #default="{row}">
+                  <span :class="['days-cell', row.daysClass]">{{ row.daysText }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="220" fixed="right">
+                <template #default="{row}">
+                  <el-button size="small" link type="primary" @click.stop="openDetail(row)">查看</el-button>
+                  <el-button v-if="row.status==='pending'" size="small" link type="success" @click.stop="quickConfirm(row)">确认</el-button>
+                  <el-button v-if="row.status==='pending'" size="small" link type="danger" @click.stop="quickDispute(row)">异议</el-button>
+                  <el-button v-if="row.status==='dispute'" size="small" link type="warning" @click.stop="openDetail(row)">处理</el-button>
+                  <el-button v-if="row.status==='confirmed'" size="small" link @click.stop="download(row)">下载</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px">
+              <span style="color:#8c8c8c;font-size:13px">共 {{ rows.length }} 条数据 · 待处理 4 条</span>
+              <el-pagination background layout="prev, pager, next, jumper" :total="rows.length" :page-size="10"/>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== DETAIL DRAWER ==================== -->
+    <el-drawer v-model="showDetail" size="60%" :title="detailTitle" direction="rtl">
+      <div v-if="current" class="detail-body">
+
+        <!-- Section 1: Bank-style statement -->
+        <div class="section-title">1. 对账单主体（银行流水式）</div>
+        <div class="bank-header">
+          <div class="title">
+            <h2>对 账 单</h2>
+            <div class="period">对账周期: {{ current.periodFull }}</div>
+          </div>
+          <div class="no">
+            <div>对账单号</div>
+            <div class="code">{{ current.no }}</div>
+            <div style="margin-top:6px">收到时间: {{ current.receivedAt }}</div>
+          </div>
+        </div>
+        <div class="bank-info">
+          <div class="row"><span class="lbl">卖方:</span><span class="val">{{ current.seller }}</span></div>
+          <div class="row"><span class="lbl">买方:</span><span class="val">某某贸易有限公司</span></div>
+          <div class="row"><span class="lbl">账套:</span><span class="val">主营账套 - 螺纹钢/盘螺/型材</span></div>
+          <div class="row"><span class="lbl">币种:</span><span class="val">人民币 (CNY)</span></div>
+        </div>
+        <div class="balance-panel">
+          <div class="balance-item opening">
+            <span class="lbl">期初余额</span>
+            <span class="val">¥20,500.00</span>
+          </div>
+          <div class="balance-item income">
+            <span class="lbl">本期应收</span>
+            <span class="val">+¥125,800.00</span>
+          </div>
+          <div class="balance-item paid">
+            <span class="lbl">本期实收</span>
+            <span class="val">-¥50,000.00</span>
+          </div>
+          <div class="balance-item closing">
+            <span class="lbl">期末应收余额</span>
+            <span class="val">¥{{ current.balance.toLocaleString() }}.00</span>
+          </div>
+        </div>
+        <div class="bank-body">
+          <el-table :data="txnRows" size="small">
+            <el-table-column label="日期" prop="date" width="90"/>
+            <el-table-column label="单号" prop="doc" width="80"/>
+            <el-table-column label="摘要" prop="memo" min-width="200"/>
+            <el-table-column label="结算数量" prop="qty" width="90" align="center"/>
+            <el-table-column label="本期应收" width="110" align="right">
+              <template #default="{row}">
+                <span v-if="row.income" style="color:#52c41a;font-weight:500">+¥{{ row.income.toLocaleString() }}</span>
+                <span v-else style="color:#bfbfbf">-</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="本期实收" width="110" align="right">
+              <template #default="{row}">
+                <span v-if="row.paid" style="color:#1890ff;font-weight:500">+¥{{ row.paid.toLocaleString() }}</span>
+                <span v-else style="color:#bfbfbf">-</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="余额" width="120" align="right">
+              <template #default="{row}">
+                <span style="font-family:'SF Mono',Consolas,monospace;font-weight:600">¥{{ row.balance.toLocaleString() }}</span>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+
+        <!-- Section 2: 应收明细 -->
+        <div class="section-title">2. 应收明细（购货明细）</div>
+        <el-table :data="detailRows" size="small" border stripe>
+          <el-table-column label="行号" prop="rn" width="55" align="center"/>
+          <el-table-column label="商品规格" prop="spec" min-width="180"/>
+          <el-table-column label="数量" prop="qty" width="70" align="right"/>
+          <el-table-column label="单价" width="90" align="right">
+            <template #default="{row}">¥{{ row.price.toLocaleString() }}</template>
+          </el-table-column>
+          <el-table-column label="计价方式" prop="mode" width="80" align="center">
+            <template #default="{row}">
+              <el-tag size="small" :type="row.mode==='磅计'?'success':'warning'">{{ row.mode }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="金额" width="100" align="right">
+            <template #default="{row}">
+              <span class="amount-cell">¥{{ row.amount.toLocaleString() }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="已付" width="100" align="right">
+            <template #default="{row}">
+              <span style="color:#1890ff">¥{{ row.paid.toLocaleString() }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="未付" width="100" align="right">
+            <template #default="{row}">
+              <span :style="{color: row.unpaid > 0 ? '#f5222d' : '#8c8c8c', fontWeight:500}">¥{{ row.unpaid.toLocaleString() }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="到期日" prop="dueDate" width="100"/>
+          <el-table-column label="逾期" width="70" align="center">
+            <template #default="{row}">
+              <span v-if="row.overdue > 0" style="color:#f5222d;font-weight:500">{{ row.overdue }} 天</span>
+              <span v-else style="color:#8c8c8c">—</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="状态" width="90" align="center">
+            <template #default="{row}">
+              <el-tag size="small" :type="row.statusType" :effect="row.statusEffect">{{ row.statusText }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="备注" prop="remark" min-width="100"/>
+        </el-table>
+
+        <!-- Section 3: Confirm operation -->
+        <div class="section-title">3. 确认操作</div>
+
+        <div v-if="current.status === 'confirmed' || current.status === 'done'" class="confirmed-panel">
+          <div class="badge"><el-icon><CircleCheckFilled/></el-icon></div>
+          <div class="info">
+            <div class="t">对账单已确认，具有同等法律效力</div>
+            <div class="meta">
+              <span><el-icon><Clock/></el-icon>确认时间: 2025-02-28 15:23</span>
+              <span><el-icon><User/></el-icon>确认人: 李经理 (采购部)</span>
+              <span><el-icon><Iphone/></el-icon>验证手机: 138****6789</span>
+              <span><el-icon><Document/></el-icon>确认凭据: EC202502280001</span>
+            </div>
+          </div>
+          <div class="seal">
+            <div class="top">买 方 签 章</div>
+            <div class="mid">已确认</div>
+            <div class="btm">02·28</div>
+          </div>
+        </div>
+
+        <div v-else-if="current.status === 'dispute'" class="action-panel" style="background:linear-gradient(135deg,#fff1f0 0%,#fff 100%);border-color:#ffccc7">
+          <div style="width:48px;height:48px;border-radius:50%;background:#ff4d4f;color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px">
+            <el-icon><Warning/></el-icon>
+          </div>
+          <div class="desc">
+            <h3 style="color:#cf1322">该对账单存在异议，正在处理中</h3>
+            <p>异议类型: <strong>金额不符</strong> · 差额 ¥3,200 · 已提交于 3天前，供应商已查阅</p>
+          </div>
+          <div class="buttons">
+            <el-button plain>查看异议详情</el-button>
+            <el-button type="primary" @click="scrollToChat">与供应商沟通</el-button>
+          </div>
+        </div>
+
+        <div v-else-if="current.status === 'deemed'" class="action-panel" style="background:#fafafa;border-color:#d9d9d9">
+          <div style="width:48px;height:48px;border-radius:50%;background:#8c8c8c;color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px">
+            <el-icon><CircleCheck/></el-icon>
+          </div>
+          <div class="desc">
+            <h3 style="color:#595959">已按"视同确认"规则处理</h3>
+            <p>超过 30 天未响应，系统按合同约定自动视为确认。如仍有疑问，请联系供应商。</p>
+          </div>
+          <div class="buttons">
+            <el-button plain>下载视同确认凭据</el-button>
+          </div>
+        </div>
+
+        <div v-else class="action-panel">
+          <div style="width:48px;height:48px;border-radius:50%;background:#1890ff;color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px">
+            <el-icon><InfoFilled/></el-icon>
+          </div>
+          <div class="desc">
+            <h3>请核对对账单内容并及时反馈</h3>
+            <p>确认即视为对本对账单内容无异议，具有同等法律效力，将生成电子确认凭据。距离超时确认还有 <strong style="color:#fa8c16">12 天</strong>。</p>
+          </div>
+          <div class="buttons">
+            <el-button type="danger" plain size="large" @click="openDisputeDialog">
+              <el-icon><Warning/></el-icon>我有异议
+            </el-button>
+            <el-button type="success" size="large" @click="doConfirm" style="min-width:130px">
+              <el-icon><CircleCheckFilled/></el-icon>确认无异议
+            </el-button>
+          </div>
+        </div>
+
+        <!-- Section 4: Chat -->
+        <div class="section-title" id="chat-anchor">4. 与供应商沟通</div>
+        <div class="chat-list">
+          <div v-for="(msg, i) in chatMessages" :key="i" :class="['chat-msg', msg.mine ? 'mine' : '']">
+            <div :class="['avatar', msg.mine ? '' : 'seller']">{{ msg.mine ? '我' : '供' }}</div>
+            <div class="bubble">
+              <div class="who">
+                <span>{{ msg.mine ? '李经理' : (current ? current.seller : '') }}</span>
+                <span class="time">{{ msg.time }}</span>
+              </div>
+              <div>{{ msg.text }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="chat-input-bar">
+          <el-input v-model="chatInput" placeholder="输入消息，Enter 发送" @keydown.enter="sendMsg"/>
+          <el-button><el-icon><Paperclip/></el-icon></el-button>
+          <el-button type="primary" @click="sendMsg">发送</el-button>
+        </div>
+        <p style="color:#bfbfbf;font-size:12px;margin-top:8px">
+          <el-icon style="vertical-align:-2px"><InfoFilled/></el-icon>
+          消息记录会作为对账凭证一并归档，请注意言辞规范。
+        </p>
+      </div>
+    </el-drawer>
+
+    <!-- Dispute Dialog -->
+    <el-dialog v-model="showDispute" title="提交异议" width="520px">
+      <p style="color:#8c8c8c;font-size:13px;margin-bottom:14px">
+        请描述您对账单的异议内容，供应商将在 1 个工作日内联系您复核。
+      </p>
+      <el-form label-position="top">
+        <el-form-item label="异议类型">
+          <el-radio-group v-model="dispute.type">
+            <el-radio value="金额不符">金额不符</el-radio>
+            <el-radio value="数量不符">数量不符</el-radio>
+            <el-radio value="流水缺失">流水缺失</el-radio>
+            <el-radio value="其它">其它</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="异议明细行">
+          <el-select v-model="dispute.line" placeholder="选择存在异议的明细行（可选）" style="width:100%">
+            <el-option label="第 2 行 · 盘螺 Φ10 Q235" value="2"/>
+            <el-option label="第 4 行 · H型钢 Q235B 200*200" value="4"/>
+            <el-option label="第 6 行 · 无缝钢管 Φ108" value="6"/>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="异议说明">
+          <el-input v-model="dispute.desc" type="textarea" rows="4" placeholder="请详细说明异议内容与差额金额…"/>
+        </el-form-item>
+        <el-form-item label="附件（可选）">
+          <el-upload action="#" :auto-upload="false">
+            <el-button plain><el-icon><Upload/></el-icon>上传凭证</el-button>
+          </el-upload>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showDispute = false">取消</el-button>
+        <el-button type="danger" @click="submitDispute">提交异议</el-button>
+      </template>
+    </el-dialog>
+  </div>
+
+  <script>
+    const { createApp } = Vue;
+    const app = createApp({
+      data() {
+        return {
+          active: 'statements-pending',
+          filter: { seller: '', dateRange: null, status: '' },
+          sellers: [
+            '某某钢铁有限公司',
+            '某某建材有限公司',
+            '某某钢构有限公司',
+            '某某物流有限公司',
+            '某某加工有限公司',
+            '某某焊管有限公司',
+            '某某无缝钢管有限公司',
+            '某某金属制品有限公司'
+          ],
+          rows: [
+            {
+              seller: '某某钢铁有限公司', sellerShort: '钢铁', logoClass: '',
+              no: 'R202503001', period: '2025-03-01 ~ 03-31', periodFull: '2025-03-01 ~ 2025-03-31',
+              balance: 75800, status: 'pending',
+              statusText: '待确认', statusType: 'warning', statusEffect: 'light',
+              receivedAt: '03-17 10:30', daysText: '剩 12 天', daysClass: 'safe'
+            },
+            {
+              seller: '某某建材有限公司', sellerShort: '建材', logoClass: 'g1',
+              no: 'R202503002', period: '2025-03-01 ~ 03-31', periodFull: '2025-03-01 ~ 2025-03-31',
+              balance: 45600, status: 'pending',
+              statusText: '待确认', statusType: 'warning', statusEffect: 'light',
+              receivedAt: '03-16 15:00', daysText: '剩 11 天', daysClass: 'safe'
+            },
+            {
+              seller: '某某钢构有限公司', sellerShort: '钢构', logoClass: 'g2',
+              no: 'R202503003', period: '2025-03-01 ~ 03-31', periodFull: '2025-03-01 ~ 2025-03-31',
+              balance: 125000, status: 'dispute',
+              statusText: '异议中', statusType: 'danger', statusEffect: 'light',
+              receivedAt: '03-14 10:00', daysText: '—', daysClass: 'safe'
+            },
+            {
+              seller: '某某钢铁有限公司', sellerShort: '钢铁', logoClass: '',
+              no: 'R202503004', period: '2025-02-01 ~ 02-28', periodFull: '2025-02-01 ~ 2025-02-28',
+              balance: 89500, status: 'confirmed',
+              statusText: '已确认', statusType: 'success', statusEffect: 'light',
+              receivedAt: '02-28 15:00', daysText: '—', daysClass: 'safe'
+            },
+            {
+              seller: '某某物流有限公司', sellerShort: '物流', logoClass: 'g3',
+              no: 'R202503005', period: '2025-03-01 ~ 03-31', periodFull: '2025-03-01 ~ 2025-03-31',
+              balance: 12300, status: 'pending',
+              statusText: '待确认', statusType: 'warning', statusEffect: 'light',
+              receivedAt: '03-15 10:00', daysText: '剩 10 天', daysClass: 'warn'
+            },
+            {
+              seller: '某某加工有限公司', sellerShort: '加工', logoClass: 'g4',
+              no: 'R202503006', period: '2025-03-01 ~ 03-05', periodFull: '2025-03-01 ~ 2025-03-05',
+              balance: 8900, status: 'deemed',
+              statusText: '视同确认', statusType: 'info', statusEffect: 'plain',
+              receivedAt: '03-06 10:00', daysText: '已超时', daysClass: 'expired'
+            },
+            {
+              seller: '某某焊管有限公司', sellerShort: '焊管', logoClass: 'g5',
+              no: 'R202503007', period: '2025-03-01 ~ 03-31', periodFull: '2025-03-01 ~ 2025-03-31',
+              balance: 0, status: 'done',
+              statusText: '已完成', statusType: 'success', statusEffect: 'dark',
+              receivedAt: '03-14 15:00', daysText: '—', daysClass: 'safe'
+            },
+            {
+              seller: '某某无缝钢管有限公司', sellerShort: '无缝', logoClass: 'g2',
+              no: 'R202503008', period: '2025-03-01 ~ 03-31', periodFull: '2025-03-01 ~ 2025-03-31',
+              balance: 67800, status: 'confirmed',
+              statusText: '已确认', statusType: 'success', statusEffect: 'light',
+              receivedAt: '03-13 10:00', daysText: '—', daysClass: 'safe'
+            }
+          ],
+          showDetail: false,
+          showDispute: false,
+          current: null,
+          detailTitle: '',
+          dispute: { type: '金额不符', line: '', desc: '' },
+          txnRows: [
+            { date: '期初', doc: '-', memo: '上期结转', qty: '-', income: 0, paid: 0, balance: 20500 },
+            { date: '03-01', doc: 'S001', memo: '螺纹钢销售 HRB400 φ12', qty: '100 件', income: 45000, paid: 0, balance: 65500 },
+            { date: '03-05', doc: 'S002', memo: '盘螺销售 HRB400 φ8', qty: '50 件', income: 21000, paid: 0, balance: 86500 },
+            { date: '03-10', doc: 'R001', memo: '银行收款（工行网银）', qty: '-', income: 0, paid: 20000, balance: 66500 },
+            { date: '03-15', doc: 'S003', memo: 'H型钢销售 Q235B 200*200', qty: '20 件', income: 28800, paid: 0, balance: 95300 },
+            { date: '03-20', doc: 'R002', memo: '银行收款（招行网银）', qty: '-', income: 0, paid: 30000, balance: 65300 },
+            { date: '03-25', doc: 'S004', memo: '无缝钢管销售 Φ108×5', qty: '30 米', income: 15500, paid: 0, balance: 80800 },
+            { date: '03-28', doc: 'S005', memo: '角钢销售 40*40*4', qty: '25 件', income: 15500, paid: 0, balance: 96300 },
+            { date: '期末', doc: '-', memo: '本期合计', qty: '225 件', income: 125800, paid: 50000, balance: 75800 }
+          ],
+          detailRows: [
+            {
+              rn: 1, spec: '螺纹钢 Φ20 HRB400 12m', qty: 100, price: 4500, mode: '磅计',
+              amount: 45000, paid: 45000, unpaid: 0, dueDate: '03-15', overdue: 0,
+              statusText: '已付清', statusType: 'success', statusEffect: 'light', remark: '基础库存补货'
+            },
+            {
+              rn: 2, spec: '盘螺 Φ10 Q235 卷', qty: 50, price: 4200, mode: '理计',
+              amount: 21000, paid: 10000, unpaid: 11000, dueDate: '03-25', overdue: 0,
+              statusText: '部分付', statusType: 'warning', statusEffect: 'light', remark: '客户 A 定制'
+            },
+            {
+              rn: 3, spec: '螺纹钢 Φ16 HRB400 9m', qty: 30, price: 4400, mode: '磅计',
+              amount: 13200, paid: 0, unpaid: 13200, dueDate: '04-01', overdue: 0,
+              statusText: '未付', statusType: 'danger', statusEffect: 'light', remark: '—'
+            },
+            {
+              rn: 4, spec: 'H型钢 Q235B 200*200', qty: 20, price: 5500, mode: '磅计',
+              amount: 28800, paid: 0, unpaid: 28800, dueDate: '04-10', overdue: 0,
+              statusText: '未付', statusType: 'danger', statusEffect: 'light', remark: '厂房工程'
+            },
+            {
+              rn: 5, spec: '无缝钢管 Φ108×5 12m', qty: 30, price: 5200, mode: '磅计',
+              amount: 15500, paid: 0, unpaid: 15500, dueDate: '04-15', overdue: 0,
+              statusText: '未付', statusType: 'danger', statusEffect: 'light', remark: '—'
+            },
+            {
+              rn: 6, spec: '角钢 40*40*4 6m', qty: 25, price: 3200, mode: '理计',
+              amount: 15500, paid: 5000, unpaid: 10500, dueDate: '04-20', overdue: 0,
+              statusText: '部分付', statusType: 'warning', statusEffect: 'light', remark: '客户 B 补单'
+            },
+            {
+              rn: 7, spec: '扁钢 50*10 9m', qty: 40, price: 3400, mode: '磅计',
+              amount: 12800, paid: 0, unpaid: 12800, dueDate: '04-25', overdue: 0,
+              statusText: '未付', statusType: 'danger', statusEffect: 'light', remark: '—'
+            },
+            {
+              rn: 8, spec: '槽钢 8# Q235 6m', qty: 15, price: 4800, mode: '磅计',
+              amount: 12000, paid: 4000, unpaid: 8000, dueDate: '04-30', overdue: 0,
+              statusText: '部分付', statusType: 'warning', statusEffect: 'light', remark: '批量代购'
+            }
+          ],
+          chatMessages: [
+            { mine: false, time: '03-17 10:30', text: '李经理您好，本月对账单 R202503001 已发送，请查收并及时确认。' },
+            { mine: true,  time: '03-17 14:22', text: '好的，收到，我们会尽快核对。请问 S002 号的盘螺重量是理计还是磅计？' },
+            { mine: false, time: '03-17 14:35', text: '这一笔是按理计计价的，我们的过磅单已同步在附件里，您可以对照仓库入库单查看。' },
+            { mine: true,  time: '03-17 16:10', text: '收到，已对齐。另外 03-20 招行收款的 3 万元是我们王总付的，麻烦确认下有没有入账。' },
+            { mine: false, time: '03-18 09:05', text: '已入账，摘要 R002。本月已收 5 万整，与流水一致。' },
+            { mine: true,  time: '03-18 09:20', text: '👌 收到，明后天我们财务复核完就确认。' }
+          ],
+          chatInput: ''
+        };
+      },
+      methods: {
+        onMenuSelect(idx) {
+          this.active = idx;
+          if (idx !== 'statements-pending' && idx.startsWith('statements')) {
+            ElementPlus.ElMessage.info('演示原型：目前默认展示"我的对账单"');
+          } else if (!idx.startsWith('statements')) {
+            ElementPlus.ElMessage.info('演示原型：其它模块暂未实现');
+          }
+        },
+        doSearch() {
+          ElementPlus.ElMessage.success('筛选结果已刷新');
+        },
+        resetFilter() {
+          this.filter = { seller: '', dateRange: null, status: '' };
+        },
+        openDetail(row) {
+          this.current = row;
+          this.detailTitle = `对账单详情 · ${row.seller} · ${row.no}`;
+          this.showDetail = true;
+        },
+        quickConfirm(row) {
+          ElementPlus.ElMessageBox.confirm(
+            `确认对账单 ${row.no}（${row.seller}）？确认后将生成电子确认凭据，法律效力等同签署。`,
+            '确认对账单',
+            { confirmButtonText: '确认无异议', cancelButtonText: '取消', type: 'success' }
+          ).then(() => {
+            row.status = 'confirmed';
+            row.statusText = '已确认';
+            row.statusType = 'success';
+            row.statusEffect = 'light';
+            row.daysText = '—';
+            ElementPlus.ElMessage.success('对账单已确认');
+          }).catch(() => {});
+        },
+        quickDispute(row) {
+          this.current = row;
+          this.openDisputeDialog();
+        },
+        openDisputeDialog() {
+          this.showDispute = true;
+        },
+        submitDispute() {
+          if (!this.dispute.desc) {
+            ElementPlus.ElMessage.warning('请填写异议说明');
+            return;
+          }
+          this.showDispute = false;
+          if (this.current) {
+            this.current.status = 'dispute';
+            this.current.statusText = '异议中';
+            this.current.statusType = 'danger';
+            this.current.statusEffect = 'light';
+          }
+          ElementPlus.ElMessage.success('异议已提交，供应商将尽快联系您');
+        },
+        doConfirm() {
+          if (!this.current) return;
+          ElementPlus.ElMessageBox.confirm(
+            '确认后将生成电子确认凭据，法律效力等同签署。是否继续？',
+            '确认对账单',
+            { confirmButtonText: '确认无异议', cancelButtonText: '再看看', type: 'success' }
+          ).then(() => {
+            this.current.status = 'confirmed';
+            this.current.statusText = '已确认';
+            this.current.statusType = 'success';
+            this.current.statusEffect = 'light';
+            this.current.daysText = '—';
+            ElementPlus.ElMessage.success('对账单已确认，感谢您的配合！');
+          }).catch(() => {});
+        },
+        download(row) {
+          ElementPlus.ElMessage.success(`正在下载 ${row.no}.pdf …`);
+        },
+        sendMsg() {
+          if (!this.chatInput.trim()) return;
+          this.chatMessages.push({
+            mine: true,
+            time: new Date().toISOString().slice(5,16).replace('T',' '),
+            text: this.chatInput.trim()
+          });
+          this.chatInput = '';
+          setTimeout(() => {
+            this.chatMessages.push({
+              mine: false,
+              time: new Date().toISOString().slice(5,16).replace('T',' '),
+              text: '收到您的消息，我们会尽快回复。'
+            });
+          }, 800);
+        },
+        scrollToChat() {
+          this.$nextTick(() => {
+            const el = document.getElementById('chat-anchor');
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+          });
+        }
+      }
+    });
+    app.use(ElementPlus);
+    for (const [k, v] of Object.entries(ElementPlusIconsVue)) {
+      app.component(k, v);
+    }
+    app.mount('#app');
+  </script>
+</body>
+</html>
