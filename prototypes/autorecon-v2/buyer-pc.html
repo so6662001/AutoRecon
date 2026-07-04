@@ -277,6 +277,12 @@
       text-decoration: line-through;
       font-style: italic;
     }
+    /* 独立列可视化 */
+    .supplier-cell { font-weight: 600; color: #262626; }
+    .period-cell { display: inline-block; padding: 2px 8px; background: #f0f5ff; color: #1976d2; border-radius: 3px; font-size: 12px; font-variant-numeric: tabular-nums; }
+    .received-cell { font-family: "SF Mono", Consolas, monospace; font-size: 12px; color: #595959; display: inline-flex; align-items: center; gap: 4px; }
+    .received-cell .icon-dot { color: #52c41a; font-size: 8px; }
+    .no-cell { font-family: "SF Mono", Consolas, monospace; font-size: 12px; color: #1890ff; font-weight: 500; }
 
     /* ========= Detail Drawer ========= */
     .detail-body { padding: 0 0 20px; }
@@ -494,7 +500,7 @@
           </div>
         </div>
 
-        <el-menu :default-active="active" class="sidebar-menu" @select="onMenuSelect" :default-openeds="['statements','payables','profile']">
+        <el-menu :default-active="active" class="sidebar-menu" @select="onMenuSelect" :default-openeds="['statements','profile']">
           <el-menu-item index="dashboard">
             <el-icon><Odometer/></el-icon>
             <span>工作台</span>
@@ -516,16 +522,6 @@
               <el-tag size="small" type="danger" style="margin-left:6px">1</el-tag>
             </el-menu-item>
             <el-menu-item index="statements-done">已完成</el-menu-item>
-          </el-sub-menu>
-
-          <el-sub-menu index="payables">
-            <template #title>
-              <el-icon><Money/></el-icon>
-              <span>应付款管理</span>
-            </template>
-            <el-menu-item index="payables-bill">应付账单</el-menu-item>
-            <el-menu-item index="payables-record">付款记录</el-menu-item>
-            <el-menu-item index="payables-invoice">发票管理</el-menu-item>
           </el-sub-menu>
 
           <el-menu-item index="suppliers">
@@ -607,19 +603,19 @@
               </div>
             </div>
             <div class="stat-card danger">
-              <div class="icon-wrap"><el-icon><Wallet/></el-icon></div>
+              <div class="icon-wrap"><el-icon><Warning/></el-icon></div>
               <div class="info">
-                <div class="label">应付总额</div>
-                <div class="value">¥368,900</div>
-                <div class="sub">涵盖 8 家供应商</div>
+                <div class="label">异议中</div>
+                <div class="value">1</div>
+                <div class="sub">需及时协商处理</div>
               </div>
             </div>
             <div class="stat-card success">
-              <div class="icon-wrap"><el-icon><Money/></el-icon></div>
+              <div class="icon-wrap"><el-icon><CircleCheckFilled/></el-icon></div>
               <div class="info">
-                <div class="label">已付本月</div>
-                <div class="value">¥125,800</div>
-                <div class="sub">较上月 <span style="color:#52c41a">↑ 12%</span></div>
+                <div class="label">本月已确认</div>
+                <div class="value">5</div>
+                <div class="sub">较上月 <span style="color:#52c41a">↑ 25%</span></div>
               </div>
             </div>
             <div class="stat-card info">
@@ -680,41 +676,51 @@
             </div>
 
             <el-table :data="rows" style="width:100%" @row-click="openDetail" size="default" row-class-name="clickable-row">
-              <el-table-column label="供应商" min-width="180">
+              <el-table-column label="供应商" min-width="160" fixed="left">
                 <template #default="{row}">
                   <div class="seller-cell">
                     <div :class="['seller-logo', row.logoClass]">{{ row.sellerShort }}</div>
-                    <span>{{ row.seller }}</span>
+                    <span class="supplier-cell">{{ row.seller }}</span>
                   </div>
                 </template>
               </el-table-column>
-              <el-table-column prop="no" label="对账单号" width="130">
+              <el-table-column prop="no" label="对账单号" width="120" fixed="left">
                 <template #default="{row}">
-                  <span style="font-family:'SF Mono',Consolas,monospace;font-size:12px">{{ row.no }}</span>
+                  <el-link type="primary" @click.stop="openDetail(row)" class="no-cell">{{ row.no }}</el-link>
                 </template>
               </el-table-column>
-              <el-table-column prop="period" label="对账周期" width="180"/>
-              <el-table-column label="期末应收余额" width="140" align="right">
+              <el-table-column label="对账周期" width="170" align="center">
+                <template #default="{row}">
+                  <span class="period-cell">{{ row.period }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="期末应收余额" width="130" align="right">
                 <template #default="{row}">
                   <span :class="['amount-cell', row.balance === 0 ? 'zero' : 'red']">
                     ¥{{ row.balance.toLocaleString() }}
                   </span>
                 </template>
               </el-table-column>
-              <el-table-column label="状态" width="120" align="center">
+              <el-table-column label="状态" width="105" align="center">
                 <template #default="{row}">
                   <el-tag :type="row.statusType" :effect="row.statusEffect" size="small" class="status-tag">
                     {{ row.statusText }}
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column prop="receivedAt" label="收到时间" width="130"/>
-              <el-table-column label="距超时天数" width="120" align="center">
+              <el-table-column label="收到时间" width="140" align="center">
+                <template #default="{row}">
+                  <span class="received-cell">
+                    <span class="icon-dot">●</span>{{ row.receivedAt }}
+                  </span>
+                </template>
+              </el-table-column>
+              <el-table-column label="距超时天数" width="105" align="center">
                 <template #default="{row}">
                   <span :class="['days-cell', row.daysClass]">{{ row.daysText }}</span>
                 </template>
               </el-table-column>
-              <el-table-column label="操作" width="220" fixed="right">
+              <el-table-column label="操作" width="200" fixed="right">
                 <template #default="{row}">
                   <el-button size="small" link type="primary" @click.stop="openDetail(row)">查看</el-button>
                   <el-button v-if="row.status==='pending'" size="small" link type="success" @click.stop="quickConfirm(row)">确认</el-button>
