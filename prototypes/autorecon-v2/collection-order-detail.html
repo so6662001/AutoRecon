@@ -310,7 +310,7 @@
           <!-- Alert info -->
           <el-alert type="info" :closable="false" show-icon style="margin-bottom: 16px;">
             <template #title>
-              本工单为 <b style="color: #f56c22;">「部分催收」</b> 模式：对账单总额 <b>¥88,100</b>，其中已付 <b style="color: #67c23a;">¥42,800</b>（ERP同步），仅催收未付部分 <b class="amount-red">¥45,300</b>。
+              本工单为 <b style="color: #f56c22;">「部分催收」</b> 模式：对账单总额 <b>¥465,160</b>，其中已付 <b style="color: #67c23a;">¥241,160</b>（ERP同步），仅催收未付部分 <b class="amount-red">¥224,000</b>（6 笔商品行）。
             </template>
           </el-alert>
 
@@ -331,9 +331,9 @@
             <el-col :span="8">
               <div class="info-card">
                 <div class="card-title"><el-icon><component :is="ElementPlusIconsVue.Money" /></el-icon>逾期信息</div>
-                <div class="primary-value amount-red">¥45,300.00</div>
-                <div class="sub-line"><span class="k">逾期天数</span><span><el-tag type="warning" size="small">15 天</el-tag></span></div>
-                <div class="sub-line"><span class="k">到期日</span><span>2026-03-01</span></div>
+                <div class="primary-value amount-red">¥224,000.00</div>
+                <div class="sub-line"><span class="k">最长逾期</span><span><el-tag type="danger" size="small">10 天</el-tag></span></div>
+                <div class="sub-line"><span class="k">最早到期</span><span>2025-03-25</span></div>
                 <div class="sub-line"><span class="k">对账单</span><span><el-link type="primary" :underline="false">S2026030001</el-link></span></div>
               </div>
             </el-col>
@@ -406,41 +406,65 @@
                   <el-tab-pane label="关联应收明细" name="receivables">
                     <el-alert type="warning" :closable="false" show-icon style="margin-bottom: 12px;">
                       <template #title>
-                        该工单为「部分催收」模式，仅列出实际催收中的应收明细（未付部分）。已付部分不再催收。
+                        该工单为「部分催收」模式，仅列出实际催收中的应收明细（未付部分 &gt; 0 的商品行）。已付部分不再催收。计价方式：<b>磅计</b>=按实际过磅重量计价，<b>理计</b>=按理论重量计价。
                       </template>
                     </el-alert>
                     <el-table :data="receivableData" stripe border style="width: 100%;">
-                      <el-table-column label="源单号" prop="srcNo" width="90" />
-                      <el-table-column label="日期" prop="date" width="110" />
-                      <el-table-column label="摘要" prop="desc" min-width="140" />
-                      <el-table-column label="原始金额" width="120" align="right">
-                        <template #default="{ row }">¥{{ row.total.toLocaleString() }}</template>
+                      <el-table-column label="行号" prop="lineNo" width="60" align="center" />
+                      <el-table-column label="商品规格" prop="spec" min-width="180">
+                        <template #default="{ row }"><b>{{ row.spec }}</b></template>
                       </el-table-column>
-                      <el-table-column label="已付" width="110" align="right">
+                      <el-table-column label="数量" prop="qty" width="70" align="right" />
+                      <el-table-column label="单价" width="90" align="right">
+                        <template #default="{ row }">¥{{ row.price.toLocaleString() }}</template>
+                      </el-table-column>
+                      <el-table-column label="计价方式" width="90" align="center">
+                        <template #default="{ row }">
+                          <el-tag size="small" :type="row.pricing==='磅计'?'primary':'success'" effect="plain">{{ row.pricing }}</el-tag>
+                        </template>
+                      </el-table-column>
+                      <el-table-column label="金额" width="110" align="right">
+                        <template #default="{ row }">¥{{ row.amount.toLocaleString() }}</template>
+                      </el-table-column>
+                      <el-table-column label="备注" prop="remark" width="110">
+                        <template #default="{ row }"><span style="color:#909399;">{{ row.remark || '-' }}</span></template>
+                      </el-table-column>
+                      <el-table-column label="已付金额" width="110" align="right">
                         <template #default="{ row }">
                           <span style="color: #67c23a;">¥{{ row.paid.toLocaleString() }}</span>
                         </template>
                       </el-table-column>
-                      <el-table-column label="未付（催收）" width="130" align="right">
+                      <el-table-column label="未付金额（催收）" width="140" align="right">
                         <template #default="{ row }">
                           <span class="amount-red">¥{{ row.unpaid.toLocaleString() }}</span>
                         </template>
                       </el-table-column>
                       <el-table-column label="到期日" prop="dueDate" width="110" />
-                      <el-table-column label="逾期" width="80" align="center">
+                      <el-table-column label="逾期天数" width="90" align="center">
                         <template #default="{ row }">
-                          <el-tag type="warning" size="small">{{ row.overdue }}天</el-tag>
+                          <span v-if="row.overdueDays > 0" style="color:#f56c6c; font-weight:600;">{{ row.overdueDays }}天</span>
+                          <span v-else style="color:#c0c4cc;">-</span>
                         </template>
                       </el-table-column>
-                      <el-table-column label="状态" width="90" align="center">
+                      <el-table-column label="状态" width="110" align="center">
+                        <template #default="{ row }">
+                          <el-tag v-if="row.status==='部分付款'" type="warning" size="small">◐ 部分付款</el-tag>
+                          <el-tag v-else-if="row.status==='逾期'" type="danger" size="small">⚠ 逾期</el-tag>
+                          <el-tag v-else type="info" size="small">○ 未付款</el-tag>
+                        </template>
+                      </el-table-column>
+                      <el-table-column label="操作" width="160" fixed="right">
                         <template #default>
-                          <el-tag type="danger" size="small" effect="light">催收中</el-tag>
+                          <el-button link type="primary" size="small">查看合同</el-button>
+                          <el-button link type="success" size="small">同步付款</el-button>
                         </template>
                       </el-table-column>
                     </el-table>
-                    <div style="padding: 12px; background: #fafbfc; border-radius: 4px; margin-top: 12px; display: flex; justify-content: space-between;">
-                      <span style="color: #606266; font-size: 13px;">关联应收 <b>1</b> 笔</span>
-                      <span style="font-size: 13px;">催收金额合计：<span class="amount-red" style="font-size: 15px;">¥45,300.00</span></span>
+                    <div style="padding: 12px; background: #fafbfc; border-radius: 4px; margin-top: 12px; display: flex; justify-content: space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                      <span style="color: #606266; font-size: 13px;">关联应收 <b>6</b> 笔（3 部分付款 · 2 逾期 · 1 未付款）</span>
+                      <span style="font-size: 13px;">催收金额合计：<span class="amount-red" style="font-size: 15px;">¥224,000.00</span>
+                        <span style="color:#909399; font-size:12px; margin-left:6px;">(¥11,000+¥32,000+¥34,400+¥78,000+¥19,000+¥49,600)</span>
+                      </span>
                     </div>
                   </el-tab-pane>
 
@@ -546,7 +570,12 @@
         const activeTab = ref('receivables');
 
         const receivableData = ref([
-          { srcNo: 'S003', date: '2026-02-20', desc: '热轧板卷 Q235B 5.75×1500×C 30吨', total: 50300, paid: 5000, unpaid: 45300, dueDate: '2026-03-01', overdue: 15 }
+          { lineNo: 3, spec: '盘螺 Φ10 Q235',       qty: 50,  price: 4200, pricing: '理计', amount: 21000,  remark: '',         paid: 10000,  unpaid: 11000, dueDate: '2025-03-25', overdueDays: 0,  status: '部分付款' },
+          { lineNo: 4, spec: '热轧板 3.0mm Q235B',  qty: 200, price: 4100, pricing: '磅计', amount: 82000,  remark: '分批发货', paid: 50000,  unpaid: 32000, dueDate: '2025-04-05', overdueDays: 0,  status: '部分付款' },
+          { lineNo: 5, spec: '螺纹钢 Φ25 HRB400',   qty: 300, price: 4480, pricing: '磅计', amount: 134400, remark: '大宗订单', paid: 100000, unpaid: 34400, dueDate: '2025-04-10', overdueDays: 0,  status: '部分付款' },
+          { lineNo: 6, spec: '冷轧卷板 1.5mm',       qty: 150, price: 5200, pricing: '磅计', amount: 78000,  remark: '',         paid: 0,      unpaid: 78000, dueDate: '2025-03-30', overdueDays: 5,  status: '逾期'     },
+          { lineNo: 7, spec: '焊管 DN50',            qty: 500, price: 3800, pricing: '理计', amount: 19000,  remark: '',         paid: 0,      unpaid: 19000, dueDate: '2025-03-25', overdueDays: 10, status: '逾期'     },
+          { lineNo: 8, spec: '无缝管 DN100',         qty: 80,  price: 6200, pricing: '磅计', amount: 49600,  remark: '待发货',   paid: 0,      unpaid: 49600, dueDate: '2025-04-15', overdueDays: 0,  status: '未付款'   }
         ]);
 
         const followups = ref([
