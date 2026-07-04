@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>催收分析报表 - 对账通v2原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", Arial, sans-serif; background: #f0f2f5; }
+    #app { display: flex; min-height: 100vh; }
+
+    .sidebar { width: 220px; background: #001529; color: #fff; flex-shrink: 0; height: 100vh; position: sticky; top: 0; overflow-y: auto; }
+    .sidebar::-webkit-scrollbar { width: 6px; }
+    .sidebar::-webkit-scrollbar-thumb { background: #1a3a5c; border-radius: 3px; }
+    .logo { height: 60px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: #fff; border-bottom: 1px solid #0e2a47; letter-spacing: 1px; }
+    .logo .logo-badge { background: #1890ff; color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 3px; margin-left: 6px; font-weight: 500; }
+    .menu-group { padding: 8px 0; }
+    .menu-item { display: flex; align-items: center; padding: 10px 24px; color: rgba(255,255,255,0.75); font-size: 14px; cursor: pointer; text-decoration: none; transition: all .2s; border-left: 3px solid transparent; }
+    .menu-item:hover { color: #fff; background: #0e2a47; }
+    .menu-item.active { color: #fff; background: #1890ff; border-left-color: #40a9ff; }
+    .menu-item .el-icon { margin-right: 10px; font-size: 16px; }
+    .menu-parent { padding: 10px 24px; color: rgba(255,255,255,0.85); font-size: 14px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+    .menu-parent:hover { color: #fff; }
+    .menu-parent .el-icon { margin-right: 10px; font-size: 16px; }
+    .sub-menu { background: #000c17; }
+    .sub-menu .menu-item { padding-left: 50px; font-size: 13px; }
+
+    .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .header { height: 60px; background: #fff; box-shadow: 0 1px 4px rgba(0,21,41,.08); display: flex; align-items: center; padding: 0 24px; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+    .breadcrumb { font-size: 14px; color: #666; }
+    .breadcrumb .sep { margin: 0 8px; color: #ccc; }
+    .breadcrumb .current { color: #303133; font-weight: 500; }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .company-name { font-size: 13px; color: #666; padding: 4px 10px; background: #f5f7fa; border-radius: 12px; }
+    .user-dropdown { display: flex; align-items: center; cursor: pointer; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #1890ff; color: #fff; display: flex; align-items: center; justify-content: center; margin-right: 8px; font-size: 14px; }
+
+    .content { padding: 20px; flex: 1; }
+    .page-title { font-size: 20px; font-weight: 600; color: #303133; margin-bottom: 16px; }
+
+    .filter-card { background: #fff; border-radius: 8px; padding: 14px 20px; box-shadow: 0 1px 4px rgba(0,21,41,.04); margin-bottom: 16px; }
+
+    .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 16px; }
+    .stat-card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,21,41,.04); position: relative; overflow: hidden; }
+    .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+    .stat-card.blue::before { background: #1890ff; }
+    .stat-card.green::before { background: #52c41a; }
+    .stat-card.orange::before { background: #fa8c16; }
+    .stat-card.purple::before { background: #722ed1; }
+    .stat-label { font-size: 13px; color: #909399; margin-bottom: 8px; }
+    .stat-value { font-size: 26px; font-weight: 600; color: #303133; line-height: 1.2; }
+    .stat-value.blue { color: #1890ff; }
+    .stat-value.green { color: #52c41a; }
+    .stat-value.orange { color: #fa8c16; }
+    .stat-value.purple { color: #722ed1; }
+    .stat-extra { font-size: 12px; color: #909399; margin-top: 8px; display: flex; align-items: center; gap: 6px; }
+    .trend-up { color: #f5222d; }
+    .trend-down { color: #52c41a; }
+
+    .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .chart-card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,21,41,.04); }
+    .chart-title { font-size: 15px; font-weight: 600; color: #303133; margin-bottom: 12px; padding-left: 10px; border-left: 3px solid #1890ff; display: flex; justify-content: space-between; align-items: center; }
+    .chart-title .key-badge { font-size: 11px; padding: 2px 6px; background: #fff7e6; color: #fa8c16; border: 1px solid #ffd591; border-radius: 3px; font-weight: 500; }
+    .chart-box { height: 320px; }
+
+    .section { background: #fff; border-radius: 8px; padding: 20px 24px; box-shadow: 0 1px 4px rgba(0,21,41,.04); margin-bottom: 16px; }
+    .section-title { font-size: 15px; font-weight: 600; color: #303133; margin-bottom: 16px; padding-left: 10px; border-left: 3px solid #1890ff; display: flex; align-items: center; justify-content: space-between; }
+    .section-title.key { border-left-color: #fa8c16; }
+    .section-title.key .badge { background: #fff7e6; color: #fa8c16; border: 1px solid #ffd591; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 500; margin-left: 8px; }
+
+    .roi-cell { display: inline-block; padding: 2px 8px; background: #f6ffed; color: #389e0d; border-radius: 3px; font-family: monospace; font-weight: 600; }
+    .roi-cell.high { background: #fff1f0; color: #cf1322; }
+
+    .ranking-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    .rank-item { display: flex; align-items: center; padding: 10px 12px; border-bottom: 1px solid #f5f5f5; font-size: 13px; }
+    .rank-item:last-child { border-bottom: none; }
+    .rank-badge { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; margin-right: 10px; background: #f0f2f5; color: #909399; flex-shrink: 0; }
+    .rank-badge.top1 { background: linear-gradient(135deg, #ffd700 0%, #ffa500 100%); color: #fff; }
+    .rank-badge.top2 { background: linear-gradient(135deg, #c0c0c0 0%, #a8a8a8 100%); color: #fff; }
+    .rank-badge.top3 { background: linear-gradient(135deg, #cd7f32 0%, #b87333 100%); color: #fff; }
+    .rank-name { flex: 1; color: #303133; font-weight: 500; }
+    .rank-value { font-family: monospace; color: #1890ff; font-weight: 600; }
+    .rank-value.slow { color: #f5222d; }
+    .rank-extra { font-size: 11px; color: #909399; margin-left: 8px; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="sidebar">
+    <div class="logo">对账通<span class="logo-badge">v2</span></div>
+    <div class="menu-group">
+      <a href="dashboard.html" class="menu-item"><el-icon><Odometer /></el-icon>工作台</a>
+      <div class="menu-parent"><span><el-icon><User /></el-icon>客户中心</span><el-icon><ArrowDown /></el-icon></div>
+      <div class="sub-menu">
+        <a href="customer-ledger.html" class="menu-item">客户往来账</a>
+        <a href="customer-types.html" class="menu-item">客户类型</a>
+        <a href="customer-tags.html" class="menu-item">客户标签</a>
+      </div>
+      <div class="menu-parent"><span><el-icon><Document /></el-icon>对账管理</span><el-icon><ArrowDown /></el-icon></div>
+      <div class="sub-menu">
+        <a href="statement-list.html" class="menu-item">对账单列表</a>
+        <a href="statement-create.html" class="menu-item">发起对账</a>
+      </div>
+      <div class="menu-parent"><span><el-icon><PhoneFilled /></el-icon>催收中心</span><el-icon><ArrowDown /></el-icon></div>
+      <div class="sub-menu">
+        <a href="collection-orders.html" class="menu-item">催收工单</a>
+        <a href="collection-profiles.html" class="menu-item">催收策略</a>
+        <a href="call-tasks.html" class="menu-item">外呼任务</a>
+        <a href="call-records.html" class="menu-item">外呼记录</a>
+      </div>
+      <a href="messages.html" class="menu-item"><el-icon><Message /></el-icon>消息中心</a>
+      <div class="menu-parent"><span><el-icon><DataAnalysis /></el-icon>报表分析</span><el-icon><ArrowUp /></el-icon></div>
+      <div class="sub-menu">
+        <a href="receivable-report.html" class="menu-item">应收报表</a>
+        <a href="collection-report.html" class="menu-item active">催收报表</a>
+      </div>
+      <div class="menu-parent"><span><el-icon><Setting /></el-icon>系统设置</span><el-icon><ArrowDown /></el-icon></div>
+      <div class="sub-menu">
+        <a href="subjects-filter.html" class="menu-item">科目过滤</a>
+        <a href="call-scripts.html" class="menu-item">AI话术管理</a>
+        <a href="aliyun-config.html" class="menu-item">阿里云配置</a>
+        <a href="holiday-calendar.html" class="menu-item">节假日日历</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="header">
+      <div class="breadcrumb">报表分析<span class="sep">/</span><span class="current">催收分析报表</span></div>
+      <div class="header-right">
+        <span class="company-name">某某钢铁有限公司</span>
+        <el-dropdown>
+          <div class="user-dropdown">
+            <div class="user-avatar">张</div><span>张三</span>
+            <el-icon style="margin-left:4px"><ArrowDown /></el-icon>
+          </div>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item>个人资料</el-dropdown-item>
+              <el-dropdown-item>修改密码</el-dropdown-item>
+              <el-dropdown-item divided>退出登录</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="page-title">催收分析报表</div>
+
+      <div class="filter-card">
+        <el-form :inline="true">
+          <el-form-item label="日期范围">
+            <el-date-picker v-model="dateRange" type="daterange" range-separator="至" start-placeholder="开始" end-placeholder="结束" style="width:240px"></el-date-picker>
+          </el-form-item>
+          <el-form-item label="客户类型">
+            <el-select v-model="customerType" placeholder="全部" style="width:140px" clearable>
+              <el-option label="经销商" value="dealer"></el-option>
+              <el-option label="直销" value="direct"></el-option>
+              <el-option label="同行" value="peer"></el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item label="客户等级">
+            <el-select v-model="customerLevel" placeholder="全部等级" style="width:140px" clearable>
+              <el-option label="A级" value="A"></el-option>
+              <el-option label="B级" value="B"></el-option>
+              <el-option label="C级" value="C"></el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item label="催收策略">
+            <el-select v-model="strategy" placeholder="全部策略" style="width:180px" clearable>
+              <el-option label="战略大客户策略" value="1"></el-option>
+              <el-option label="重点客户策略" value="2"></el-option>
+              <el-option label="普通经销商策略" value="3"></el-option>
+              <el-option label="高风险客户策略" value="4"></el-option>
+              <el-option label="同行客户策略" value="5"></el-option>
+              <el-option label="免催客户策略" value="6"></el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary"><el-icon><Search /></el-icon>&nbsp;查询</el-button>
+            <el-button plain>重置</el-button>
+            <el-button plain><el-icon><Download /></el-icon>&nbsp;导出</el-button>
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <!-- Top stats -->
+      <div class="stat-row">
+        <div class="stat-card blue">
+          <div class="stat-label">应收总额</div>
+          <div class="stat-value blue">¥5,680,000</div>
+          <div class="stat-extra">较上月 <span class="trend-up">↑ 8.5%</span></div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-label">已收回</div>
+          <div class="stat-value green">¥3,820,000</div>
+          <div class="stat-extra">回款率 <b style="color:#52c41a">67.3%</b> · <span class="trend-down">↑ 3.2%</span></div>
+        </div>
+        <div class="stat-card orange">
+          <div class="stat-label">平均回款周期</div>
+          <div class="stat-value orange">42天</div>
+          <div class="stat-extra">较上月 <span class="trend-down">↓ 5天</span></div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-label">AI外呼总成本</div>
+          <div class="stat-value purple">¥1,258.50</div>
+          <div class="stat-extra">相当于催回金额的 0.033%</div>
+        </div>
+      </div>
+
+      <!-- Charts row 1 -->
+      <div class="chart-row">
+        <div class="chart-card">
+          <div class="chart-title">30日回款趋势</div>
+          <div id="trend-chart" class="chart-box"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">催收阶段分布 (按周)</div>
+          <div id="stage-chart" class="chart-box"></div>
+        </div>
+      </div>
+
+      <!-- Charts row 2 -->
+      <div class="chart-row">
+        <div class="chart-card">
+          <div class="chart-title">意图识别效果 (对应实际到款率)</div>
+          <div id="intent-chart" class="chart-box"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">催收策略效果对比</div>
+          <div id="strategy-chart" class="chart-box"></div>
+        </div>
+      </div>
+
+      <!-- 策略效果对比表 KEY -->
+      <div class="section">
+        <div class="section-title key">
+          <span>策略效果对比表 <span class="badge">CORE</span></span>
+          <span style="font-weight:400;font-size:12px;color:#909399">数据周期: 近30天 · 更新时间: 03-17 15:00</span>
+        </div>
+
+        <el-alert type="success" show-icon :closable="false" style="margin-bottom:12px">
+          <template #title>
+            <span style="font-size:13px">通过差异化催收策略,不同客户群实现精准触达:大客户 <b>零打扰</b> · 高风险客户 <b>高频跟进</b> · 平均ROI达 <b style="color:#fa8c16">1万倍以上</b>,验证了 AI 外呼在应收管理中的高杠杆价值。</span>
+          </template>
+        </el-alert>
+
+        <el-table :data="strategyTable" size="default" border stripe :cell-style="{ padding: '10px 0' }">
+          <el-table-column label="策略名" min-width="180" fixed="left">
+            <template #default="scope">
+              <div style="display:flex;align-items:center;gap:6px">
+                <span :style="{ width: '3px', height: '20px', background: scope.row.color, borderRadius: '2px' }"></span>
+                <b>{{ scope.row.name }}</b>
+                <el-tag v-if="scope.row.default" size="small" type="info" effect="plain">默认</el-tag>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="覆盖客户" prop="customers" width="90" align="center"></el-table-column>
+          <el-table-column label="工单数" prop="tickets" width="80" align="center"></el-table-column>
+          <el-table-column label="应收金额" prop="receivable" min-width="130" align="right">
+            <template #default="scope">¥{{ scope.row.receivable.toLocaleString() }}</template>
+          </el-table-column>
+          <el-table-column label="已回款" prop="collected" min-width="130" align="right">
+            <template #default="scope">
+              <span style="color:#52c41a;font-weight:500">¥{{ scope.row.collected.toLocaleString() }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="回款率" width="140" align="center">
+            <template #default="scope">
+              <div style="display:flex;align-items:center;gap:8px">
+                <el-progress :percentage="scope.row.rate" :stroke-width="10" :color="scope.row.rate >= 80 ? '#52c41a' : scope.row.rate >= 60 ? '#1890ff' : '#f5222d'" style="flex:1" :show-text="false"></el-progress>
+                <span style="min-width:48px;font-weight:600;text-align:right">{{ scope.row.rate }}%</span>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="平均周期" prop="cycle" width="90" align="center">
+            <template #default="scope">{{ scope.row.cycle }}天</template>
+          </el-table-column>
+          <el-table-column label="AI外呼数" prop="aiCalls" width="90" align="center"></el-table-column>
+          <el-table-column label="AI成本" prop="aiCost" width="100" align="right">
+            <template #default="scope">
+              <span :style="{ color: scope.row.aiCost > 0 ? '#fa8c16' : '#909399' }">¥{{ scope.row.aiCost }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="ROI" width="120" align="center">
+            <template #default="scope">
+              <span :class="'roi-cell' + (scope.row.roi === '∞' ? ' high' : '')">{{ scope.row.roi }}</span>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <div style="margin-top:12px;padding:10px 14px;background:#fafbfc;border-radius:4px;font-size:12px;color:#909399">
+          <b style="color:#606266">ROI 计算说明:</b> 若策略未产生AI外呼成本(如大客户策略),ROI 记为 ∞;否则 ROI = 已回款金额 / AI外呼成本。免催策略不参与AI外呼,主要靠人工线下沟通。
+        </div>
+      </div>
+
+      <!-- 客户回款排行榜 -->
+      <div class="section">
+        <div class="section-title"><span>客户回款排行榜 (近30天)</span></div>
+        <div class="ranking-row">
+          <div>
+            <div style="font-weight:600;font-size:14px;color:#52c41a;margin-bottom:12px;padding-left:8px;border-left:3px solid #52c41a">
+              <el-icon><Trophy /></el-icon>&nbsp; TOP 10 回款最快客户
+            </div>
+            <div v-for="(r, i) in fastRanking" :key="r.name" class="rank-item">
+              <div :class="'rank-badge' + (i === 0 ? ' top1' : i === 1 ? ' top2' : i === 2 ? ' top3' : '')">{{ i + 1 }}</div>
+              <div class="rank-name">
+                {{ r.name }}
+                <span class="rank-extra">{{ r.tag }}</span>
+              </div>
+              <div class="rank-value">{{ r.days }}天</div>
+              <div class="rank-extra">¥{{ r.amount }}</div>
+            </div>
+          </div>
+          <div>
+            <div style="font-weight:600;font-size:14px;color:#f5222d;margin-bottom:12px;padding-left:8px;border-left:3px solid #f5222d">
+              <el-icon><Warning /></el-icon>&nbsp; TOP 10 回款最慢客户
+            </div>
+            <div v-for="(r, i) in slowRanking" :key="r.name" class="rank-item">
+              <div :class="'rank-badge' + (i === 0 ? ' top1' : '')" style="background:#fff1f0;color:#f5222d">{{ i + 1 }}</div>
+              <div class="rank-name">
+                {{ r.name }}
+                <span class="rank-extra">{{ r.tag }}</span>
+              </div>
+              <div class="rank-value slow">{{ r.days }}天</div>
+              <div class="rank-extra">¥{{ r.amount }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const { createApp, ref, onMounted } = Vue;
+
+const App = {
+  setup() {
+    const dateRange = ref([]);
+    const customerType = ref('');
+    const customerLevel = ref('');
+    const strategy = ref('');
+
+    const strategyTable = ref([
+      { name: '战略大客户策略', color: '#722ed1', default: false, customers: 5, tickets: 3, receivable: 1200000, collected: 1100000, rate: 91.7, cycle: 15, aiCalls: 0, aiCost: '0.00', roi: '∞' },
+      { name: '重点客户策略', color: '#1890ff', default: false, customers: 8, tickets: 6, receivable: 890000, collected: 820000, rate: 92.1, cycle: 25, aiCalls: 0, aiCost: '0.00', roi: '∞' },
+      { name: '普通经销商策略', color: '#52c41a', default: true, customers: 25, tickets: 22, receivable: 1850000, collected: 1320000, rate: 71.4, cycle: 38, aiCalls: 45, aiCost: '42.30', roi: '31,206x' },
+      { name: '高风险客户策略', color: '#f5222d', default: false, customers: 12, tickets: 12, receivable: 980000, collected: 520000, rate: 53.1, cycle: 55, aiCalls: 68, aiCost: '98.20', roi: '5,295x' },
+      { name: '同行客户策略', color: '#fa8c16', default: false, customers: 8, tickets: 5, receivable: 520000, collected: 380000, rate: 73.1, cycle: 30, aiCalls: 15, aiCost: '18.50', roi: '20,541x' },
+      { name: '免催客户策略', color: '#8c8c8c', default: false, customers: 3, tickets: 0, receivable: 240000, collected: 180000, rate: 75.0, cycle: 45, aiCalls: 0, aiCost: '0.00', roi: '-' }
+    ]);
+
+    const fastRanking = ref([
+      { name: '某某贸易', tag: '战略大客户/A', days: 8, amount: '285,000' },
+      { name: 'AA工程', tag: '重点客户/A', days: 12, amount: '156,000' },
+      { name: '某某建材', tag: '重点客户/A', days: 15, amount: '198,500' },
+      { name: 'YY建设', tag: '经销商/B', days: 18, amount: '89,300' },
+      { name: 'BB钢结构', tag: '经销商/B', days: 22, amount: '145,600' },
+      { name: 'CC建筑', tag: '经销商/A', days: 25, amount: '76,200' },
+      { name: 'DD物流', tag: '经销商/B', days: 28, amount: '92,800' },
+      { name: 'EE贸易', tag: '经销商/B', days: 30, amount: '68,900' },
+      { name: 'FF建材', tag: '经销商/C', days: 32, amount: '52,300' },
+      { name: 'GG工程', tag: '直销/A', days: 35, amount: '128,700' }
+    ]);
+
+    const slowRanking = ref([
+      { name: 'ZZ贸易', tag: '高风险/C', days: 128, amount: '186,500' },
+      { name: 'HH物流', tag: '高风险/C', days: 96, amount: '145,200' },
+      { name: 'II建材', tag: '高风险/B', days: 85, amount: '92,300' },
+      { name: 'JJ工程', tag: '经销商/C', days: 78, amount: '68,900' },
+      { name: 'KK贸易', tag: '经销商/C', days: 72, amount: '55,400' },
+      { name: 'LL钢结构', tag: '经销商/B', days: 68, amount: '82,600' },
+      { name: 'MM建筑', tag: '经销商/B', days: 65, amount: '48,700' },
+      { name: 'NN物流', tag: '经销商/C', days: 62, amount: '39,200' },
+      { name: 'OO贸易', tag: '同行/B', days: 58, amount: '76,800' },
+      { name: 'PP建材', tag: '经销商/B', days: 55, amount: '58,500' }
+    ]);
+
+    onMounted(() => {
+      // Trend chart
+      const trendChart = echarts.init(document.getElementById('trend-chart'));
+      const days = Array.from({length: 30}, (_,i) => `03-${String(i+1).padStart(2,'0')}`);
+      const trendData = [45,52,68,85,72,58,42,62,78,95,110,88,72,58,68,82,105,128,95,78,68,88,115,132,108,88,72,95,118,142];
+      trendChart.setOption({
+        tooltip: { trigger: 'axis', formatter: '{b}<br/>{a}: ¥{c} 千' },
+        grid: { top: 30, left: 50, right: 20, bottom: 40 },
+        xAxis: { type: 'category', data: days, axisLabel: { fontSize: 10, interval: 3 } },
+        yAxis: { type: 'value', name: '金额(千元)', axisLabel: { fontSize: 10 } },
+        series: [{
+          name: '回款金额', type: 'line', smooth: true, data: trendData,
+          areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(24,144,255,0.4)' }, { offset: 1, color: 'rgba(24,144,255,0.02)' }] } },
+          itemStyle: { color: '#1890ff' },
+          lineStyle: { width: 2 },
+          markLine: { data: [{ type: 'average', name: '平均值', label: { fontSize: 10 } }], lineStyle: { color: '#fa8c16' } }
+        }]
+      });
+
+      // Stage chart (stacked bar)
+      const stageChart = echarts.init(document.getElementById('stage-chart'));
+      stageChart.setOption({
+        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+        legend: { data: ['阶段1-友好提醒','阶段2-正式催收','阶段3-紧急催收/法务'], top: 0, itemWidth: 12, itemHeight: 8, textStyle: { fontSize: 12 } },
+        grid: { top: 35, left: 40, right: 20, bottom: 30 },
+        xAxis: { type: 'category', data: ['第1周','第2周','第3周','第4周'], axisLabel: { fontSize: 11 } },
+        yAxis: { type: 'value', name: '工单数' },
+        series: [
+          { name: '阶段1-友好提醒', type: 'bar', stack: 's', data: [22,28,18,25], itemStyle: { color: '#52c41a' }, barWidth: '45%' },
+          { name: '阶段2-正式催收', type: 'bar', stack: 's', data: [12,15,18,14], itemStyle: { color: '#fa8c16' } },
+          { name: '阶段3-紧急催收/法务', type: 'bar', stack: 's', data: [3,5,8,6], itemStyle: { color: '#f5222d' } }
+        ]
+      });
+
+      // Intent chart
+      const intentChart = echarts.init(document.getElementById('intent-chart'));
+      intentChart.setOption({
+        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+        legend: { data: ['意图数量','后续到款率(%)'], top: 0, itemWidth: 12, itemHeight: 8, textStyle: { fontSize: 12 } },
+        grid: { top: 35, left: 45, right: 55, bottom: 40 },
+        xAxis: { type: 'category', data: ['承诺付款','已付款','有异议','无人接听','拒绝','找错人'], axisLabel: { fontSize: 11 } },
+        yAxis: [
+          { type: 'value', name: '数量', position: 'left', axisLabel: { fontSize: 10 } },
+          { type: 'value', name: '到款率%', position: 'right', max: 100, axisLabel: { fontSize: 10, formatter: '{value}%' } }
+        ],
+        series: [
+          { name: '意图数量', type: 'bar', data: [88,45,22,68,18,12], barWidth: '45%',
+            itemStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: '#40a9ff' },{ offset: 1, color: '#1890ff' }] } } },
+          { name: '后续到款率(%)', type: 'line', yAxisIndex: 1, data: [82,100,45,15,5,0], smooth: true, itemStyle: { color: '#fa8c16' }, lineStyle: { width: 3 }, symbolSize: 8 }
+        ]
+      });
+
+      // Strategy chart
+      const strategyChart = echarts.init(document.getElementById('strategy-chart'));
+      strategyChart.setOption({
+        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+        legend: { data: ['接通率(%)','承诺率(%)','实际回款率(%)'], top: 0, itemWidth: 12, itemHeight: 8, textStyle: { fontSize: 11 } },
+        grid: { top: 35, left: 40, right: 20, bottom: 60 },
+        xAxis: { type: 'category', data: ['战略大客户','重点客户','普通经销商','高风险','同行','免催'], axisLabel: { fontSize: 11, interval: 0, rotate: 20 } },
+        yAxis: { type: 'value', name: '百分比', max: 100, axisLabel: { formatter: '{value}%', fontSize: 10 } },
+        series: [
+          { name: '接通率(%)', type: 'bar', data: [0,0,72,58,68,0], itemStyle: { color: '#8c8c8c' }, barWidth: '20%' },
+          { name: '承诺率(%)', type: 'bar', data: [0,0,58,32,55,0], itemStyle: { color: '#fa8c16' }, barWidth: '20%' },
+          { name: '实际回款率(%)', type: 'bar', data: [91.7,92.1,71.4,53.1,73.1,75], itemStyle: { color: '#52c41a' }, barWidth: '20%' }
+        ]
+      });
+
+      window.addEventListener('resize', () => {
+        trendChart.resize(); stageChart.resize(); intentChart.resize(); strategyChart.resize();
+      });
+    });
+
+    return { dateRange, customerType, customerLevel, strategy, strategyTable, fastRanking, slowRanking };
+  }
+};
+
+const app = createApp(App);
+app.use(ElementPlus);
+for (const [key, comp] of Object.entries(ElementPlusIconsVue)) {
+  app.component(key, comp);
+}
+app.mount('#app');
+</script>
+</body>
+</html>

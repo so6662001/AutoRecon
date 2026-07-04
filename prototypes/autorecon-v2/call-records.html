@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>外呼记录 - 对账通v2原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", Arial, sans-serif; background: #f0f2f5; }
+    #app { display: flex; min-height: 100vh; }
+
+    /* Sidebar */
+    .sidebar { width: 220px; background: #001529; color: #fff; flex-shrink: 0; height: 100vh; position: sticky; top: 0; overflow-y: auto; }
+    .sidebar::-webkit-scrollbar { width: 6px; }
+    .sidebar::-webkit-scrollbar-thumb { background: #1a3a5c; border-radius: 3px; }
+    .logo { height: 60px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: #fff; border-bottom: 1px solid #0e2a47; letter-spacing: 1px; }
+    .logo .logo-badge { background: #1890ff; color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 3px; margin-left: 6px; font-weight: 500; }
+    .menu-group { padding: 8px 0; }
+    .menu-item { display: flex; align-items: center; padding: 10px 24px; color: rgba(255,255,255,0.75); font-size: 14px; cursor: pointer; text-decoration: none; transition: all .2s; border-left: 3px solid transparent; }
+    .menu-item:hover { color: #fff; background: #0e2a47; }
+    .menu-item.active { color: #fff; background: #1890ff; border-left-color: #40a9ff; }
+    .menu-item .el-icon { margin-right: 10px; font-size: 16px; }
+    .menu-parent { padding: 10px 24px; color: rgba(255,255,255,0.85); font-size: 14px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+    .menu-parent:hover { color: #fff; }
+    .menu-parent .el-icon { margin-right: 10px; font-size: 16px; }
+    .sub-menu { background: #000c17; }
+    .sub-menu .menu-item { padding-left: 50px; font-size: 13px; }
+
+    /* Main */
+    .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .header { height: 60px; background: #fff; box-shadow: 0 1px 4px rgba(0,21,41,.08); display: flex; align-items: center; padding: 0 24px; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+    .breadcrumb { font-size: 14px; color: #666; }
+    .breadcrumb .sep { margin: 0 8px; color: #ccc; }
+    .breadcrumb .current { color: #303133; font-weight: 500; }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .company-name { font-size: 13px; color: #666; padding: 4px 10px; background: #f5f7fa; border-radius: 12px; }
+    .user-dropdown { display: flex; align-items: center; cursor: pointer; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #1890ff; color: #fff; display: flex; align-items: center; justify-content: center; margin-right: 8px; font-size: 14px; }
+
+    .content { padding: 20px; flex: 1; }
+    .page-title { font-size: 20px; font-weight: 600; color: #303133; margin-bottom: 16px; }
+
+    /* Filter card */
+    .filter-card { background: #fff; border-radius: 8px; padding: 16px 20px; box-shadow: 0 1px 4px rgba(0,21,41,.04); margin-bottom: 16px; }
+
+    /* Stats bar */
+    .stat-bar { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,21,41,.04); margin-bottom: 16px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; }
+    .stat-mini { text-align: center; padding: 0 12px; border-right: 1px solid #f0f0f0; }
+    .stat-mini:last-child { border-right: none; }
+    .stat-mini-label { font-size: 12px; color: #909399; margin-bottom: 6px; }
+    .stat-mini-value { font-size: 22px; font-weight: 600; color: #303133; }
+    .stat-mini-value.blue { color: #1890ff; }
+    .stat-mini-value.green { color: #52c41a; }
+    .stat-mini-value.orange { color: #fa8c16; }
+
+    /* Record card */
+    .record-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,21,41,.04); margin-bottom: 16px; overflow: hidden; }
+    .record-header { padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #f0f0f0; background: #fafbfc; }
+    .record-header-left { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 13px; color: #606266; }
+    .record-header-left .customer-name { font-size: 15px; font-weight: 600; color: #303133; }
+    .record-header-right { display: flex; align-items: center; gap: 16px; font-size: 13px; }
+    .record-body { padding: 16px 20px; }
+
+    .info-chip { padding: 2px 8px; border-radius: 3px; background: #f5f7fa; font-size: 12px; color: #606266; }
+
+    /* Audio player custom */
+    .audio-player { background: linear-gradient(135deg, #f0f9ff 0%, #e6f7ff 100%); border-radius: 8px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; border: 1px solid #d9ecff; }
+    .play-btn { width: 40px; height: 40px; border-radius: 50%; background: #1890ff; color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 8px rgba(24,144,255,0.3); flex-shrink: 0; transition: all .2s; }
+    .play-btn:hover { transform: scale(1.05); background: #40a9ff; }
+    .play-btn.playing { background: #52c41a; }
+    .waveform { flex: 1; display: flex; align-items: center; gap: 2px; height: 40px; overflow: hidden; }
+    .wave-bar { flex: 1; background: #91d5ff; border-radius: 1px; transition: all .3s; min-width: 2px; }
+    .wave-bar.active { background: #1890ff; }
+    .wave-bar.playing { animation: wave 1s infinite ease-in-out; }
+    @keyframes wave { 0%,100% { transform: scaleY(0.5); } 50% { transform: scaleY(1); } }
+    .audio-time { font-size: 12px; color: #606266; font-family: 'SF Mono', Monaco, Consolas, monospace; min-width: 80px; text-align: center; }
+    .audio-actions { display: flex; align-items: center; gap: 8px; }
+    .speed-btn { padding: 4px 8px; background: #fff; border: 1px solid #d9ecff; border-radius: 4px; font-size: 12px; color: #1890ff; cursor: pointer; }
+    .speed-btn:hover { background: #e6f7ff; }
+    .download-btn { color: #1890ff; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 4px; }
+
+    /* Summary */
+    .summary-block { margin-top: 14px; padding: 12px 14px; background: #f6ffed; border-left: 3px solid #52c41a; border-radius: 0 4px 4px 0; font-size: 13px; color: #303133; line-height: 1.7; }
+    .summary-block.warning { background: #fffbe6; border-left-color: #faad14; }
+    .summary-block.danger { background: #fff1f0; border-left-color: #f5222d; }
+    .summary-title { font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+
+    /* Transcript */
+    .transcript-toggle { margin-top: 12px; color: #1890ff; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 4px; user-select: none; }
+    .transcript-box { margin-top: 12px; padding: 16px; background: #f8f9fb; border-radius: 6px; max-height: 400px; overflow-y: auto; }
+    .msg { display: flex; margin-bottom: 12px; gap: 10px; }
+    .msg.ai { flex-direction: row; }
+    .msg.customer { flex-direction: row-reverse; }
+    .msg-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px; flex-shrink: 0; font-weight: 500; }
+    .msg.ai .msg-avatar { background: #1890ff; }
+    .msg.customer .msg-avatar { background: #52c41a; }
+    .msg-bubble { max-width: 70%; padding: 10px 14px; border-radius: 8px; font-size: 13px; line-height: 1.7; }
+    .msg.ai .msg-bubble { background: #fff; border: 1px solid #e4e7ed; border-top-left-radius: 2px; }
+    .msg.customer .msg-bubble { background: #d1e9ff; border: 1px solid #b3d8ff; border-top-right-radius: 2px; }
+    .msg-time { font-size: 11px; color: #909399; margin-top: 4px; }
+    .msg-intent { display: inline-block; margin-left: 6px; padding: 1px 6px; background: #fff7e6; color: #fa8c16; font-size: 11px; border-radius: 3px; border: 1px solid #ffd591; }
+
+    .action-link { color: #1890ff; cursor: pointer; margin-right: 12px; font-size: 13px; }
+    .action-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="logo">对账通<span class="logo-badge">v2</span></div>
+    <div class="menu-group">
+      <a href="dashboard.html" class="menu-item"><el-icon><Odometer /></el-icon>工作台</a>
+
+      <div class="menu-parent"><span><el-icon><User /></el-icon>客户中心</span><el-icon><ArrowDown /></el-icon></div>
+      <div class="sub-menu">
+        <a href="customer-ledger.html" class="menu-item">客户往来账</a>
+        <a href="customer-types.html" class="menu-item">客户类型</a>
+        <a href="customer-tags.html" class="menu-item">客户标签</a>
+      </div>
+
+      <div class="menu-parent"><span><el-icon><Document /></el-icon>对账管理</span><el-icon><ArrowDown /></el-icon></div>
+      <div class="sub-menu">
+        <a href="statement-list.html" class="menu-item">对账单列表</a>
+        <a href="statement-create.html" class="menu-item">发起对账</a>
+      </div>
+
+      <div class="menu-parent"><span><el-icon><PhoneFilled /></el-icon>催收中心</span><el-icon><ArrowUp /></el-icon></div>
+      <div class="sub-menu">
+        <a href="collection-orders.html" class="menu-item">催收工单</a>
+        <a href="collection-profiles.html" class="menu-item">催收策略</a>
+        <a href="call-tasks.html" class="menu-item">外呼任务</a>
+        <a href="call-records.html" class="menu-item active">外呼记录</a>
+      </div>
+
+      <a href="messages.html" class="menu-item"><el-icon><Message /></el-icon>消息中心</a>
+
+      <div class="menu-parent"><span><el-icon><DataAnalysis /></el-icon>报表分析</span><el-icon><ArrowDown /></el-icon></div>
+      <div class="sub-menu">
+        <a href="receivable-report.html" class="menu-item">应收报表</a>
+        <a href="collection-report.html" class="menu-item">催收报表</a>
+      </div>
+
+      <div class="menu-parent"><span><el-icon><Setting /></el-icon>系统设置</span><el-icon><ArrowDown /></el-icon></div>
+      <div class="sub-menu">
+        <a href="subjects-filter.html" class="menu-item">科目过滤</a>
+        <a href="call-scripts.html" class="menu-item">AI话术管理</a>
+        <a href="aliyun-config.html" class="menu-item">阿里云配置</a>
+        <a href="holiday-calendar.html" class="menu-item">节假日日历</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="header">
+      <div class="breadcrumb">催收中心<span class="sep">/</span><span class="current">外呼记录</span></div>
+      <div class="header-right">
+        <span class="company-name">某某钢铁有限公司</span>
+        <el-dropdown>
+          <div class="user-dropdown">
+            <div class="user-avatar">张</div><span>张三</span>
+            <el-icon style="margin-left:4px"><ArrowDown /></el-icon>
+          </div>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item>个人资料</el-dropdown-item>
+              <el-dropdown-item>修改密码</el-dropdown-item>
+              <el-dropdown-item divided>退出登录</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="page-title">外呼记录</div>
+
+      <!-- Filter -->
+      <div class="filter-card">
+        <el-form :inline="true">
+          <el-form-item label="日期范围">
+            <el-date-picker v-model="dateRange" type="daterange" range-separator="至" start-placeholder="开始" end-placeholder="结束" style="width:240px"></el-date-picker>
+          </el-form-item>
+          <el-form-item label="客户">
+            <el-input v-model="customer" placeholder="客户名/编号" style="width:160px" clearable></el-input>
+          </el-form-item>
+          <el-form-item label="场景">
+            <el-select v-model="scene" placeholder="全部场景" style="width:130px" clearable>
+              <el-option label="对账通知" value="notify"></el-option>
+              <el-option label="催收" value="collect"></el-option>
+              <el-option label="异议跟进" value="dispute"></el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item label="意图">
+            <el-select v-model="intent" placeholder="全部意图" style="width:130px" clearable>
+              <el-option label="承诺付款" value="promise"></el-option>
+              <el-option label="已付款" value="paid"></el-option>
+              <el-option label="有异议" value="dispute"></el-option>
+              <el-option label="找错人" value="wrong"></el-option>
+              <el-option label="拒绝" value="reject"></el-option>
+              <el-option label="无人接听" value="noanswer"></el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item label="时长">
+            <el-select v-model="duration" placeholder="全部时长" style="width:120px" clearable>
+              <el-option label="0-30秒" value="short"></el-option>
+              <el-option label="30-60秒" value="medium"></el-option>
+              <el-option label="60秒以上" value="long"></el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary"><el-icon><Search /></el-icon>&nbsp;查询</el-button>
+            <el-button plain>重置</el-button>
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <!-- Stats bar -->
+      <div class="stat-bar">
+        <div class="stat-mini">
+          <div class="stat-mini-label">总呼叫</div>
+          <div class="stat-mini-value">245</div>
+        </div>
+        <div class="stat-mini">
+          <div class="stat-mini-label">接通率</div>
+          <div class="stat-mini-value green">68.5%</div>
+        </div>
+        <div class="stat-mini">
+          <div class="stat-mini-label">平均时长</div>
+          <div class="stat-mini-value blue">1分42秒</div>
+        </div>
+        <div class="stat-mini">
+          <div class="stat-mini-label">承诺付款率</div>
+          <div class="stat-mini-value orange">32%</div>
+        </div>
+        <div class="stat-mini">
+          <div class="stat-mini-label">累计成本</div>
+          <div class="stat-mini-value">¥180.50</div>
+        </div>
+      </div>
+
+      <!-- Records list -->
+      <div v-for="rec in records" :key="rec.id" class="record-card">
+        <div class="record-header">
+          <div class="record-header-left">
+            <span class="customer-name">{{ rec.customer }}</span>
+            <span class="info-chip">{{ rec.customerType }}</span>
+            <span>📞 {{ rec.phone }}</span>
+            <el-tag size="small" :type="rec.sceneType" effect="plain">{{ rec.scene }}</el-tag>
+            <span style="color:#909399">{{ rec.time }}</span>
+          </div>
+          <div class="record-header-right">
+            <span>时长 <b>{{ rec.duration }}</b></span>
+            <span>结果 <el-tag size="small" :type="rec.resultType" effect="light">{{ rec.result }}</el-tag></span>
+            <span>成本 <b style="color:#fa8c16">¥{{ rec.cost }}</b></span>
+          </div>
+        </div>
+
+        <div class="record-body">
+          <!-- Audio player -->
+          <div class="audio-player" v-if="rec.hasAudio">
+            <div :class="'play-btn' + (rec.playing ? ' playing' : '')" @click="togglePlay(rec)">
+              <el-icon v-if="!rec.playing" size="20"><VideoPlay /></el-icon>
+              <el-icon v-else size="20"><VideoPause /></el-icon>
+            </div>
+            <div class="waveform">
+              <div v-for="(h, i) in rec.waveform" :key="i" 
+                   :class="'wave-bar' + (i < rec.progress ? ' active' : '') + (rec.playing && i === rec.progress ? ' playing' : '')" 
+                   :style="{ height: h + '%' }"></div>
+            </div>
+            <div class="audio-time">{{ rec.currentTime }} / {{ rec.duration }}</div>
+            <div class="audio-actions">
+              <span class="speed-btn">1x</span>
+              <span class="download-btn"><el-icon><Download /></el-icon> 下载录音</span>
+            </div>
+          </div>
+          <div v-else class="audio-player" style="background:#fafafa;border-color:#e4e7ed">
+            <div class="play-btn" style="background:#c0c4cc;cursor:not-allowed">
+              <el-icon size="20"><Close /></el-icon>
+            </div>
+            <div style="flex:1;color:#909399;font-size:13px">
+              📵 未接通 · 无录音 · 已重试 {{ rec.retryCount }} 次
+              <div style="font-size:12px;margin-top:2px">
+                <span v-for="(r,i) in rec.retryTimes" :key="i" style="margin-right:8px">
+                  {{ i+1 }}#{{ r }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Summary -->
+          <div :class="'summary-block ' + (rec.summaryType || '')">
+            <div class="summary-title">
+              <el-icon><MagicStick /></el-icon>
+              <span>AI通话摘要</span>
+            </div>
+            <div>{{ rec.summary }}</div>
+            <div v-if="rec.followUp" style="margin-top:6px;padding-top:6px;border-top:1px dashed rgba(0,0,0,0.1)">
+              <b>后续动作：</b>{{ rec.followUp }}
+            </div>
+          </div>
+
+          <!-- Transcript toggle -->
+          <div class="transcript-toggle" @click="rec.showTranscript = !rec.showTranscript" v-if="rec.transcript && rec.transcript.length">
+            <el-icon><ChatDotRound /></el-icon>
+            <span>{{ rec.showTranscript ? '收起' : '查看' }}完整对话转写 ({{ rec.transcript.length }}条)</span>
+            <el-icon><component :is="rec.showTranscript ? 'ArrowUp' : 'ArrowDown'" /></el-icon>
+          </div>
+
+          <div v-if="rec.showTranscript" class="transcript-box">
+            <div v-for="(m, i) in rec.transcript" :key="i" :class="'msg ' + m.role">
+              <div class="msg-avatar">{{ m.role === 'ai' ? 'AI' : '客' }}</div>
+              <div>
+                <div class="msg-bubble">
+                  {{ m.text }}
+                  <span v-if="m.intent" class="msg-intent">意图: {{ m.intent }}</span>
+                </div>
+                <div class="msg-time" :style="{ textAlign: m.role === 'customer' ? 'right' : 'left' }">{{ m.time }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid #f0f0f0">
+            <span class="action-link"><el-icon><Document /></el-icon> 详情</span>
+            <span class="action-link"><el-icon><Share /></el-icon> 分享给销售</span>
+            <span class="action-link"><el-icon><EditPen /></el-icon> 补充备注</span>
+            <span v-if="rec.needReview" class="action-link" style="color:#fa8c16"><el-icon><Warning /></el-icon> 标记需复核</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:center;padding:20px 0">
+        <el-pagination background layout="total, prev, pager, next" :total="245" :page-size="6"></el-pagination>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const { createApp, ref, reactive, onMounted } = Vue;
+
+const App = {
+  setup() {
+    const dateRange = ref([]);
+    const customer = ref('');
+    const scene = ref('');
+    const intent = ref('');
+    const duration = ref('');
+
+    // Generate waveform
+    const genWave = () => Array.from({length: 60}, () => Math.floor(20 + Math.random() * 80));
+
+    const records = ref([
+      {
+        id: 1, customer: '某某贸易', customerType: '经销商/B',
+        phone: '138****1234', scene: '催收', sceneType: 'danger',
+        time: '2025-03-17 10:45', duration: '1:23', result: '意图=承诺付款', resultType: 'success', cost: '0.18',
+        hasAudio: true, waveform: genWave(), playing: false, progress: 22, currentTime: '0:30',
+        summary: '客户表示会尽快安排付款,承诺03-25前完成。已自动记录预计回款日期,暂停催收3天。',
+        followUp: '系统已生成回款提醒,将于03-25前1日检查实际到账,若未到账将自动重启催收流程。',
+        showTranscript: false,
+        transcript: [
+          { role: 'ai', text: '您好,我是某某钢铁的智能助理小对,请问是某某贸易的财务王经理吗?', time: '10:45:02' },
+          { role: 'customer', text: '是的,我是。', time: '10:45:05' },
+          { role: 'ai', text: '您好王经理,您有一笔¥45,300的应收款项已经逾期15天,发票号码是INV20250228-001,方便现在沟通一下吗?', time: '10:45:08' },
+          { role: 'customer', text: '好的,我知道了,最近资金比较紧张...', time: '10:45:22', intent: '资金紧张' },
+          { role: 'ai', text: '理解您的情况。请问您预计什么时候能安排付款呢?', time: '10:45:26' },
+          { role: 'customer', text: '大概下周五左右,25号可以付。', time: '10:45:35', intent: '承诺付款' },
+          { role: 'ai', text: '好的,已为您记录预计回款日期为3月25日。届时我们不再打扰您。感谢您的配合,再见!', time: '10:45:42' },
+          { role: 'customer', text: '好的,再见。', time: '10:45:48' }
+        ]
+      },
+      {
+        id: 2, customer: '某某建材', customerType: '经销商/A',
+        phone: '138****5678', scene: '催收', sceneType: 'danger',
+        time: '2025-03-17 11:00', duration: '2:15', result: '意图=已付款', resultType: 'success', cost: '0.32',
+        hasAudio: true, waveform: genWave(), playing: true, progress: 40, currentTime: '0:54',
+        summary: '客户表示款项已于03-16通过银行汇款方式完成支付,附言"20250228对账"。系统已同步通知销售张经理跟进核实到账。',
+        followUp: '已通知财务组核对3月16-17日到账明细,预计1个工作日内确认。销售张经理已同步收到消息。',
+        showTranscript: false,
+        transcript: [
+          { role: 'ai', text: '您好,我是某某钢铁的智能助理,您有一笔¥68,900的款项显示尚未到账,请问是否已安排付款?', time: '11:00:03' },
+          { role: 'customer', text: '昨天已经打过去了,你们那边应该已经到账了才对。', time: '11:00:12', intent: '已付款' },
+          { role: 'ai', text: '好的,方便告知一下打款金额和附言吗?我这边协助核对一下。', time: '11:00:18' },
+          { role: 'customer', text: '¥68,900,附言写的是20250228对账。', time: '11:00:26' },
+          { role: 'ai', text: '收到,金额和附言我已记录。我这边会立即通知财务同事核对,预计1个工作日内确认,如有问题会联系您。', time: '11:00:34' },
+          { role: 'customer', text: '好的,尽快确认吧,我这边到账凭证需要用。', time: '11:00:42' },
+          { role: 'ai', text: '好的,核实后我们会第一时间反馈给您。感谢您的配合,再见!', time: '11:00:50' }
+        ]
+      },
+      {
+        id: 3, customer: 'ZZ贸易', customerType: '经销商/C',
+        phone: '137****3333', scene: '催收', sceneType: 'danger',
+        time: '2025-03-17 09:30', duration: '-', result: '未接通', resultType: 'info', cost: '0.00',
+        hasAudio: false, retryCount: 3,
+        retryTimes: ['09:30 无人接听 12秒', '10:30 无人接听 15秒', '11:30 用户忙音'],
+        summaryType: 'danger',
+        summary: '连续3次未接通(09:30/10:30/11:30),已达单日重试上限。建议改用短信通知或安排销售人工联系。',
+        followUp: '系统已自动降级至短信通道发送催收短信,并生成待办给对应销售张经理。',
+        showTranscript: false, transcript: []
+      },
+      {
+        id: 4, customer: 'AA工程', customerType: '直销/B',
+        phone: '138****2222', scene: '催收', sceneType: 'danger',
+        time: '2025-03-17 10:00', duration: '0:45', result: '意图=有异议', resultType: 'warning', cost: '0.10',
+        hasAudio: true, waveform: genWave(), playing: false, progress: 45, currentTime: '0:20',
+        summaryType: 'warning',
+        summary: '客户对本期应收金额¥120,000提出异议,认为其中¥30,000的运费应由供方承担。已自动生成异议工单,暂停催收流程7天。',
+        followUp: '异议工单#DS20250317008已生成,已推送给业务经理李经理核实合同条款,预计3个工作日内答复客户。',
+        showTranscript: false, needReview: true,
+        transcript: [
+          { role: 'ai', text: '您好,您有一笔¥120,000的对账单尚未回款,请问对该金额有异议吗?', time: '10:00:02' },
+          { role: 'customer', text: '有异议啊,里面那个¥30,000运费应该是你们承担的,不能算我们头上。', time: '10:00:15', intent: '有异议' },
+          { role: 'ai', text: '好的,已记录您对运费部分的异议。方便告知是哪个订单的运费吗?', time: '10:00:22' },
+          { role: 'customer', text: '就是2月那一批送货的运费,合同里写的是含运费到厂。', time: '10:00:32' },
+          { role: 'ai', text: '好的,我已详细记录,将立即转交业务经理核实合同条款,预计3个工作日内给您答复,期间暂停对该笔款项的催收。', time: '10:00:42' }
+        ]
+      },
+      {
+        id: 5, customer: 'BB钢结构', customerType: '直销/A',
+        phone: '138****8888', scene: '催收', sceneType: 'danger',
+        time: '2025-03-17 09:15', duration: '0:32', result: '意图=找错人', resultType: 'info', cost: '0.08',
+        hasAudio: true, waveform: genWave(), playing: false, progress: 60, currentTime: '0:19',
+        summaryType: 'warning',
+        summary: '⚠️ 接听者非BB钢结构财务负责人,自称是新员工不清楚账目情况。已标记为"找错人",暂停后续外呼,需人工确认最新联系人。',
+        followUp: '系统已生成待办给客户经理王经理,请核实并更新BB钢结构的最新财务联系人信息。',
+        showTranscript: false, needReview: true,
+        transcript: [
+          { role: 'ai', text: '您好,我是某某钢铁的智能助理,请问是BB钢结构的财务陈经理吗?', time: '09:15:03' },
+          { role: 'customer', text: '不是啊,陈经理已经离职了,我是新来的接手不久,具体账目不清楚。', time: '09:15:12', intent: '找错人' },
+          { role: 'ai', text: '好的,给您添麻烦了。方便告知我一下新的财务负责人联系方式吗?', time: '09:15:20' },
+          { role: 'customer', text: '你联系我们经理办公室吧,010-88888888。', time: '09:15:28' },
+          { role: 'ai', text: '好的,已记录。感谢您的配合,再见!', time: '09:15:32' }
+        ]
+      },
+      {
+        id: 6, customer: '某某物流', customerType: '经销商/B',
+        phone: '138****0000', scene: '对账通知', sceneType: 'primary',
+        time: '2025-03-16 15:30', duration: '0:38', result: '已通知', resultType: 'success', cost: '0.09',
+        hasAudio: true, waveform: genWave(), playing: false, progress: 100, currentTime: '0:38',
+        summary: '本期对账单¥85,600已成功通知客户,客户表示已收到短信,将于3日内确认。系统已自动设置3日后跟进提醒。',
+        followUp: '若3日后仍未确认,将自动转入催收流程。',
+        showTranscript: false,
+        transcript: [
+          { role: 'ai', text: '您好,我是某某钢铁的智能助理,您本期2025年2月的对账单已发送到您的手机,金额是¥85,600,请您注意查收并回复确认。', time: '15:30:02' },
+          { role: 'customer', text: '好的,我已经收到短信了,今天会核对一下。', time: '15:30:15' },
+          { role: 'ai', text: '好的,请您在3日内完成确认。如有异议可直接回复短信或联系我们的对账专员。感谢配合,再见!', time: '15:30:24' },
+          { role: 'customer', text: '好的,再见。', time: '15:30:32' }
+        ]
+      }
+    ]);
+
+    const togglePlay = (rec) => {
+      records.value.forEach(r => { if (r.id !== rec.id) r.playing = false; });
+      rec.playing = !rec.playing;
+    };
+
+    return { dateRange, customer, scene, intent, duration, records, togglePlay };
+  }
+};
+
+const app = createApp(App);
+app.use(ElementPlus);
+for (const [key, comp] of Object.entries(ElementPlusIconsVue)) {
+  app.component(key, comp);
+}
+app.mount('#app');
+</script>
+</body>
+</html>

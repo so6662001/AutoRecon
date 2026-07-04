@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI话术管理 - 对账通v2原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", Arial, sans-serif; background: #f0f2f5; }
+    #app { display: flex; min-height: 100vh; }
+
+    /* Sidebar */
+    .sidebar { width: 220px; background: #001529; color: #fff; flex-shrink: 0; height: 100vh; position: sticky; top: 0; overflow-y: auto; }
+    .sidebar::-webkit-scrollbar { width: 6px; }
+    .sidebar::-webkit-scrollbar-thumb { background: #1a3a5c; border-radius: 3px; }
+    .logo { height: 60px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: #fff; border-bottom: 1px solid #0e2a47; letter-spacing: 1px; }
+    .logo .logo-badge { background: #1890ff; color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 3px; margin-left: 6px; font-weight: 500; }
+    .menu-group { padding: 8px 0; }
+    .menu-item { display: flex; align-items: center; padding: 10px 24px; color: rgba(255,255,255,0.75); font-size: 14px; cursor: pointer; text-decoration: none; transition: all .2s; border-left: 3px solid transparent; }
+    .menu-item:hover { color: #fff; background: #0e2a47; }
+    .menu-item.active { color: #fff; background: #1890ff; border-left-color: #40a9ff; }
+    .menu-item .el-icon { margin-right: 10px; font-size: 16px; }
+    .menu-parent { padding: 10px 24px; color: rgba(255,255,255,0.85); font-size: 14px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+    .menu-parent:hover { color: #fff; }
+    .menu-parent .el-icon { margin-right: 10px; font-size: 16px; }
+    .sub-menu { background: #000c17; }
+    .sub-menu .menu-item { padding-left: 50px; font-size: 13px; }
+
+    /* Main */
+    .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .header { height: 60px; background: #fff; box-shadow: 0 1px 4px rgba(0,21,41,.08); display: flex; align-items: center; padding: 0 24px; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+    .breadcrumb { font-size: 14px; color: #666; }
+    .breadcrumb .sep { margin: 0 8px; color: #ccc; }
+    .breadcrumb .current { color: #303133; font-weight: 500; }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .company-name { font-size: 13px; color: #666; padding: 4px 10px; background: #f5f7fa; border-radius: 12px; }
+    .user-dropdown { display: flex; align-items: center; cursor: pointer; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #1890ff; color: #fff; display: flex; align-items: center; justify-content: center; margin-right: 8px; font-size: 14px; }
+
+    .content { padding: 20px; flex: 1; }
+    .page-title { font-size: 20px; font-weight: 600; color: #303133; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+
+    .filter-card { background: #fff; border-radius: 8px; padding: 14px 20px; box-shadow: 0 1px 4px rgba(0,21,41,.04); margin-bottom: 16px; }
+
+    /* Script grid */
+    .script-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .script-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,21,41,.04); overflow: hidden; display: flex; flex-direction: column; transition: all .2s; }
+    .script-card:hover { box-shadow: 0 4px 12px rgba(0,21,41,.12); transform: translateY(-2px); }
+    .script-header { padding: 16px; border-bottom: 1px solid #f0f0f0; background: linear-gradient(135deg, #f0f9ff 0%, #ffffff 100%); }
+    .script-name { font-size: 15px; font-weight: 600; color: #303133; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
+    .script-name .disabled-tag { font-size: 11px; padding: 1px 6px; background: #f0f0f0; color: #909399; border-radius: 3px; font-weight: 400; }
+    .script-tags { display: flex; gap: 6px; margin-bottom: 8px; }
+    .script-flow-id { font-family: 'SF Mono', Monaco, Consolas, monospace; font-size: 12px; color: #909399; }
+
+    .script-body { padding: 14px 16px; flex: 1; }
+    .preview-block { background: #f8f9fb; border-radius: 6px; padding: 10px 12px; margin-bottom: 10px; }
+    .preview-label { font-size: 11px; color: #909399; margin-bottom: 4px; font-weight: 500; letter-spacing: 0.5px; }
+    .preview-text { font-size: 13px; color: #303133; line-height: 1.6; }
+    .preview-text .variable { color: #1890ff; background: #e6f7ff; padding: 0 3px; border-radius: 2px; font-family: monospace; font-size: 12px; }
+
+    .intent-branches { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 8px; }
+    .branch-chip { padding: 6px 8px; background: #fff; border: 1px solid #e4e7ed; border-radius: 4px; font-size: 12px; display: flex; align-items: center; gap: 4px; }
+    .branch-chip .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .branch-chip.success .dot { background: #52c41a; }
+    .branch-chip.warning .dot { background: #fa8c16; }
+    .branch-chip.danger .dot { background: #f5222d; }
+    .branch-chip.info .dot { background: #8c8c8c; }
+
+    .stats-block { display: flex; justify-content: space-between; padding: 10px 16px; background: #fafbfc; border-top: 1px dashed #e4e7ed; font-size: 12px; color: #606266; }
+    .stats-block .stat b { color: #1890ff; font-size: 14px; }
+
+    .script-footer { padding: 10px 16px; display: flex; gap: 8px; border-top: 1px solid #f0f0f0; }
+    .script-footer .el-button { flex: 1; padding: 6px 0; font-size: 12px; }
+
+    /* Dialog customization */
+    .config-title { font-size: 13px; font-weight: 600; color: #303133; margin: 16px 0 8px; padding-left: 8px; border-left: 3px solid #1890ff; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="logo">对账通<span class="logo-badge">v2</span></div>
+    <div class="menu-group">
+      <a href="dashboard.html" class="menu-item"><el-icon><Odometer /></el-icon>工作台</a>
+      <div class="menu-parent"><span><el-icon><User /></el-icon>客户中心</span><el-icon><ArrowDown /></el-icon></div>
+      <div class="sub-menu">
+        <a href="customer-ledger.html" class="menu-item">客户往来账</a>
+        <a href="customer-types.html" class="menu-item">客户类型</a>
+        <a href="customer-tags.html" class="menu-item">客户标签</a>
+      </div>
+      <div class="menu-parent"><span><el-icon><Document /></el-icon>对账管理</span><el-icon><ArrowDown /></el-icon></div>
+      <div class="sub-menu">
+        <a href="statement-list.html" class="menu-item">对账单列表</a>
+        <a href="statement-create.html" class="menu-item">发起对账</a>
+      </div>
+      <div class="menu-parent"><span><el-icon><PhoneFilled /></el-icon>催收中心</span><el-icon><ArrowDown /></el-icon></div>
+      <div class="sub-menu">
+        <a href="collection-orders.html" class="menu-item">催收工单</a>
+        <a href="collection-profiles.html" class="menu-item">催收策略</a>
+        <a href="call-tasks.html" class="menu-item">外呼任务</a>
+        <a href="call-records.html" class="menu-item">外呼记录</a>
+      </div>
+      <a href="messages.html" class="menu-item"><el-icon><Message /></el-icon>消息中心</a>
+      <div class="menu-parent"><span><el-icon><DataAnalysis /></el-icon>报表分析</span><el-icon><ArrowDown /></el-icon></div>
+      <div class="sub-menu">
+        <a href="receivable-report.html" class="menu-item">应收报表</a>
+        <a href="collection-report.html" class="menu-item">催收报表</a>
+      </div>
+      <div class="menu-parent"><span><el-icon><Setting /></el-icon>系统设置</span><el-icon><ArrowUp /></el-icon></div>
+      <div class="sub-menu">
+        <a href="subjects-filter.html" class="menu-item">科目过滤</a>
+        <a href="call-scripts.html" class="menu-item active">AI话术管理</a>
+        <a href="aliyun-config.html" class="menu-item">阿里云配置</a>
+        <a href="holiday-calendar.html" class="menu-item">节假日日历</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="header">
+      <div class="breadcrumb">系统设置<span class="sep">/</span><span class="current">AI话术管理</span></div>
+      <div class="header-right">
+        <span class="company-name">某某钢铁有限公司</span>
+        <el-dropdown>
+          <div class="user-dropdown">
+            <div class="user-avatar">张</div><span>张三</span>
+            <el-icon style="margin-left:4px"><ArrowDown /></el-icon>
+          </div>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item>个人资料</el-dropdown-item>
+              <el-dropdown-item>修改密码</el-dropdown-item>
+              <el-dropdown-item divided>退出登录</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="page-title">
+        AI话术管理
+        <el-button type="primary" @click="dialogVisible = true"><el-icon><Plus /></el-icon>&nbsp;新建话术</el-button>
+      </div>
+
+      <el-alert type="info" show-icon :closable="false" style="margin-bottom:16px">
+        <template #title>
+          <span style="font-size:13px">话术通过阿里云智能外呼平台的Flow实现,本页面维护业务侧的话术清单与统计,详细节点配置请在阿里云控制台完成后同步到本系统。</span>
+        </template>
+      </el-alert>
+
+      <!-- Filter -->
+      <div class="filter-card">
+        <el-form :inline="true">
+          <el-form-item label="场景">
+            <el-select v-model="filterScene" placeholder="全部场景" style="width:140px" clearable>
+              <el-option label="对账通知" value="notify"></el-option>
+              <el-option label="催收" value="collect"></el-option>
+              <el-option label="异议跟进" value="dispute"></el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item label="风格">
+            <el-select v-model="filterStyle" placeholder="全部风格" style="width:140px" clearable>
+              <el-option label="友好" value="friendly"></el-option>
+              <el-option label="正式" value="formal"></el-option>
+              <el-option label="紧急" value="urgent"></el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item label="状态">
+            <el-select v-model="filterStatus" placeholder="全部状态" style="width:140px" clearable>
+              <el-option label="启用" value="1"></el-option>
+              <el-option label="禁用" value="0"></el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary"><el-icon><Search /></el-icon>&nbsp;查询</el-button>
+            <el-button plain>重置</el-button>
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <!-- Script grid -->
+      <div class="script-grid">
+        <div v-for="s in scripts" :key="s.id" class="script-card">
+          <div class="script-header">
+            <div class="script-name">
+              <span>{{ s.name }}</span>
+              <span v-if="!s.enabled" class="disabled-tag">已禁用</span>
+            </div>
+            <div class="script-tags">
+              <el-tag size="small" :type="s.sceneType" effect="light">{{ s.scene }}</el-tag>
+              <el-tag size="small" :type="s.styleType" effect="plain">{{ s.style }}</el-tag>
+            </div>
+            <div class="script-flow-id">阿里云流程ID: {{ s.flowId }}</div>
+          </div>
+
+          <div class="script-body">
+            <div class="preview-block">
+              <div class="preview-label">开场白示例</div>
+              <div class="preview-text" v-html="s.opening"></div>
+            </div>
+
+            <div class="preview-label" style="margin-bottom:6px">意图分支 ({{ s.branches.length }}个)</div>
+            <div class="intent-branches">
+              <div v-for="b in s.branches" :key="b.intent" :class="'branch-chip ' + b.type">
+                <span class="dot"></span>
+                <span><b>{{ b.intent }}</b> → {{ b.action }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="stats-block">
+            <div class="stat">今日使用 <b>{{ s.todayUsed }}</b> 次</div>
+            <div class="stat">接通率 <b>{{ s.rate }}%</b></div>
+          </div>
+
+          <div class="script-footer">
+            <el-button size="small" type="primary" plain @click="openEdit(s)"><el-icon><EditPen /></el-icon>&nbsp;编辑</el-button>
+            <el-button size="small" plain><el-icon><CopyDocument /></el-icon>&nbsp;复制</el-button>
+            <el-button size="small" plain><el-icon><VideoPlay /></el-icon>&nbsp;测试</el-button>
+            <el-button size="small" plain :type="s.enabled ? 'danger' : 'success'">
+              <el-icon><component :is="s.enabled ? 'CircleClose' : 'CircleCheck'" /></el-icon>&nbsp;{{ s.enabled ? '禁用' : '启用' }}
+            </el-button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Edit dialog -->
+      <el-dialog v-model="editDialog" :title="'编辑话术 - ' + (current.name || '')" width="880px" top="5vh">
+        <el-tabs v-model="activeConfigTab">
+          <el-tab-pane label="基本信息" name="basic">
+            <el-form label-width="120px" style="margin-top:16px">
+              <el-form-item label="话术名称">
+                <el-input v-model="current.name"></el-input>
+              </el-form-item>
+              <el-form-item label="所属场景">
+                <el-select v-model="current.scene" style="width:200px">
+                  <el-option label="对账通知" value="对账通知"></el-option>
+                  <el-option label="催收" value="催收"></el-option>
+                  <el-option label="异议跟进" value="异议跟进"></el-option>
+                </el-select>
+              </el-form-item>
+              <el-form-item label="风格">
+                <el-radio-group v-model="current.style">
+                  <el-radio-button label="友好"></el-radio-button>
+                  <el-radio-button label="正式"></el-radio-button>
+                  <el-radio-button label="紧急"></el-radio-button>
+                </el-radio-group>
+              </el-form-item>
+              <el-form-item label="阿里云流程ID">
+                <el-input v-model="current.flowId"></el-input>
+                <div style="font-size:12px;color:#909399;margin-top:4px">对应阿里云智能外呼控制台配置的 Flow ID,保存后请点击"同步"拉取节点信息</div>
+              </el-form-item>
+              <el-form-item label="启用状态">
+                <el-switch v-model="current.enabled" active-text="启用" inactive-text="禁用"></el-switch>
+              </el-form-item>
+            </el-form>
+          </el-tab-pane>
+
+          <el-tab-pane label="开场白与节点" name="opening">
+            <div class="config-title">开场白模板</div>
+            <el-input type="textarea" :rows="4" :model-value="current.openingRaw"></el-input>
+            <div style="font-size:12px;color:#909399;margin-top:4px">
+              可用变量: <code style="background:#f0f9ff;padding:1px 4px;color:#1890ff">{enterprise_name}</code>
+              <code style="background:#f0f9ff;padding:1px 4px;color:#1890ff;margin-left:4px">{customer_name}</code>
+              <code style="background:#f0f9ff;padding:1px 4px;color:#1890ff;margin-left:4px">{amount}</code>
+              <code style="background:#f0f9ff;padding:1px 4px;color:#1890ff;margin-left:4px">{overdue_days}</code>
+              <code style="background:#f0f9ff;padding:1px 4px;color:#1890ff;margin-left:4px">{invoice_no}</code>
+            </div>
+
+            <div class="config-title">意图关键节点</div>
+            <el-timeline style="padding-left:16px">
+              <el-timeline-item timestamp="节点1 · 意图询问" color="#1890ff">您预计什么时候能安排付款呢?</el-timeline-item>
+              <el-timeline-item timestamp="节点2 · 承诺记录" color="#52c41a">好的,已为您记录预计回款日期,感谢您的配合。</el-timeline-item>
+              <el-timeline-item timestamp="节点3 · 异议流转" color="#fa8c16">好的,我将立即转交业务经理核实。</el-timeline-item>
+              <el-timeline-item timestamp="节点4 · 结束语" color="#8c8c8c">感谢您的配合,再见!</el-timeline-item>
+            </el-timeline>
+          </el-tab-pane>
+
+          <el-tab-pane label="意图分支配置" name="intents">
+            <div class="config-title" style="margin-top:0">意图与后续动作映射</div>
+            <el-table :data="current.branches || []" size="default" border>
+              <el-table-column label="识别意图" width="120">
+                <template #default="scope"><b>{{ scope.row.intent }}</b></template>
+              </el-table-column>
+              <el-table-column label="关键词/句式" min-width="200">
+                <template #default="scope">
+                  <el-tag v-for="k in scope.row.keywords" :key="k" size="small" style="margin:2px" effect="plain">{{ k }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="后续动作" prop="action" min-width="200"></el-table-column>
+              <el-table-column label="通知销售" width="90" align="center">
+                <template #default="scope">
+                  <el-switch v-model="scope.row.notifySales" size="small"></el-switch>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="90">
+                <template #default>
+                  <el-button size="small" type="primary" text>编辑</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </el-tab-pane>
+
+          <el-tab-pane label="测试运行" name="test">
+            <el-alert type="warning" show-icon :closable="false" style="margin-bottom:16px" title="测试模式将使用测试号码池,不消耗真实外呼费用"></el-alert>
+            <el-form label-width="120px">
+              <el-form-item label="测试电话">
+                <el-input placeholder="请输入测试手机号"></el-input>
+              </el-form-item>
+              <el-form-item label="模拟客户">
+                <el-select placeholder="选择客户以填充变量" style="width:280px">
+                  <el-option label="某某贸易(¥45,300 逾期15天)" value="1"></el-option>
+                  <el-option label="某某建材(¥68,900 逾期25天)" value="2"></el-option>
+                </el-select>
+              </el-form-item>
+              <el-form-item>
+                <el-button type="primary"><el-icon><VideoPlay /></el-icon>&nbsp;开始测试呼叫</el-button>
+              </el-form-item>
+            </el-form>
+          </el-tab-pane>
+        </el-tabs>
+
+        <template #footer>
+          <el-button @click="editDialog = false">取消</el-button>
+          <el-button type="primary" @click="editDialog = false">保存</el-button>
+        </template>
+      </el-dialog>
+    </div>
+  </div>
+</div>
+
+<script>
+const { createApp, ref, reactive } = Vue;
+
+const App = {
+  setup() {
+    const dialogVisible = ref(false);
+    const editDialog = ref(false);
+    const activeConfigTab = ref('basic');
+    const filterScene = ref('');
+    const filterStyle = ref('');
+    const filterStatus = ref('');
+    const current = ref({});
+
+    const highlight = (str) => str.replace(/\{(\w+)\}/g, '<span class="variable">{$1}</span>');
+
+    const scripts = ref([
+      {
+        id: 1, name: '对账通知-友好版', scene: '对账通知', sceneType: 'primary', style: '友好', styleType: 'success',
+        flowId: 'FLOW_STMT_001', enabled: true, todayUsed: 42, rate: 78,
+        opening: highlight('您好,我是{enterprise_name}的智能助理小对,您本期的对账单已发送到您的手机,金额是{amount}元,请您注意查收。'),
+        openingRaw: '您好,我是{enterprise_name}的智能助理小对,您本期的对账单已发送到您的手机,金额是{amount}元,请您注意查收。',
+        branches: [
+          { intent: '已确认', type: 'success', action: '关闭对账工单', keywords: ['收到','没问题','确认'], notifySales: false },
+          { intent: '有异议', type: 'warning', action: '生成异议工单', keywords: ['不对','有问题','异议'], notifySales: true },
+          { intent: '未收到', type: 'info', action: '重发短信+邮件', keywords: ['没收到','没看到'], notifySales: false },
+          { intent: '找错人', type: 'danger', action: '暂停外呼待人工核实', keywords: ['不是我','找错了'], notifySales: true }
+        ]
+      },
+      {
+        id: 2, name: '对账通知-正式版', scene: '对账通知', sceneType: 'primary', style: '正式', styleType: '',
+        flowId: 'FLOW_STMT_002', enabled: true, todayUsed: 18, rate: 82,
+        opening: highlight('您好,这里是{enterprise_name}财务对账中心。贵司{customer_name}本期应付金额为{amount}元,对账单已发送,请查收并及时确认。'),
+        openingRaw: '',
+        branches: [
+          { intent: '已确认', type: 'success', action: '关闭对账工单', keywords: ['收到','确认'], notifySales: false },
+          { intent: '有异议', type: 'warning', action: '生成异议工单', keywords: ['异议','有问题'], notifySales: true },
+          { intent: '需重发', type: 'info', action: '重发对账单', keywords: ['重发','没收到'], notifySales: false },
+          { intent: '找错人', type: 'danger', action: '暂停外呼待人工核实', keywords: ['找错'], notifySales: true }
+        ]
+      },
+      {
+        id: 3, name: '标准催收-友好版', scene: '催收', sceneType: 'danger', style: '友好', styleType: 'success',
+        flowId: 'FLOW_COL_001', enabled: true, todayUsed: 35, rate: 71,
+        opening: highlight('您好,我是{enterprise_name}的智能助理小对,您有一笔{amount}元的应收款项已经逾期{overdue_days}天,发票号{invoice_no},方便现在沟通一下吗?'),
+        openingRaw: '',
+        branches: [
+          { intent: '承诺付款', type: 'success', action: '记录预计回款日+暂停催收3天', keywords: ['马上付','这几天付','25号付'], notifySales: false },
+          { intent: '已付款', type: 'success', action: '通知财务核实到账', keywords: ['已经付了','昨天转了'], notifySales: true },
+          { intent: '有异议', type: 'warning', action: '生成异议工单+暂停催收7天', keywords: ['金额不对','异议'], notifySales: true },
+          { intent: '拒绝/拖延', type: 'danger', action: '升级至下一催收阶段', keywords: ['没钱','再说','以后'], notifySales: true }
+        ]
+      },
+      {
+        id: 4, name: '标准催收-正式版', scene: '催收', sceneType: 'danger', style: '正式', styleType: '',
+        flowId: 'FLOW_COL_002', enabled: true, todayUsed: 24, rate: 68,
+        opening: highlight('您好,这里是{enterprise_name}财务催收中心。贵司名下有一笔{amount}元款项已逾期{overdue_days}天,请您安排尽快支付。'),
+        openingRaw: '',
+        branches: [
+          { intent: '承诺付款', type: 'success', action: '记录预计回款日期', keywords: ['安排付','近期付'], notifySales: false },
+          { intent: '已付款', type: 'success', action: '通知财务核实', keywords: ['已付','转账了'], notifySales: true },
+          { intent: '有异议', type: 'warning', action: '生成异议工单', keywords: ['异议','不认'], notifySales: true },
+          { intent: '拒绝', type: 'danger', action: '升级下一阶段+法务待办', keywords: ['不付','没钱'], notifySales: true }
+        ]
+      },
+      {
+        id: 5, name: '标准催收-紧急版', scene: '催收', sceneType: 'danger', style: '紧急', styleType: 'danger',
+        flowId: 'FLOW_COL_003', enabled: true, todayUsed: 12, rate: 65,
+        opening: highlight('紧急通知:{customer_name},您有一笔{amount}元款项已严重逾期{overdue_days}天。若3日内未处理,我方将启动法务程序,请务必今日回复。'),
+        openingRaw: '',
+        branches: [
+          { intent: '承诺付款', type: 'success', action: '记录承诺+法务观察', keywords: ['今天付','明天付'], notifySales: true },
+          { intent: '已付款', type: 'success', action: '优先核实到账', keywords: ['已付'], notifySales: true },
+          { intent: '有异议', type: 'warning', action: '生成异议工单+高优先级', keywords: ['异议'], notifySales: true },
+          { intent: '拒绝', type: 'danger', action: '立即转法务+暂停供货', keywords: ['不付','没钱','以后'], notifySales: true }
+        ]
+      },
+      {
+        id: 6, name: '异议跟进', scene: '异议跟进', sceneType: 'warning', style: '正式', styleType: '',
+        flowId: 'FLOW_DISPUTE_001', enabled: true, todayUsed: 6, rate: 80,
+        opening: highlight('您好,{customer_name},您此前对{amount}元账单提出的异议,业务经理已核实,现向您反馈处理结果...'),
+        openingRaw: '',
+        branches: [
+          { intent: '接受结果', type: 'success', action: '关闭异议+恢复催收', keywords: ['同意','可以','行'], notifySales: false },
+          { intent: '继续异议', type: 'warning', action: '升级至线下会议', keywords: ['还不对','继续异议'], notifySales: true },
+          { intent: '需要凭证', type: 'info', action: '发送凭证材料', keywords: ['凭证','材料','合同'], notifySales: true },
+          { intent: '找错人', type: 'danger', action: '暂停+人工核实', keywords: ['找错'], notifySales: true }
+        ]
+      }
+    ]);
+
+    const openEdit = (s) => {
+      current.value = JSON.parse(JSON.stringify(s));
+      current.value.openingRaw = current.value.openingRaw || current.value.opening.replace(/<[^>]+>/g,'').replace(/[{}]/g, m => m);
+      editDialog.value = true;
+      activeConfigTab.value = 'basic';
+    };
+
+    return { dialogVisible, editDialog, activeConfigTab, filterScene, filterStyle, filterStatus, scripts, current, openEdit };
+  }
+};
+
+const app = createApp(App);
+app.use(ElementPlus);
+for (const [key, comp] of Object.entries(ElementPlusIconsVue)) {
+  app.component(key, comp);
+}
+app.mount('#app');
+</script>
+</body>
+</html>

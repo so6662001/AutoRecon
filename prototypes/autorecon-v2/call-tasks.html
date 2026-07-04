@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>外呼任务监控 - 对账通v2原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", Arial, sans-serif; background: #f0f2f5; }
+    #app { display: flex; min-height: 100vh; }
+
+    /* Sidebar */
+    .sidebar { width: 220px; background: #001529; color: #fff; flex-shrink: 0; height: 100vh; position: sticky; top: 0; overflow-y: auto; }
+    .sidebar::-webkit-scrollbar { width: 6px; }
+    .sidebar::-webkit-scrollbar-thumb { background: #1a3a5c; border-radius: 3px; }
+    .logo { height: 60px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: #fff; border-bottom: 1px solid #0e2a47; letter-spacing: 1px; }
+    .logo .logo-badge { background: #1890ff; color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 3px; margin-left: 6px; font-weight: 500; }
+    .menu-group { padding: 8px 0; }
+    .menu-title { color: rgba(255,255,255,0.45); font-size: 12px; padding: 8px 24px 4px; letter-spacing: 1px; }
+    .menu-item { display: flex; align-items: center; padding: 10px 24px; color: rgba(255,255,255,0.75); font-size: 14px; cursor: pointer; text-decoration: none; transition: all .2s; border-left: 3px solid transparent; }
+    .menu-item:hover { color: #fff; background: #0e2a47; }
+    .menu-item.active { color: #fff; background: #1890ff; border-left-color: #40a9ff; }
+    .menu-item .el-icon { margin-right: 10px; font-size: 16px; }
+    .menu-parent { padding: 10px 24px; color: rgba(255,255,255,0.85); font-size: 14px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+    .menu-parent:hover { color: #fff; }
+    .menu-parent .el-icon { margin-right: 10px; font-size: 16px; }
+    .sub-menu { background: #000c17; }
+    .sub-menu .menu-item { padding-left: 50px; font-size: 13px; }
+
+    /* Main layout */
+    .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .header { height: 60px; background: #fff; box-shadow: 0 1px 4px rgba(0,21,41,.08); display: flex; align-items: center; padding: 0 24px; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+    .breadcrumb { font-size: 14px; color: #666; }
+    .breadcrumb .sep { margin: 0 8px; color: #ccc; }
+    .breadcrumb .current { color: #303133; font-weight: 500; }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .company-name { font-size: 13px; color: #666; padding: 4px 10px; background: #f5f7fa; border-radius: 12px; }
+    .user-dropdown { display: flex; align-items: center; cursor: pointer; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #1890ff; color: #fff; display: flex; align-items: center; justify-content: center; margin-right: 8px; font-size: 14px; }
+
+    .content { padding: 20px; flex: 1; }
+    .page-title { font-size: 20px; font-weight: 600; color: #303133; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+    .page-title .subtitle { font-size: 13px; color: #909399; font-weight: 400; margin-left: 12px; }
+
+    /* Stat cards */
+    .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 16px; }
+    .stat-card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,21,41,.04); position: relative; overflow: hidden; }
+    .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+    .stat-card.blue::before { background: #1890ff; }
+    .stat-card.green::before { background: #52c41a; }
+    .stat-card.red::before { background: #f5222d; }
+    .stat-card.orange::before { background: #fa8c16; }
+    .stat-label { font-size: 13px; color: #909399; margin-bottom: 8px; display: flex; align-items: center; }
+    .stat-value { font-size: 32px; font-weight: 600; color: #303133; line-height: 1; }
+    .stat-value.blue { color: #1890ff; }
+    .stat-value.green { color: #52c41a; }
+    .stat-value.red { color: #f5222d; }
+    .stat-extra { font-size: 12px; color: #909399; margin-top: 8px; }
+
+    .pulse-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #1890ff; margin-right: 6px; position: relative; animation: pulse-bg 1.5s infinite; }
+    .pulse-dot::before { content: ''; position: absolute; top: -4px; left: -4px; width: 16px; height: 16px; border-radius: 50%; background: rgba(24,144,255,0.3); animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(1.2); opacity: 0; } }
+    @keyframes pulse-bg { 50% { opacity: 0.6; } }
+
+    /* Charts */
+    .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .chart-card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,21,41,.04); }
+    .chart-title { font-size: 15px; font-weight: 600; color: #303133; margin-bottom: 12px; }
+    .chart-box { height: 300px; }
+
+    /* Body layout with sticky panel */
+    .body-layout { display: grid; grid-template-columns: 1fr 320px; gap: 16px; }
+    .table-card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,21,41,.04); }
+    .sticky-panel { background: #fff; border-radius: 8px; padding: 16px; box-shadow: 0 1px 4px rgba(0,21,41,.04); position: sticky; top: 76px; align-self: start; max-height: calc(100vh - 92px); overflow-y: auto; }
+    .sticky-title { font-size: 15px; font-weight: 600; color: #303133; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+    .reminder-item { padding: 12px; border-left: 3px solid #1890ff; background: #f0f9ff; border-radius: 0 4px 4px 0; margin-bottom: 10px; font-size: 13px; }
+    .reminder-item.urgent { border-left-color: #f5222d; background: #fff1f0; }
+    .reminder-time { font-weight: 600; color: #1890ff; font-size: 14px; margin-bottom: 4px; }
+    .reminder-item.urgent .reminder-time { color: #f5222d; }
+    .reminder-desc { color: #606266; }
+    .reminder-desc .customer { font-weight: 500; color: #303133; }
+
+    .status-tag { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+    .status-tag .dot { width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; }
+    .status-tag.wait { background: #f4f4f5; color: #909399; }
+    .status-tag.wait .dot { background: #909399; }
+    .status-tag.doing { background: #ecf5ff; color: #1890ff; }
+    .status-tag.doing .dot { background: #1890ff; animation: pulse-bg 1s infinite; }
+    .status-tag.done { background: #f0f9eb; color: #52c41a; }
+    .status-tag.done .dot { background: #52c41a; }
+    .status-tag.fail { background: #fef0f0; color: #f5222d; }
+    .status-tag.fail .dot { background: #f5222d; }
+
+    .action-link { color: #1890ff; cursor: pointer; margin-right: 8px; font-size: 13px; }
+    .action-link:hover { text-decoration: underline; }
+    .action-link.danger { color: #f5222d; }
+
+    .live-badge { display: inline-flex; align-items: center; font-size: 12px; color: #52c41a; margin-left: 12px; }
+    .live-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: #52c41a; margin-right: 4px; animation: pulse-bg 1.5s infinite; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="logo">对账通<span class="logo-badge">v2</span></div>
+    <div class="menu-group">
+      <a href="dashboard.html" class="menu-item"><el-icon><Odometer /></el-icon>工作台</a>
+
+      <div class="menu-parent"><span><el-icon><User /></el-icon>客户中心</span><el-icon><ArrowDown /></el-icon></div>
+      <div class="sub-menu">
+        <a href="customer-ledger.html" class="menu-item">客户往来账</a>
+        <a href="customer-types.html" class="menu-item">客户类型</a>
+        <a href="customer-tags.html" class="menu-item">客户标签</a>
+      </div>
+
+      <div class="menu-parent"><span><el-icon><Document /></el-icon>对账管理</span><el-icon><ArrowDown /></el-icon></div>
+      <div class="sub-menu">
+        <a href="statement-list.html" class="menu-item">对账单列表</a>
+        <a href="statement-create.html" class="menu-item">发起对账</a>
+      </div>
+
+      <div class="menu-parent"><span><el-icon><PhoneFilled /></el-icon>催收中心</span><el-icon><ArrowUp /></el-icon></div>
+      <div class="sub-menu">
+        <a href="collection-orders.html" class="menu-item">催收工单</a>
+        <a href="collection-profiles.html" class="menu-item">催收策略</a>
+        <a href="call-tasks.html" class="menu-item active">外呼任务</a>
+        <a href="call-records.html" class="menu-item">外呼记录</a>
+      </div>
+
+      <a href="messages.html" class="menu-item"><el-icon><Message /></el-icon>消息中心</a>
+
+      <div class="menu-parent"><span><el-icon><DataAnalysis /></el-icon>报表分析</span><el-icon><ArrowDown /></el-icon></div>
+      <div class="sub-menu">
+        <a href="receivable-report.html" class="menu-item">应收报表</a>
+        <a href="collection-report.html" class="menu-item">催收报表</a>
+      </div>
+
+      <div class="menu-parent"><span><el-icon><Setting /></el-icon>系统设置</span><el-icon><ArrowDown /></el-icon></div>
+      <div class="sub-menu">
+        <a href="subjects-filter.html" class="menu-item">科目过滤</a>
+        <a href="call-scripts.html" class="menu-item">AI话术管理</a>
+        <a href="aliyun-config.html" class="menu-item">阿里云配置</a>
+        <a href="holiday-calendar.html" class="menu-item">节假日日历</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="header">
+      <div class="breadcrumb">
+        催收中心<span class="sep">/</span><span class="current">外呼任务监控</span>
+        <span class="live-badge"><span class="dot"></span>实时监控中</span>
+      </div>
+      <div class="header-right">
+        <span class="company-name">某某钢铁有限公司</span>
+        <el-dropdown>
+          <div class="user-dropdown">
+            <div class="user-avatar">张</div>
+            <span>张三</span>
+            <el-icon style="margin-left:4px"><ArrowDown /></el-icon>
+          </div>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item>个人资料</el-dropdown-item>
+              <el-dropdown-item>修改密码</el-dropdown-item>
+              <el-dropdown-item divided>退出登录</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="page-title">
+        外呼任务监控
+        <div>
+          <el-button type="primary" plain size="default"><el-icon><Refresh /></el-icon>&nbsp;刷新</el-button>
+          <el-button type="primary" size="default"><el-icon><Plus /></el-icon>&nbsp;创建外呼任务</el-button>
+        </div>
+      </div>
+
+      <!-- Stat cards -->
+      <div class="stat-row">
+        <div class="stat-card blue">
+          <div class="stat-label">今日待呼</div>
+          <div class="stat-value blue">128</div>
+          <div class="stat-extra">较昨日 +12</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-label">已完成</div>
+          <div class="stat-value green">42</div>
+          <div class="stat-extra">接通率 71.4%</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-label"><span class="pulse-dot"></span>进行中</div>
+          <div class="stat-value blue">3</div>
+          <div class="stat-extra">实时通话中</div>
+        </div>
+        <div class="stat-card red">
+          <div class="stat-label">失败/未接通</div>
+          <div class="stat-value red">8</div>
+          <div class="stat-extra">待重试 5 个</div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="chart-row">
+        <div class="chart-card">
+          <div class="chart-title">今日外呼时段分布</div>
+          <div id="hour-chart" class="chart-box"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">意图识别分布</div>
+          <div id="intent-chart" class="chart-box"></div>
+        </div>
+      </div>
+
+      <!-- Body: table + sticky panel -->
+      <div class="body-layout">
+        <div class="table-card">
+          <el-tabs v-model="activeTab" style="margin-bottom:12px">
+            <el-tab-pane label="全部 (181)" name="all"></el-tab-pane>
+            <el-tab-pane label="待执行 (128)" name="wait"></el-tab-pane>
+            <el-tab-pane label="进行中 (3)" name="doing"></el-tab-pane>
+            <el-tab-pane label="已完成 (42)" name="done"></el-tab-pane>
+            <el-tab-pane label="失败/未接通 (8)" name="fail"></el-tab-pane>
+          </el-tabs>
+
+          <el-table :data="tasks" style="width:100%" size="default" border stripe>
+            <el-table-column prop="id" label="任务号" width="140"></el-table-column>
+            <el-table-column prop="scene" label="场景" width="90">
+              <template #default="scope">
+                <el-tag size="small" :type="scope.row.scene === '催收' ? 'danger' : scope.row.scene === '异议跟进' ? 'warning' : 'primary'" effect="light">{{ scope.row.scene }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="customer" label="客户" width="110"></el-table-column>
+            <el-table-column prop="phone" label="目标电话" width="120"></el-table-column>
+            <el-table-column prop="script" label="话术模板" width="150"></el-table-column>
+            <el-table-column prop="planTime" label="计划时间" width="110"></el-table-column>
+            <el-table-column label="执行状态" width="110">
+              <template #default="scope">
+                <span :class="'status-tag ' + scope.row.statusType"><span class="dot"></span>{{ scope.row.statusText }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="result" label="结果" width="130"></el-table-column>
+            <el-table-column prop="duration" label="时长" width="70"></el-table-column>
+            <el-table-column prop="intent" label="意图" width="90">
+              <template #default="scope">
+                <el-tag v-if="scope.row.intent && scope.row.intent !== '-'" size="small" :type="intentType(scope.row.intent)" effect="plain">{{ scope.row.intent }}</el-tag>
+                <span v-else style="color:#c0c4cc">-</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="130" fixed="right">
+              <template #default="scope">
+                <span v-for="a in scope.row.actions" :key="a" :class="'action-link' + (a === '取消' ? ' danger' : '')">{{ a }}</span>
+              </template>
+            </el-table-column>
+          </el-table>
+
+          <div style="display:flex;justify-content:flex-end;margin-top:16px">
+            <el-pagination background layout="total, prev, pager, next" :total="181" :page-size="12"></el-pagination>
+          </div>
+        </div>
+
+        <!-- Sticky reminders -->
+        <div class="sticky-panel">
+          <div class="sticky-title">
+            <span><el-icon style="color:#1890ff"><Bell /></el-icon> 今日提醒</span>
+            <el-tag size="small" type="primary" effect="plain">近1小时</el-tag>
+          </div>
+
+          <div class="reminder-item urgent">
+            <div class="reminder-time">11:15 <span style="font-size:11px;font-weight:400;color:#f5222d">即将开始</span></div>
+            <div class="reminder-desc">
+              <div class="customer">某某科技 · 催收</div>
+              <div>话术：标准催收-正式版</div>
+              <div>139****9999 · 逾期30天</div>
+            </div>
+          </div>
+
+          <div class="reminder-item">
+            <div class="reminder-time">11:30</div>
+            <div class="reminder-desc">
+              <div class="customer">某某物流 · 对账通知</div>
+              <div>话术：对账通知-友好版</div>
+              <div>138****0000 · 本期¥85,600</div>
+            </div>
+          </div>
+
+          <div class="reminder-item">
+            <div class="reminder-time">11:45</div>
+            <div class="reminder-desc">
+              <div class="customer">BB钢结构 · 催收</div>
+              <div>话术：标准催收-友好版</div>
+              <div>138****8888 · 逾期7天</div>
+            </div>
+          </div>
+
+          <div class="reminder-item">
+            <div class="reminder-time">12:00</div>
+            <div class="reminder-desc">
+              <div class="customer">CC建筑 · 异议跟进</div>
+              <div>话术：异议跟进</div>
+              <div>139****7777 · 有异议未处理</div>
+            </div>
+          </div>
+
+          <div class="sticky-title" style="margin-top:20px">
+            <span><el-icon style="color:#fa8c16"><Warning /></el-icon> 需人工介入</span>
+            <el-tag size="small" type="warning" effect="plain">3</el-tag>
+          </div>
+          <div class="reminder-item" style="border-left-color:#fa8c16;background:#fff7e6">
+            <div style="font-weight:600;color:#fa8c16;font-size:13px;margin-bottom:4px">找错人 · ZZ贸易</div>
+            <div class="reminder-desc" style="font-size:12px">接听者非财务负责人，需人工确认后重呼</div>
+          </div>
+          <div class="reminder-item" style="border-left-color:#fa8c16;background:#fff7e6">
+            <div style="font-weight:600;color:#fa8c16;font-size:13px;margin-bottom:4px">有异议 · AA工程</div>
+            <div class="reminder-desc" style="font-size:12px">客户对金额有争议，需财务复核</div>
+          </div>
+          <div class="reminder-item" style="border-left-color:#fa8c16;background:#fff7e6">
+            <div style="font-weight:600;color:#fa8c16;font-size:13px;margin-bottom:4px">3次未接 · DD贸易</div>
+            <div class="reminder-desc" style="font-size:12px">建议改为短信或人工联系</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const { createApp, ref, onMounted } = Vue;
+
+const App = {
+  setup() {
+    const activeTab = ref('all');
+
+    const tasks = ref([
+      { id: 'CT2025031701', scene: '对账通知', customer: '某某贸易', phone: '138****1234', script: '对账通知-友好版', planTime: '03-17 10:45', statusType: 'done', statusText: '已完成', result: '接通', duration: '1:23', intent: '承诺付款', actions: ['详情','录音'] },
+      { id: 'CT2025031702', scene: '催收', customer: '某某建材', phone: '138****5678', script: '标准催收-友好版', planTime: '03-17 11:00', statusType: 'done', statusText: '已完成', result: '接通', duration: '2:15', intent: '已付款', actions: ['详情','录音'] },
+      { id: 'CT2025031703', scene: '催收', customer: '某某科技', phone: '139****9999', script: '标准催收-正式版', planTime: '03-17 11:15', statusType: 'doing', statusText: '进行中', result: '拨号中...', duration: '-', intent: '-', actions: ['监听'] },
+      { id: 'CT2025031704', scene: '对账通知', customer: '某某物流', phone: '138****0000', script: '对账通知-友好版', planTime: '03-17 11:30', statusType: 'wait', statusText: '待执行', result: '-', duration: '-', intent: '-', actions: ['编辑','取消'] },
+      { id: 'CT2025031705', scene: '催收', customer: 'ZZ贸易', phone: '137****3333', script: '标准催收-友好版', planTime: '03-17 09:30', statusType: 'fail', statusText: '失败', result: '未接通(3次)', duration: '-', intent: '-', actions: ['详情','重试'] },
+      { id: 'CT2025031706', scene: '催收', customer: 'AA工程', phone: '138****2222', script: '标准催收-友好版', planTime: '03-17 10:00', statusType: 'done', statusText: '已完成', result: '接通', duration: '0:45', intent: '有异议', actions: ['详情','录音'] },
+      { id: 'CT2025031707', scene: '对账通知', customer: 'YY建设', phone: '139****1111', script: '对账通知-正式版', planTime: '03-17 15:00', statusType: 'wait', statusText: '待执行', result: '-', duration: '-', intent: '-', actions: ['编辑','取消'] },
+      { id: 'CT2025031708', scene: '异议跟进', customer: '某某科技', phone: '139****9999', script: '异议跟进', planTime: '03-17 14:00', statusType: 'done', statusText: '已完成', result: '接通', duration: '3:20', intent: '记录异议', actions: ['详情','录音'] },
+      { id: 'CT2025031709', scene: '催收', customer: 'BB钢结构', phone: '138****8888', script: '标准催收-友好版', planTime: '03-17 11:45', statusType: 'wait', statusText: '待执行', result: '-', duration: '-', intent: '-', actions: ['编辑','取消'] },
+      { id: 'CT2025031710', scene: '催收', customer: 'CC建筑', phone: '139****7777', script: '标准催收-紧急版', planTime: '03-17 09:00', statusType: 'done', statusText: '已完成', result: '接通', duration: '1:56', intent: '拒绝', actions: ['详情','录音'] },
+      { id: 'CT2025031711', scene: '催收', customer: 'DD贸易', phone: '137****4444', script: '标准催收-友好版', planTime: '03-17 09:15', statusType: 'fail', statusText: '未接通', result: '无人接听(3次)', duration: '-', intent: '-', actions: ['详情','重试'] },
+      { id: 'CT2025031712', scene: '对账通知', customer: 'EE贸易', phone: '138****6666', script: '对账通知-友好版', planTime: '03-17 08:45', statusType: 'done', statusText: '已完成', result: '接通', duration: '0:52', intent: '找错人', actions: ['详情','录音'] }
+    ]);
+
+    const intentType = (intent) => {
+      const map = { '承诺付款': 'success', '已付款': 'success', '有异议': 'warning', '拒绝': 'danger', '找错人': 'info', '记录异议': 'warning', '无人接听': 'info' };
+      return map[intent] || '';
+    };
+
+    onMounted(() => {
+      // Hour chart
+      const hourChart = echarts.init(document.getElementById('hour-chart'));
+      hourChart.setOption({
+        tooltip: { trigger: 'axis' },
+        grid: { top: 20, left: 40, right: 20, bottom: 30 },
+        xAxis: { type: 'category', data: Array.from({length: 24}, (_,i) => i+'时'), axisLabel: { fontSize: 10 } },
+        yAxis: { type: 'value', name: '通话数' },
+        series: [{
+          type: 'bar',
+          data: [0,0,0,0,0,0,0,0,2,15,22,18,10,5,12,20,16,8,3,1,0,0,0,0],
+          itemStyle: { color: {
+            type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [{ offset: 0, color: '#40a9ff' }, { offset: 1, color: '#1890ff' }]
+          } },
+          barWidth: '65%'
+        }]
+      });
+
+      // Intent chart
+      const intentChart = echarts.init(document.getElementById('intent-chart'));
+      intentChart.setOption({
+        tooltip: { trigger: 'item', formatter: '{b}: {c}% ({d}%)' },
+        legend: { orient: 'vertical', right: 10, top: 'center', itemWidth: 10, itemHeight: 10, textStyle: { fontSize: 12 } },
+        series: [{
+          type: 'pie',
+          radius: ['45%', '70%'],
+          center: ['38%', '50%'],
+          avoidLabelOverlap: false,
+          label: { show: false },
+          data: [
+            { value: 35, name: '承诺付款', itemStyle: { color: '#52c41a' } },
+            { value: 10, name: '已付款', itemStyle: { color: '#13c2c2' } },
+            { value: 8, name: '有异议', itemStyle: { color: '#fa8c16' } },
+            { value: 5, name: '找错人', itemStyle: { color: '#722ed1' } },
+            { value: 12, name: '拒绝', itemStyle: { color: '#f5222d' } },
+            { value: 25, name: '无人接听', itemStyle: { color: '#8c8c8c' } },
+            { value: 5, name: '其他', itemStyle: { color: '#bfbfbf' } }
+          ]
+        }]
+      });
+
+      window.addEventListener('resize', () => { hourChart.resize(); intentChart.resize(); });
+    });
+
+    return { activeTab, tasks, intentType };
+  }
+};
+
+const app = createApp(App);
+app.use(ElementPlus);
+for (const [key, comp] of Object.entries(ElementPlusIconsVue)) {
+  app.component(key, comp);
+}
+app.mount('#app');
+</script>
+</body>
+</html>

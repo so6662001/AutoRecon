@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>阿里云智能外呼配置 - 对账通v2原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", Arial, sans-serif; background: #f0f2f5; }
+    #app { display: flex; min-height: 100vh; }
+
+    .sidebar { width: 220px; background: #001529; color: #fff; flex-shrink: 0; height: 100vh; position: sticky; top: 0; overflow-y: auto; }
+    .sidebar::-webkit-scrollbar { width: 6px; }
+    .sidebar::-webkit-scrollbar-thumb { background: #1a3a5c; border-radius: 3px; }
+    .logo { height: 60px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: #fff; border-bottom: 1px solid #0e2a47; letter-spacing: 1px; }
+    .logo .logo-badge { background: #1890ff; color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 3px; margin-left: 6px; font-weight: 500; }
+    .menu-group { padding: 8px 0; }
+    .menu-item { display: flex; align-items: center; padding: 10px 24px; color: rgba(255,255,255,0.75); font-size: 14px; cursor: pointer; text-decoration: none; transition: all .2s; border-left: 3px solid transparent; }
+    .menu-item:hover { color: #fff; background: #0e2a47; }
+    .menu-item.active { color: #fff; background: #1890ff; border-left-color: #40a9ff; }
+    .menu-item .el-icon { margin-right: 10px; font-size: 16px; }
+    .menu-parent { padding: 10px 24px; color: rgba(255,255,255,0.85); font-size: 14px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+    .menu-parent:hover { color: #fff; }
+    .menu-parent .el-icon { margin-right: 10px; font-size: 16px; }
+    .sub-menu { background: #000c17; }
+    .sub-menu .menu-item { padding-left: 50px; font-size: 13px; }
+
+    .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .header { height: 60px; background: #fff; box-shadow: 0 1px 4px rgba(0,21,41,.08); display: flex; align-items: center; padding: 0 24px; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+    .breadcrumb { font-size: 14px; color: #666; }
+    .breadcrumb .sep { margin: 0 8px; color: #ccc; }
+    .breadcrumb .current { color: #303133; font-weight: 500; }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .company-name { font-size: 13px; color: #666; padding: 4px 10px; background: #f5f7fa; border-radius: 12px; }
+    .user-dropdown { display: flex; align-items: center; cursor: pointer; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #1890ff; color: #fff; display: flex; align-items: center; justify-content: center; margin-right: 8px; font-size: 14px; }
+
+    .content { padding: 20px; flex: 1; }
+    .page-title { font-size: 20px; font-weight: 600; color: #303133; margin-bottom: 16px; display: flex; align-items: center; }
+    .page-title .aliyun-badge { display: inline-flex; align-items: center; margin-left: 12px; padding: 3px 8px; background: linear-gradient(135deg, #FF6A00 0%, #FF9500 100%); color: #fff; font-size: 11px; border-radius: 4px; font-weight: 500; }
+
+    .section { background: #fff; border-radius: 8px; padding: 20px 24px; box-shadow: 0 1px 4px rgba(0,21,41,.04); margin-bottom: 16px; }
+    .section-title { font-size: 15px; font-weight: 600; color: #303133; margin-bottom: 16px; padding-left: 10px; border-left: 3px solid #1890ff; display: flex; align-items: center; justify-content: space-between; }
+    .section-title .action { font-weight: 400; }
+
+    .conn-status { display: inline-flex; align-items: center; padding: 4px 10px; background: #f0f9eb; color: #52c41a; border-radius: 12px; font-size: 12px; margin-left: 12px; }
+    .conn-status.error { background: #fef0f0; color: #f5222d; }
+
+    .action-link { color: #1890ff; cursor: pointer; margin-right: 12px; font-size: 13px; }
+    .action-link:hover { text-decoration: underline; }
+    .action-link.danger { color: #f5222d; }
+
+    /* Balance card */
+    .balance-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 20px; }
+    .balance-main { padding: 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; color: #fff; }
+    .balance-label { font-size: 13px; opacity: 0.9; }
+    .balance-value { font-size: 36px; font-weight: 700; margin: 8px 0 12px; }
+    .balance-desc { font-size: 12px; opacity: 0.85; margin-bottom: 16px; }
+    .balance-side { padding: 20px; background: #fafbfc; border-radius: 8px; border: 1px solid #f0f0f0; }
+    .balance-side-label { font-size: 12px; color: #909399; margin-bottom: 6px; }
+    .balance-side-value { font-size: 22px; font-weight: 600; color: #303133; }
+    .balance-side-desc { font-size: 12px; color: #909399; margin-top: 4px; }
+
+    .stats-mini { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
+    .stats-mini-item { background: #f8f9fb; padding: 12px 16px; border-radius: 6px; text-align: center; }
+    .stats-mini-item .val { font-size: 20px; font-weight: 600; color: #1890ff; }
+    .stats-mini-item .lbl { font-size: 12px; color: #909399; margin-top: 4px; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="sidebar">
+    <div class="logo">对账通<span class="logo-badge">v2</span></div>
+    <div class="menu-group">
+      <a href="dashboard.html" class="menu-item"><el-icon><Odometer /></el-icon>工作台</a>
+      <div class="menu-parent"><span><el-icon><User /></el-icon>客户中心</span><el-icon><ArrowDown /></el-icon></div>
+      <div class="sub-menu">
+        <a href="customer-ledger.html" class="menu-item">客户往来账</a>
+        <a href="customer-types.html" class="menu-item">客户类型</a>
+        <a href="customer-tags.html" class="menu-item">客户标签</a>
+      </div>
+      <div class="menu-parent"><span><el-icon><Document /></el-icon>对账管理</span><el-icon><ArrowDown /></el-icon></div>
+      <div class="sub-menu">
+        <a href="statement-list.html" class="menu-item">对账单列表</a>
+        <a href="statement-create.html" class="menu-item">发起对账</a>
+      </div>
+      <div class="menu-parent"><span><el-icon><PhoneFilled /></el-icon>催收中心</span><el-icon><ArrowDown /></el-icon></div>
+      <div class="sub-menu">
+        <a href="collection-orders.html" class="menu-item">催收工单</a>
+        <a href="collection-profiles.html" class="menu-item">催收策略</a>
+        <a href="call-tasks.html" class="menu-item">外呼任务</a>
+        <a href="call-records.html" class="menu-item">外呼记录</a>
+      </div>
+      <a href="messages.html" class="menu-item"><el-icon><Message /></el-icon>消息中心</a>
+      <div class="menu-parent"><span><el-icon><DataAnalysis /></el-icon>报表分析</span><el-icon><ArrowDown /></el-icon></div>
+      <div class="sub-menu">
+        <a href="receivable-report.html" class="menu-item">应收报表</a>
+        <a href="collection-report.html" class="menu-item">催收报表</a>
+      </div>
+      <div class="menu-parent"><span><el-icon><Setting /></el-icon>系统设置</span><el-icon><ArrowUp /></el-icon></div>
+      <div class="sub-menu">
+        <a href="subjects-filter.html" class="menu-item">科目过滤</a>
+        <a href="call-scripts.html" class="menu-item">AI话术管理</a>
+        <a href="aliyun-config.html" class="menu-item active">阿里云配置</a>
+        <a href="holiday-calendar.html" class="menu-item">节假日日历</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="header">
+      <div class="breadcrumb">系统设置<span class="sep">/</span><span class="current">阿里云配置</span></div>
+      <div class="header-right">
+        <span class="company-name">某某钢铁有限公司</span>
+        <el-dropdown>
+          <div class="user-dropdown">
+            <div class="user-avatar">张</div><span>张三</span>
+            <el-icon style="margin-left:4px"><ArrowDown /></el-icon>
+          </div>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item>个人资料</el-dropdown-item>
+              <el-dropdown-item>修改密码</el-dropdown-item>
+              <el-dropdown-item divided>退出登录</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="page-title">
+        阿里云智能外呼配置
+        <span class="aliyun-badge">Aliyun · CCC · IVR</span>
+      </div>
+
+      <el-alert type="info" show-icon :closable="false" style="margin-bottom:16px">
+        <template #title>
+          <span style="font-size:13px">本页面用于接入阿里云智能语音交互(IVR)/云呼叫中心(CCC)。请先在阿里云控制台开通服务并申请AccessKey,然后在此完成配置和号码池绑定。</span>
+        </template>
+      </el-alert>
+
+      <!-- Section 1: 接入信息 -->
+      <div class="section">
+        <div class="section-title">
+          <span>1. 接入信息 <span class="conn-status"><el-icon style="margin-right:4px"><CircleCheck /></el-icon>连接正常</span></span>
+          <span style="font-size:12px;color:#909399;font-weight:400">上次检查: 2025-03-17 15:00</span>
+        </div>
+        <el-form label-width="140px" style="max-width:720px">
+          <el-form-item label="AccessKey ID">
+            <el-input v-model="accessKey" type="password" show-password style="width:360px"></el-input>
+            <span style="margin-left:8px;font-family:monospace;color:#909399;font-size:12px">当前: LTAI****4b8Y</span>
+          </el-form-item>
+          <el-form-item label="AccessKey Secret">
+            <el-input v-model="accessSecret" type="password" show-password style="width:360px"></el-input>
+            <span style="margin-left:8px;color:#909399;font-size:12px">********** (已加密存储)</span>
+          </el-form-item>
+          <el-form-item label="地域">
+            <el-select v-model="region" style="width:240px">
+              <el-option label="华东1(杭州) cn-hangzhou" value="cn-hangzhou"></el-option>
+              <el-option label="华东2(上海) cn-shanghai" value="cn-shanghai"></el-option>
+              <el-option label="华北2(北京) cn-beijing"  value="cn-beijing"></el-option>
+              <el-option label="华南1(深圳) cn-shenzhen" value="cn-shenzhen"></el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item label="实例ID">
+            <el-input v-model="instanceId" style="width:360px" placeholder="ccc-xxxxxxxx"></el-input>
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" plain><el-icon><Connection /></el-icon>&nbsp;测试连接</el-button>
+            <el-button type="primary"><el-icon><Check /></el-icon>&nbsp;保存</el-button>
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <!-- Section 2: 外呼号码池 -->
+      <div class="section">
+        <div class="section-title">
+          <span>2. 外呼号码池</span>
+          <span class="action">
+            <el-button size="small" type="primary" plain><el-icon><Plus /></el-icon>&nbsp;申请新号码</el-button>
+            <el-button size="small" plain><el-icon><Refresh /></el-icon>&nbsp;同步阿里云</el-button>
+          </span>
+        </div>
+        <el-table :data="numbers" size="default" border stripe>
+          <el-table-column prop="phone" label="号码" width="180">
+            <template #default="scope"><b style="font-family:monospace">{{ scope.row.phone }}</b></template>
+          </el-table-column>
+          <el-table-column prop="type" label="类型" width="90">
+            <template #default="scope">
+              <el-tag size="small" :type="scope.row.type === '400' ? 'primary' : 'info'" effect="plain">{{ scope.row.type }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="location" label="归属地" width="90"></el-table-column>
+          <el-table-column label="状态" width="100">
+            <template #default="scope">
+              <el-tag size="small" :type="scope.row.enabled ? 'success' : 'info'" effect="light">
+                {{ scope.row.enabled ? '● 启用' : '○ 未启用' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="今日已用/限额" min-width="200">
+            <template #default="scope">
+              <div style="display:flex;align-items:center;gap:12px">
+                <span style="min-width:70px;font-family:monospace">{{ scope.row.used }}/{{ scope.row.limit }}</span>
+                <el-progress :percentage="scope.row.limit > 0 ? Math.round(scope.row.used/scope.row.limit*100) : 0" :stroke-width="8" style="flex:1;max-width:200px" :color="scope.row.used/scope.row.limit > 0.8 ? '#f5222d' : '#1890ff'"></el-progress>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column prop="note" label="备注" min-width="140"></el-table-column>
+          <el-table-column label="操作" width="140">
+            <template #default="scope">
+              <span class="action-link">详情</span>
+              <span :class="'action-link' + (scope.row.enabled ? ' danger' : '')">{{ scope.row.enabled ? '暂停' : '启用' }}</span>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <!-- Section 3: 外呼流程绑定 -->
+      <div class="section">
+        <div class="section-title">
+          <span>3. 外呼流程绑定 <span style="font-weight:400;color:#909399;font-size:12px;margin-left:8px">对应阿里云控制台 Flow 编排</span></span>
+          <span class="action">
+            <el-button size="small" plain><el-icon><Refresh /></el-icon>&nbsp;全量同步</el-button>
+          </span>
+        </div>
+        <el-table :data="flows" size="default" border stripe>
+          <el-table-column prop="scriptName" label="话术模板" min-width="180">
+            <template #default="scope">
+              <a href="call-scripts.html" style="color:#1890ff;text-decoration:none">{{ scope.row.scriptName }}</a>
+            </template>
+          </el-table-column>
+          <el-table-column prop="flowId" label="阿里云流程ID" width="180">
+            <template #default="scope"><span style="font-family:monospace;color:#606266">{{ scope.row.flowId }}</span></template>
+          </el-table-column>
+          <el-table-column prop="version" label="版本" width="80">
+            <template #default="scope"><el-tag size="small" effect="plain">{{ scope.row.version }}</el-tag></template>
+          </el-table-column>
+          <el-table-column label="状态" width="100">
+            <template #default="scope">
+              <el-tag size="small" :type="scope.row.status === '生效' ? 'success' : 'info'">{{ scope.row.status }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="lastSync" label="上次同步" width="160"></el-table-column>
+          <el-table-column prop="lastEdit" label="上次修改人" width="120"></el-table-column>
+          <el-table-column label="操作" width="140">
+            <template #default>
+              <span class="action-link">编辑</span>
+              <span class="action-link">同步</span>
+              <span class="action-link">日志</span>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <!-- Section 4 + 5 -->
+      <div class="section">
+        <div class="section-title"><span>4. 账户余额</span></div>
+        <div class="balance-grid">
+          <div class="balance-main">
+            <div class="balance-label">当前余额</div>
+            <div class="balance-value">¥1,280.00</div>
+            <div class="balance-desc">按0.16元/次估算,当前余额约可支撑 8,000 次外呼</div>
+            <el-button size="default"><el-icon><Wallet /></el-icon>&nbsp;立即充值</el-button>
+            <el-button size="default" plain style="color:#fff;border-color:#fff;background:transparent"><el-icon><Document /></el-icon>&nbsp;账单明细</el-button>
+          </div>
+          <div class="balance-side">
+            <div class="balance-side-label">本月已用</div>
+            <div class="balance-side-value" style="color:#fa8c16">¥180.50</div>
+            <div class="balance-side-desc">1,128 次外呼</div>
+          </div>
+          <div class="balance-side">
+            <div class="balance-side-label">本月预算</div>
+            <div class="balance-side-value" style="color:#1890ff">¥500.00</div>
+            <div class="balance-side-desc">预算使用 36.1%</div>
+          </div>
+        </div>
+        <div class="stats-mini">
+          <div class="stats-mini-item">
+            <div class="val">0.16元</div>
+            <div class="lbl">平均单次通话成本</div>
+          </div>
+          <div class="stats-mini-item">
+            <div class="val">1分42秒</div>
+            <div class="lbl">平均通话时长</div>
+          </div>
+          <div class="stats-mini-item">
+            <div class="val">03-16 02:00</div>
+            <div class="lbl">下次自动对账时间</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 5 -->
+      <div class="section">
+        <div class="section-title"><span>5. 使用限制</span></div>
+        <el-form label-width="180px" style="max-width:720px">
+          <el-form-item label="每日外呼上限">
+            <el-input-number v-model="dailyLimit" :min="1" :max="10000" style="width:180px"></el-input-number>
+            <span style="margin-left:8px;color:#909399;font-size:12px">次 / 日</span>
+          </el-form-item>
+          <el-form-item label="单客户单日上限">
+            <el-input-number v-model="perCustomerLimit" :min="1" :max="10" style="width:180px"></el-input-number>
+            <span style="margin-left:8px;color:#909399;font-size:12px">次 / 客户 / 日 (避免骚扰)</span>
+          </el-form-item>
+          <el-form-item label="全局免打扰时段">
+            <el-time-picker v-model="quietStart" format="HH:mm" placeholder="开始" style="width:120px"></el-time-picker>
+            <span style="margin:0 8px">至</span>
+            <el-time-picker v-model="quietEnd" format="HH:mm" placeholder="结束" style="width:120px"></el-time-picker>
+            <span style="margin-left:8px;color:#909399;font-size:12px">当前设置: 22:00 - 次日 08:00</span>
+          </el-form-item>
+          <el-form-item label="敏感号段过滤">
+            <el-switch v-model="sensitiveFilter" active-text="启用" inactive-text="禁用"></el-switch>
+            <el-tooltip content="自动过滤政府机关(010-6xxx等)、公安、事业单位等号段" placement="right">
+              <span style="margin-left:12px;color:#1890ff;font-size:12px;cursor:pointer"><el-icon><InfoFilled /></el-icon> 自动过滤政府/事业单位号段</span>
+            </el-tooltip>
+          </el-form-item>
+          <el-form-item label="节假日外呼">
+            <el-radio-group v-model="holidayMode">
+              <el-radio label="never">节假日不外呼</el-radio>
+              <el-radio label="notify_only">仅通知类外呼</el-radio>
+              <el-radio label="always">照常外呼</el-radio>
+            </el-radio-group>
+            <div style="margin-top:6px;font-size:12px;color:#909399">节假日依据 <a href="holiday-calendar.html" style="color:#1890ff">节假日日历</a> 判定</div>
+          </el-form-item>
+          <el-form-item label="黑名单管理">
+            <a href="#" style="color:#1890ff">查看黑名单 (23人)</a>
+            <span style="margin-left:12px;color:#909399;font-size:12px">在黑名单中的号码将永不外呼</span>
+          </el-form-item>
+          <el-form-item label="失败重试策略">
+            <el-select v-model="retryStrategy" style="width:280px">
+              <el-option label="标准: 未接3次后停止" value="standard"></el-option>
+              <el-option label="激进: 未接5次后停止" value="aggressive"></el-option>
+              <el-option label="保守: 未接1次后停止" value="conservative"></el-option>
+              <el-option label="不重试" value="none"></el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary"><el-icon><Check /></el-icon>&nbsp;保存设置</el-button>
+            <el-button plain>重置为默认</el-button>
+          </el-form-item>
+        </el-form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const { createApp, ref } = Vue;
+
+const App = {
+  setup() {
+    const accessKey = ref('LTAI5tBv******4b8Y');
+    const accessSecret = ref('****************************');
+    const region = ref('cn-hangzhou');
+    const instanceId = ref('ccc-abcdef123456');
+    const dailyLimit = ref(500);
+    const perCustomerLimit = ref(1);
+    const quietStart = ref(new Date(2000, 0, 1, 22, 0));
+    const quietEnd = ref(new Date(2000, 0, 1, 8, 0));
+    const sensitiveFilter = ref(true);
+    const holidayMode = ref('notify_only');
+    const retryStrategy = ref('standard');
+
+    const numbers = ref([
+      { phone: '400-888-1234', type: '400', location: '全国', enabled: true, used: 42, limit: 500, note: '主推催收号码' },
+      { phone: '010-58888888', type: '座机', location: '北京', enabled: true, used: 15, limit: 300, note: '北方地区客户' },
+      { phone: '021-52222222', type: '座机', location: '上海', enabled: true, used: 12, limit: 300, note: '华东地区客户' },
+      { phone: '400-888-5678', type: '400', location: '全国', enabled: false, used: 0, limit: 500, note: '备用号码,待审核' }
+    ]);
+
+    const flows = ref([
+      { scriptName: '对账通知-友好版', flowId: 'FLOW_STMT_001', version: 'v1.2', status: '生效', lastSync: '2025-03-15 09:20', lastEdit: '李四' },
+      { scriptName: '对账通知-正式版', flowId: 'FLOW_STMT_002', version: 'v1.0', status: '生效', lastSync: '2025-02-28 14:10', lastEdit: '李四' },
+      { scriptName: '标准催收-友好版', flowId: 'FLOW_COL_001', version: 'v2.0', status: '生效', lastSync: '2025-03-16 10:35', lastEdit: '王五' },
+      { scriptName: '标准催收-正式版', flowId: 'FLOW_COL_002', version: 'v1.5', status: '生效', lastSync: '2025-03-10 16:20', lastEdit: '王五' },
+      { scriptName: '标准催收-紧急版', flowId: 'FLOW_COL_003', version: 'v1.1', status: '生效', lastSync: '2025-03-12 11:45', lastEdit: '王五' },
+      { scriptName: '异议跟进', flowId: 'FLOW_DISPUTE_001', version: 'v1.0', status: '生效', lastSync: '2025-03-05 15:30', lastEdit: '李四' },
+      { scriptName: '(试用版) 回款确认', flowId: 'FLOW_PAY_001', version: 'v0.9', status: '灰度', lastSync: '2025-03-16 18:00', lastEdit: '张三' }
+    ]);
+
+    return { accessKey, accessSecret, region, instanceId, dailyLimit, perCustomerLimit, quietStart, quietEnd, sensitiveFilter, holidayMode, retryStrategy, numbers, flows };
+  }
+};
+
+const app = createApp(App);
+app.use(ElementPlus);
+for (const [key, comp] of Object.entries(ElementPlusIconsVue)) {
+  app.component(key, comp);
+}
+app.mount('#app');
+</script>
+</body>
+</html>

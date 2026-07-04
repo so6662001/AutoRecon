@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>节假日日历 - 对账通v2原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", Arial, sans-serif; background: #f0f2f5; }
+    #app { display: flex; min-height: 100vh; }
+
+    .sidebar { width: 220px; background: #001529; color: #fff; flex-shrink: 0; height: 100vh; position: sticky; top: 0; overflow-y: auto; }
+    .sidebar::-webkit-scrollbar { width: 6px; }
+    .sidebar::-webkit-scrollbar-thumb { background: #1a3a5c; border-radius: 3px; }
+    .logo { height: 60px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: #fff; border-bottom: 1px solid #0e2a47; letter-spacing: 1px; }
+    .logo .logo-badge { background: #1890ff; color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 3px; margin-left: 6px; font-weight: 500; }
+    .menu-group { padding: 8px 0; }
+    .menu-item { display: flex; align-items: center; padding: 10px 24px; color: rgba(255,255,255,0.75); font-size: 14px; cursor: pointer; text-decoration: none; transition: all .2s; border-left: 3px solid transparent; }
+    .menu-item:hover { color: #fff; background: #0e2a47; }
+    .menu-item.active { color: #fff; background: #1890ff; border-left-color: #40a9ff; }
+    .menu-item .el-icon { margin-right: 10px; font-size: 16px; }
+    .menu-parent { padding: 10px 24px; color: rgba(255,255,255,0.85); font-size: 14px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+    .menu-parent:hover { color: #fff; }
+    .menu-parent .el-icon { margin-right: 10px; font-size: 16px; }
+    .sub-menu { background: #000c17; }
+    .sub-menu .menu-item { padding-left: 50px; font-size: 13px; }
+
+    .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .header { height: 60px; background: #fff; box-shadow: 0 1px 4px rgba(0,21,41,.08); display: flex; align-items: center; padding: 0 24px; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+    .breadcrumb { font-size: 14px; color: #666; }
+    .breadcrumb .sep { margin: 0 8px; color: #ccc; }
+    .breadcrumb .current { color: #303133; font-weight: 500; }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .company-name { font-size: 13px; color: #666; padding: 4px 10px; background: #f5f7fa; border-radius: 12px; }
+    .user-dropdown { display: flex; align-items: center; cursor: pointer; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #1890ff; color: #fff; display: flex; align-items: center; justify-content: center; margin-right: 8px; font-size: 14px; }
+
+    .content { padding: 20px; flex: 1; }
+    .page-title { font-size: 20px; font-weight: 600; color: #303133; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+
+    .body-layout { display: grid; grid-template-columns: 1fr 320px; gap: 16px; margin-bottom: 16px; }
+    .section { background: #fff; border-radius: 8px; padding: 20px 24px; box-shadow: 0 1px 4px rgba(0,21,41,.04); }
+    .section-title { font-size: 15px; font-weight: 600; color: #303133; margin-bottom: 16px; padding-left: 10px; border-left: 3px solid #1890ff; display: flex; align-items: center; justify-content: space-between; }
+
+    /* Year mini calendars */
+    .year-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+    .mini-cal { background: #fafbfc; border: 1px solid #f0f0f0; border-radius: 6px; padding: 10px; }
+    .mini-cal-month { text-align: center; font-size: 13px; font-weight: 600; color: #303133; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid #f0f0f0; }
+    .mini-cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 3px; }
+    .mini-cal-weekdays span { text-align: center; font-size: 11px; color: #909399; padding: 2px 0; }
+    .mini-cal-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+    .mini-cal-day { aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #303133; border-radius: 3px; position: relative; cursor: pointer; transition: all .15s; }
+    .mini-cal-day:hover { transform: scale(1.15); z-index: 2; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    .mini-cal-day.other-month { color: #dcdfe6; }
+    .mini-cal-day.weekend { background: #f5f5f5; color: #909399; }
+    .mini-cal-day.holiday { background: #ff4d4f; color: #fff; font-weight: 600; }
+    .mini-cal-day.makeup { background: #faad14; color: #fff; font-weight: 600; }
+    .mini-cal-day.today { border: 2px solid #1890ff; font-weight: 600; }
+
+    .legend { display: flex; gap: 20px; padding: 12px 16px; background: #fafbfc; border-radius: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #606266; }
+    .legend-dot { width: 14px; height: 14px; border-radius: 3px; }
+    .legend-dot.holiday { background: #ff4d4f; }
+    .legend-dot.makeup { background: #faad14; }
+    .legend-dot.weekend { background: #f5f5f5; border: 1px solid #e4e7ed; }
+    .legend-dot.workday { background: #fff; border: 1px solid #e4e7ed; }
+
+    /* Side panel */
+    .holiday-list { }
+    .holiday-item { padding: 10px 12px; border-left: 3px solid #ff4d4f; background: #fff1f0; border-radius: 0 4px 4px 0; margin-bottom: 8px; }
+    .holiday-item.makeup { border-left-color: #faad14; background: #fffbe6; }
+    .holiday-item-date { font-weight: 600; color: #303133; font-size: 13px; }
+    .holiday-item-name { color: #606266; font-size: 12px; margin-top: 2px; }
+    .holiday-item-tag { display: inline-block; padding: 1px 5px; font-size: 10px; border-radius: 3px; margin-left: 4px; }
+    .holiday-item .h-tag { background: #ff4d4f; color: #fff; }
+    .holiday-item.makeup .h-tag { background: #faad14; color: #fff; }
+
+    .action-link { color: #1890ff; cursor: pointer; margin-right: 12px; font-size: 13px; }
+    .action-link:hover { text-decoration: underline; }
+    .action-link.danger { color: #f5222d; }
+
+    .side-title { font-size: 13px; font-weight: 600; color: #303133; margin: 16px 0 10px; }
+    .side-title:first-child { margin-top: 0; }
+
+    /* Year tabs */
+    .year-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+    .year-tab { padding: 8px 20px; background: #f5f7fa; border-radius: 6px; cursor: pointer; font-size: 14px; color: #606266; border: 1px solid #e4e7ed; }
+    .year-tab.active { background: #1890ff; color: #fff; border-color: #1890ff; font-weight: 600; }
+
+    .h-count-block { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+    .h-count { text-align: center; padding: 10px; background: #f8f9fb; border-radius: 6px; }
+    .h-count .val { font-size: 22px; font-weight: 600; color: #1890ff; }
+    .h-count .val.red { color: #ff4d4f; }
+    .h-count .val.orange { color: #faad14; }
+    .h-count .lbl { font-size: 11px; color: #909399; margin-top: 2px; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="sidebar">
+    <div class="logo">对账通<span class="logo-badge">v2</span></div>
+    <div class="menu-group">
+      <a href="dashboard.html" class="menu-item"><el-icon><Odometer /></el-icon>工作台</a>
+      <div class="menu-parent"><span><el-icon><User /></el-icon>客户中心</span><el-icon><ArrowDown /></el-icon></div>
+      <div class="sub-menu">
+        <a href="customer-ledger.html" class="menu-item">客户往来账</a>
+        <a href="customer-types.html" class="menu-item">客户类型</a>
+        <a href="customer-tags.html" class="menu-item">客户标签</a>
+      </div>
+      <div class="menu-parent"><span><el-icon><Document /></el-icon>对账管理</span><el-icon><ArrowDown /></el-icon></div>
+      <div class="sub-menu">
+        <a href="statement-list.html" class="menu-item">对账单列表</a>
+        <a href="statement-create.html" class="menu-item">发起对账</a>
+      </div>
+      <div class="menu-parent"><span><el-icon><PhoneFilled /></el-icon>催收中心</span><el-icon><ArrowDown /></el-icon></div>
+      <div class="sub-menu">
+        <a href="collection-orders.html" class="menu-item">催收工单</a>
+        <a href="collection-profiles.html" class="menu-item">催收策略</a>
+        <a href="call-tasks.html" class="menu-item">外呼任务</a>
+        <a href="call-records.html" class="menu-item">外呼记录</a>
+      </div>
+      <a href="messages.html" class="menu-item"><el-icon><Message /></el-icon>消息中心</a>
+      <div class="menu-parent"><span><el-icon><DataAnalysis /></el-icon>报表分析</span><el-icon><ArrowDown /></el-icon></div>
+      <div class="sub-menu">
+        <a href="receivable-report.html" class="menu-item">应收报表</a>
+        <a href="collection-report.html" class="menu-item">催收报表</a>
+      </div>
+      <div class="menu-parent"><span><el-icon><Setting /></el-icon>系统设置</span><el-icon><ArrowUp /></el-icon></div>
+      <div class="sub-menu">
+        <a href="subjects-filter.html" class="menu-item">科目过滤</a>
+        <a href="call-scripts.html" class="menu-item">AI话术管理</a>
+        <a href="aliyun-config.html" class="menu-item">阿里云配置</a>
+        <a href="holiday-calendar.html" class="menu-item active">节假日日历</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="header">
+      <div class="breadcrumb">系统设置<span class="sep">/</span><span class="current">节假日日历</span></div>
+      <div class="header-right">
+        <span class="company-name">某某钢铁有限公司</span>
+        <el-dropdown>
+          <div class="user-dropdown">
+            <div class="user-avatar">张</div><span>张三</span>
+            <el-icon style="margin-left:4px"><ArrowDown /></el-icon>
+          </div>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item>个人资料</el-dropdown-item>
+              <el-dropdown-item>修改密码</el-dropdown-item>
+              <el-dropdown-item divided>退出登录</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="page-title">
+        节假日日历
+        <div>
+          <el-button plain size="default"><el-icon><Upload /></el-icon>&nbsp;批量导入</el-button>
+          <el-button plain size="default"><el-icon><Download /></el-icon>&nbsp;导出日历</el-button>
+          <el-button type="primary" size="default" @click="addDialog = true"><el-icon><Plus /></el-icon>&nbsp;添加节假日</el-button>
+        </div>
+      </div>
+
+      <el-alert type="info" show-icon :closable="false" style="margin-bottom:16px">
+        <template #title>
+          <span style="font-size:13px">节假日用于<b>对账周期节假日顺延计算</b>、<b>催收工单免打扰</b>及<b>AI外呼时段控制</b>。系统默认周六、周日为休息日,法定节假日和调休需在此维护。</span>
+        </template>
+      </el-alert>
+
+      <div class="year-tabs">
+        <div v-for="y in [2026,2027,2028]" :key="y" :class="'year-tab' + (year === y ? ' active' : '')" @click="year = y">{{ y }}年</div>
+      </div>
+
+      <div class="body-layout">
+        <!-- Main calendar -->
+        <div class="section">
+          <div class="section-title"><span>{{ year }}年全年日历</span></div>
+
+          <div class="legend">
+            <div class="legend-item"><span class="legend-dot holiday"></span>法定假日</div>
+            <div class="legend-item"><span class="legend-dot makeup"></span>调休上班</div>
+            <div class="legend-item"><span class="legend-dot weekend"></span>周末</div>
+            <div class="legend-item"><span class="legend-dot workday"></span>工作日</div>
+            <div class="legend-item" style="margin-left:auto"><b style="color:#1890ff">全年:</b> 工作日 250天 · 休息日 115天</div>
+          </div>
+
+          <div class="year-grid">
+            <div v-for="m in 12" :key="m" class="mini-cal">
+              <div class="mini-cal-month">{{ m }}月</div>
+              <div class="mini-cal-weekdays">
+                <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span>
+                <span style="color:#f5222d">六</span><span style="color:#f5222d">日</span>
+              </div>
+              <div class="mini-cal-days">
+                <div v-for="d in generateMonthDays(year, m)" :key="d.key" 
+                     :class="'mini-cal-day' + (d.otherMonth ? ' other-month' : '') + (d.type ? ' ' + d.type : '')" 
+                     :title="d.title">
+                  {{ d.day }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Side panel -->
+        <div class="section">
+          <div class="side-title"><el-icon style="color:#1890ff"><Calendar /></el-icon> {{ year }}年概览</div>
+          <div class="h-count-block">
+            <div class="h-count"><div class="val red">11</div><div class="lbl">法定假日</div></div>
+            <div class="h-count"><div class="val orange">7</div><div class="lbl">调休上班</div></div>
+            <div class="h-count"><div class="val">104</div><div class="lbl">周末</div></div>
+          </div>
+
+          <div class="side-title"><el-icon style="color:#ff4d4f"><CalendarIcon /></el-icon> 本月节假日</div>
+          <div v-if="currentMonthHolidays.length === 0" style="color:#909399;font-size:12px;padding:8px 0">本月无法定节假日</div>
+          <div v-for="h in currentMonthHolidays" :key="h.date" :class="'holiday-item' + (h.type === '调休上班' ? ' makeup' : '')">
+            <div class="holiday-item-date">
+              {{ h.date }}
+              <span :class="'holiday-item-tag h-tag'">{{ h.type }}</span>
+            </div>
+            <div class="holiday-item-name">{{ h.name }} - {{ h.note }}</div>
+          </div>
+
+          <div class="side-title" style="margin-top:20px"><el-icon style="color:#faad14"><Timer /></el-icon> 近期节假日 (30天内)</div>
+          <div v-for="h in upcomingHolidays" :key="h.date" :class="'holiday-item' + (h.type === '调休上班' ? ' makeup' : '')">
+            <div class="holiday-item-date">
+              {{ h.date }} <span style="font-weight:400;color:#909399;font-size:11px">({{ h.daysLeft }}天后)</span>
+              <span :class="'holiday-item-tag h-tag'">{{ h.type }}</span>
+            </div>
+            <div class="holiday-item-name">{{ h.name }} - {{ h.note }}</div>
+          </div>
+
+          <div class="side-title" style="margin-top:20px"><el-icon style="color:#1890ff"><Setting /></el-icon> 应用范围</div>
+          <div style="font-size:12px;color:#606266;line-height:1.9;padding:8px 12px;background:#f8f9fb;border-radius:6px">
+            ✓ 对账周期顺延<br>
+            ✓ 催收工单免打扰<br>
+            ✓ AI外呼时段控制<br>
+            ✓ 短信/邮件发送时段<br>
+            ✓ 账期到期日计算
+          </div>
+        </div>
+      </div>
+
+      <!-- Holiday list table -->
+      <div class="section">
+        <div class="section-title">
+          <span>{{ year }}年 节假日明细</span>
+          <span>
+            <el-radio-group v-model="filterType" size="small">
+              <el-radio-button label="all">全部</el-radio-button>
+              <el-radio-button label="holiday">法定假日</el-radio-button>
+              <el-radio-button label="makeup">调休上班</el-radio-button>
+            </el-radio-group>
+          </span>
+        </div>
+
+        <el-table :data="filteredHolidays" size="default" border stripe>
+          <el-table-column prop="date" label="日期" width="130" sortable></el-table-column>
+          <el-table-column prop="weekday" label="星期" width="80"></el-table-column>
+          <el-table-column prop="name" label="节假日名称" min-width="140"></el-table-column>
+          <el-table-column label="类型" width="120">
+            <template #default="scope">
+              <el-tag size="small" :type="scope.row.type === '法定假日' ? 'danger' : 'warning'" effect="light">
+                {{ scope.row.type === '法定假日' ? '● 法定假日' : '● 调休上班' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="note" label="备注" min-width="180"></el-table-column>
+          <el-table-column prop="source" label="来源" width="120">
+            <template #default="scope">
+              <el-tag size="small" effect="plain">{{ scope.row.source }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="140">
+            <template #default>
+              <span class="action-link">编辑</span>
+              <span class="action-link danger">删除</span>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <!-- Add holiday dialog -->
+      <el-dialog v-model="addDialog" title="添加节假日" width="520px">
+        <el-form label-width="120px">
+          <el-form-item label="日期" required>
+            <el-date-picker type="date" placeholder="选择日期" style="width:100%"></el-date-picker>
+          </el-form-item>
+          <el-form-item label="节假日名称" required>
+            <el-input placeholder="如: 元旦、春节等"></el-input>
+          </el-form-item>
+          <el-form-item label="类型" required>
+            <el-radio-group>
+              <el-radio-button label="法定假日"></el-radio-button>
+              <el-radio-button label="调休上班"></el-radio-button>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item label="备注">
+            <el-input type="textarea" :rows="2" placeholder="如: 放假1天"></el-input>
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button @click="addDialog = false">取消</el-button>
+          <el-button type="primary" @click="addDialog = false">保存</el-button>
+        </template>
+      </el-dialog>
+    </div>
+  </div>
+</div>
+
+<script>
+const { createApp, ref, computed } = Vue;
+
+const App = {
+  setup() {
+    const year = ref(2026);
+    const addDialog = ref(false);
+    const filterType = ref('all');
+
+    // Holiday data for 2026 (mocked)
+    const holidays2026 = {
+      '2026-01-01': { name: '元旦', type: '法定假日', note: '放假1天', source: '国务院' },
+      '2026-01-02': { name: '元旦', type: '法定假日', note: '放假1天', source: '国务院' },
+      '2026-01-03': { name: '元旦', type: '法定假日', note: '放假1天', source: '国务院' },
+      '2026-02-15': { name: '春节', type: '法定假日', note: '除夕', source: '国务院' },
+      '2026-02-16': { name: '春节', type: '法定假日', note: '正月初一', source: '国务院' },
+      '2026-02-17': { name: '春节', type: '法定假日', note: '正月初二', source: '国务院' },
+      '2026-02-18': { name: '春节', type: '法定假日', note: '正月初三', source: '国务院' },
+      '2026-02-19': { name: '春节', type: '法定假日', note: '正月初四', source: '国务院' },
+      '2026-02-20': { name: '春节', type: '法定假日', note: '正月初五', source: '国务院' },
+      '2026-02-21': { name: '春节', type: '法定假日', note: '正月初六', source: '国务院' },
+      '2026-02-14': { name: '春节调休', type: '调休上班', note: '周六上班', source: '国务院' },
+      '2026-02-22': { name: '春节调休', type: '调休上班', note: '周日上班', source: '国务院' },
+      '2026-04-04': { name: '清明节', type: '法定假日', note: '放假1天', source: '国务院' },
+      '2026-04-05': { name: '清明节', type: '法定假日', note: '放假1天', source: '国务院' },
+      '2026-04-06': { name: '清明节', type: '法定假日', note: '放假1天', source: '国务院' },
+      '2026-05-01': { name: '劳动节', type: '法定假日', note: '放假1天', source: '国务院' },
+      '2026-05-02': { name: '劳动节', type: '法定假日', note: '放假1天', source: '国务院' },
+      '2026-05-03': { name: '劳动节', type: '法定假日', note: '放假1天', source: '国务院' },
+      '2026-05-04': { name: '劳动节', type: '法定假日', note: '放假1天', source: '国务院' },
+      '2026-05-05': { name: '劳动节', type: '法定假日', note: '放假1天', source: '国务院' },
+      '2026-04-26': { name: '劳动节调休', type: '调休上班', note: '周日上班', source: '国务院' },
+      '2026-05-09': { name: '劳动节调休', type: '调休上班', note: '周六上班', source: '国务院' },
+      '2026-06-19': { name: '端午节', type: '法定假日', note: '放假1天', source: '国务院' },
+      '2026-06-20': { name: '端午节', type: '法定假日', note: '放假1天', source: '国务院' },
+      '2026-06-21': { name: '端午节', type: '法定假日', note: '放假1天', source: '国务院' },
+      '2026-09-25': { name: '中秋节', type: '法定假日', note: '放假1天', source: '国务院' },
+      '2026-09-26': { name: '中秋节', type: '法定假日', note: '放假1天', source: '国务院' },
+      '2026-09-27': { name: '中秋节', type: '法定假日', note: '放假1天', source: '国务院' },
+      '2026-10-01': { name: '国庆节', type: '法定假日', note: '放假1天', source: '国务院' },
+      '2026-10-02': { name: '国庆节', type: '法定假日', note: '放假1天', source: '国务院' },
+      '2026-10-03': { name: '国庆节', type: '法定假日', note: '放假1天', source: '国务院' },
+      '2026-10-04': { name: '国庆节', type: '法定假日', note: '放假1天', source: '国务院' },
+      '2026-10-05': { name: '国庆节', type: '法定假日', note: '放假1天', source: '国务院' },
+      '2026-10-06': { name: '国庆节', type: '法定假日', note: '放假1天', source: '国务院' },
+      '2026-10-07': { name: '国庆节', type: '法定假日', note: '放假1天', source: '国务院' },
+      '2026-09-27': { name: '中秋节', type: '法定假日', note: '放假1天', source: '国务院' },
+      '2026-10-10': { name: '国庆节调休', type: '调休上班', note: '周六上班', source: '国务院' }
+    };
+
+    const pad = (n) => String(n).padStart(2, '0');
+    const fmt = (y, m, d) => `${y}-${pad(m)}-${pad(d)}`;
+    const weekdayName = (dt) => ['周日','周一','周二','周三','周四','周五','周六'][dt.getDay()];
+
+    const generateMonthDays = (y, m) => {
+      const first = new Date(y, m - 1, 1);
+      const startDay = (first.getDay() + 6) % 7; // Convert Sun=0 to Mon=0
+      const lastDay = new Date(y, m, 0).getDate();
+      const prevLastDay = new Date(y, m - 1, 0).getDate();
+      const days = [];
+
+      // Previous month
+      for (let i = startDay - 1; i >= 0; i--) {
+        days.push({ key: 'p'+i, day: prevLastDay - i, otherMonth: true, type: '' });
+      }
+      // Current month
+      for (let d = 1; d <= lastDay; d++) {
+        const dateStr = fmt(y, m, d);
+        const dt = new Date(y, m - 1, d);
+        const dayOfWeek = dt.getDay();
+        let type = '';
+        let title = dateStr;
+        const h = holidays2026[dateStr];
+        if (h) {
+          if (h.type === '法定假日') { type = 'holiday'; title = `${dateStr} ${h.name}(法定假日)`; }
+          else if (h.type === '调休上班') { type = 'makeup'; title = `${dateStr} ${h.name}(调休上班)`; }
+        } else if (dayOfWeek === 0 || dayOfWeek === 6) {
+          type = 'weekend';
+        }
+        days.push({ key: 'c'+d, day: d, otherMonth: false, type, title });
+      }
+      // Next month
+      while (days.length % 7 !== 0) {
+        days.push({ key: 'n'+days.length, day: days.length - (startDay + lastDay) + 1, otherMonth: true, type: '' });
+      }
+      // Add trailing week if needed for 6-row layout
+      while (days.length < 42) {
+        days.push({ key: 'x'+days.length, day: '', otherMonth: true, type: '' });
+      }
+      return days;
+    };
+
+    const allHolidays = computed(() => {
+      return Object.entries(holidays2026)
+        .filter(([d]) => d.startsWith(String(year.value)))
+        .map(([d, v]) => ({ date: d, weekday: weekdayName(new Date(d)), ...v }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+    });
+
+    const filteredHolidays = computed(() => {
+      if (filterType.value === 'holiday') return allHolidays.value.filter(h => h.type === '法定假日');
+      if (filterType.value === 'makeup') return allHolidays.value.filter(h => h.type === '调休上班');
+      return allHolidays.value;
+    });
+
+    const currentMonthHolidays = computed(() => {
+      const now = new Date();
+      const m = now.getMonth() + 1;
+      const y = now.getFullYear();
+      return allHolidays.value.filter(h => {
+        const [hy, hm] = h.date.split('-').map(Number);
+        return hy === year.value && hm === m;
+      }).slice(0, 6);
+    });
+
+    const upcomingHolidays = computed(() => {
+      const now = new Date();
+      return allHolidays.value.filter(h => {
+        const dt = new Date(h.date);
+        const diff = Math.floor((dt - now) / (86400 * 1000));
+        return diff >= 0 && diff <= 90;
+      }).slice(0, 5).map(h => {
+        const dt = new Date(h.date);
+        const diff = Math.floor((dt - now) / (86400 * 1000));
+        return { ...h, daysLeft: diff };
+      });
+    });
+
+    return { year, addDialog, filterType, generateMonthDays, allHolidays, filteredHolidays, currentMonthHolidays, upcomingHolidays };
+  }
+};
+
+const app = createApp(App);
+app.use(ElementPlus);
+for (const [key, comp] of Object.entries(ElementPlusIconsVue)) {
+  app.component(key, comp);
+}
+// Register Calendar icon alias since we use both
+app.component('CalendarIcon', ElementPlusIconsVue.Calendar);
+app.mount('#app');
+</script>
+</body>
+</html>
