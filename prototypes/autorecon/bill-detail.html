@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>对账单详情 - 对账通原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f0f2f5; }
+    .layout { display: flex; min-height: 100vh; }
+
+    .sidebar { width: 220px; background: #001529; color: #fff; flex-shrink: 0; display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; overflow-y: auto; }
+    .sidebar-logo { height: 60px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .sidebar-logo h1 { font-size: 18px; color: #fff; font-weight: 600; letter-spacing: 1px; }
+    .sidebar-logo span { color: #409eff; }
+    .sidebar-menu { flex: 1; padding: 8px 0; }
+    .menu-group { margin-bottom: 4px; }
+    .menu-group-title { padding: 10px 20px 6px; font-size: 12px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 1px; }
+    .menu-item { display: flex; align-items: center; padding: 10px 20px 10px 28px; color: rgba(255,255,255,0.65); text-decoration: none; font-size: 14px; transition: all 0.2s; cursor: pointer; }
+    .menu-item:hover { color: #fff; background: rgba(255,255,255,0.06); }
+    .menu-item.active { color: #fff; background: #409eff; }
+    .menu-item .icon { margin-right: 8px; font-size: 16px; width: 16px; text-align: center; }
+    .menu-sub .menu-item { padding-left: 44px; font-size: 13px; }
+
+    .main-area { margin-left: 220px; flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+    .header { height: 60px; background: #fff; border-bottom: 1px solid #e8e8e8; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: sticky; top: 0; z-index: 99; }
+    .header-left { display: flex; align-items: center; gap: 16px; }
+    .header-breadcrumb { font-size: 14px; color: #666; }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .header-avatar { width: 32px; height: 32px; border-radius: 50%; background: #409eff; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+    .header-user { font-size: 14px; color: #333; }
+
+    .content { flex: 1; padding: 20px 24px; }
+    .card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); padding: 20px; margin-bottom: 16px; }
+
+    .detail-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .detail-header-left { display: flex; align-items: center; gap: 12px; }
+    .detail-header-left h2 { font-size: 22px; font-weight: 600; color: #1a1a1a; }
+    .detail-header-right { display: flex; gap: 8px; }
+
+    .balance-card { background: #f5f7fa; border-radius: 8px; padding: 20px 24px; max-width: 400px; margin-bottom: 20px; }
+    .balance-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; color: #666; }
+    .balance-row .label { display: flex; align-items: center; gap: 6px; }
+    .balance-row .value { font-weight: 500; color: #333; }
+    .balance-divider { border-top: 2px dashed #ddd; margin: 8px 0; }
+    .balance-total { display: flex; justify-content: space-between; padding: 8px 0 0; font-size: 16px; }
+    .balance-total .label { font-weight: 600; color: #333; }
+    .balance-total .value { font-weight: 700; color: #409eff; font-size: 18px; }
+
+    .payment-summary { display: flex; gap: 24px; margin-bottom: 16px; }
+    .payment-stat { flex: 1; background: #f5f7fa; border-radius: 8px; padding: 16px; text-align: center; }
+    .payment-stat .stat-label { font-size: 12px; color: #999; margin-bottom: 6px; }
+    .payment-stat .stat-value { font-size: 18px; font-weight: 600; color: #333; }
+    .payment-stat .stat-value.danger { color: #f56c6c; }
+    .payment-stat .stat-value.success { color: #67c23a; }
+    .payment-stat .stat-value.primary { color: #409eff; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <h1><span>Auto</span>Recon 对账通</h1>
+      </div>
+      <nav class="sidebar-menu">
+        <div class="menu-group">
+          <a class="menu-item" href="dashboard.html"><span class="icon">📊</span>工作台</a>
+        </div>
+        <div class="menu-group">
+          <div class="menu-group-title">对账管理</div>
+          <div class="menu-sub">
+            <a class="menu-item active" href="bill-list.html"><span class="icon">📋</span>对账单列表</a>
+            <a class="menu-item" href="bill-create.html"><span class="icon">✏️</span>发起对账</a>
+            <a class="menu-item" href="#"><span class="icon">📦</span>批量对账</a>
+            <a class="menu-item" href="#"><span class="icon">📤</span>买方数据上传</a>
+          </div>
+        </div>
+        <div class="menu-group">
+          <div class="menu-group-title">异议处理</div>
+          <div class="menu-sub">
+            <a class="menu-item" href="#"><span class="icon">⚠️</span>异议列表</a>
+          </div>
+        </div>
+        <div class="menu-group">
+          <div class="menu-group-title">签章管理</div>
+          <div class="menu-sub">
+            <a class="menu-item" href="sign-pending.html"><span class="icon">✍️</span>待签章</a>
+            <a class="menu-item" href="#"><span class="icon">🔏</span>印章管理</a>
+          </div>
+        </div>
+        <div class="menu-group">
+          <div class="menu-group-title">财务管理</div>
+          <div class="menu-sub">
+            <a class="menu-item" href="payment.html"><span class="icon">💰</span>付款管理</a>
+            <a class="menu-item" href="#"><span class="icon">🧾</span>发票管理</a>
+            <a class="menu-item" href="#"><span class="icon">📞</span>催收管理</a>
+            <a class="menu-item" href="credit.html"><span class="icon">⭐</span>信用评分</a>
+          </div>
+        </div>
+        <div class="menu-group">
+          <div class="menu-group-title">数据分析</div>
+          <div class="menu-sub">
+            <a class="menu-item" href="analytics.html"><span class="icon">📈</span>数据分析</a>
+          </div>
+        </div>
+        <div class="menu-group">
+          <div class="menu-group-title">系统设置</div>
+          <div class="menu-sub">
+            <a class="menu-item" href="settings.html"><span class="icon">⚙️</span>系统设置</a>
+          </div>
+        </div>
+      </nav>
+    </aside>
+
+    <div class="main-area">
+      <header class="header">
+        <div class="header-left">
+          <el-button text @click="location.href='bill-list.html'"><el-icon><arrow-left /></el-icon></el-button>
+          <span class="header-breadcrumb">对账管理 / 对账单列表 / 对账单详情</span>
+        </div>
+        <div class="header-right">
+          <el-badge :value="3" :max="99">
+            <el-icon :size="20"><bell /></el-icon>
+          </el-badge>
+          <div class="header-avatar">张</div>
+          <span class="header-user">张经理</span>
+        </div>
+      </header>
+
+      <div class="content">
+        <!-- Detail Header -->
+        <div class="detail-header">
+          <div class="detail-header-left">
+            <h2>R202503001</h2>
+            <el-tag type="warning" size="large" effect="dark">待审核</el-tag>
+          </div>
+          <div class="detail-header-right">
+            <el-button type="primary"><el-icon style="margin-right:4px"><promotion /></el-icon>发送</el-button>
+            <el-button><el-icon style="margin-right:4px"><edit /></el-icon>编辑</el-button>
+            <el-button type="danger" plain>作废</el-button>
+          </div>
+        </div>
+
+        <!-- Balance Card -->
+        <div class="balance-card">
+          <div class="balance-row">
+            <span class="label">上期结转</span>
+            <span class="value">¥32,500.00</span>
+          </div>
+          <div class="balance-row">
+            <span class="label">+ 本期交易</span>
+            <span class="value">¥125,800.50</span>
+          </div>
+          <div class="balance-row">
+            <span class="label">- 本期已付</span>
+            <span class="value">¥50,000.00</span>
+          </div>
+          <div class="balance-divider"></div>
+          <div class="balance-total">
+            <span class="label">= 应付余额</span>
+            <span class="value">¥108,300.50</span>
+          </div>
+        </div>
+
+        <!-- Info Section -->
+        <div class="card">
+          <el-descriptions :column="2" border>
+            <el-descriptions-item label="卖方">某某钢铁有限公司</el-descriptions-item>
+            <el-descriptions-item label="买方">某某贸易有限公司</el-descriptions-item>
+            <el-descriptions-item label="对账周期">2025-02-01 ~ 2025-02-28</el-descriptions-item>
+            <el-descriptions-item label="创建时间">2025-03-17 10:30:00</el-descriptions-item>
+            <el-descriptions-item label="模板">标准对账模板</el-descriptions-item>
+          </el-descriptions>
+        </div>
+
+        <!-- Alerts -->
+        <el-alert
+          title="异议预测: 该对账单异议风险为 中等(62分)，建议关注重量差异项。"
+          type="warning"
+          show-icon
+          :closable="false"
+          style="margin-bottom: 12px;"
+        />
+        <el-alert
+          title="自动确认倒计时: 距超时自动确认还有 5天12小时，届时将自动确认并进入签章流程。"
+          type="info"
+          show-icon
+          :closable="false"
+          style="margin-bottom: 16px;"
+        />
+
+        <!-- Tabs -->
+        <div class="card" style="padding: 0;">
+          <el-tabs v-model="activeTab" style="padding: 0 20px;">
+            <!-- Tab 1: 对账明细 -->
+            <el-tab-pane label="对账明细" name="detail">
+              <el-table :data="detailData" stripe style="width: 100%" header-cell-style="background:#fafafa;color:#333;font-weight:600">
+                <el-table-column prop="contractNo" label="合同号" width="120" />
+                <el-table-column prop="orderNo" label="订单号" width="120" />
+                <el-table-column prop="product" label="品名" width="100" />
+                <el-table-column prop="spec" label="规格" width="80" />
+                <el-table-column prop="material" label="材质" width="80" />
+                <el-table-column prop="quantity" label="数量" width="70" align="right" />
+                <el-table-column prop="weight" label="重量(吨)" width="100" align="right" />
+                <el-table-column prop="unitPrice" label="单价(元/吨)" width="120" align="right" />
+                <el-table-column prop="amount" label="金额" width="130" align="right">
+                  <template #default="{ row }">
+                    <span style="font-weight:600">{{ row.amount }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="invoiceStatus" label="开票状态" width="100" align="center">
+                  <template #default="{ row }">
+                    <el-tag :type="invoiceStatusType(row.invoiceStatus)" size="small">{{ row.invoiceStatus }}</el-tag>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </el-tab-pane>
+
+            <!-- Tab 2: 付款信息 -->
+            <el-tab-pane label="付款信息" name="payment">
+              <div class="payment-summary">
+                <div class="payment-stat">
+                  <div class="stat-label">应收总额</div>
+                  <div class="stat-value">¥125,800.50</div>
+                </div>
+                <div class="payment-stat">
+                  <div class="stat-label">已收款</div>
+                  <div class="stat-value success">¥50,000.00</div>
+                </div>
+                <div class="payment-stat">
+                  <div class="stat-label">未收款</div>
+                  <div class="stat-value danger">¥75,800.50</div>
+                </div>
+                <div class="payment-stat">
+                  <div class="stat-label">收款进度</div>
+                  <div class="stat-value primary">39.7%</div>
+                </div>
+              </div>
+              <el-table :data="paymentData" stripe style="width: 100%" header-cell-style="background:#fafafa;color:#333;font-weight:600">
+                <el-table-column prop="payNo" label="付款单号" width="140" />
+                <el-table-column prop="amount" label="付款金额" width="130" align="right" />
+                <el-table-column prop="date" label="付款日期" width="120" />
+                <el-table-column prop="method" label="付款方式" width="120" />
+                <el-table-column prop="status" label="状态" width="100" align="center">
+                  <template #default="{ row }">
+                    <el-tag type="success" size="small">{{ row.status }}</el-tag>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </el-tab-pane>
+
+            <!-- Tab 3: 异议记录 -->
+            <el-tab-pane label="异议记录" name="dispute">
+              <el-empty description="暂无异议记录" />
+            </el-tab-pane>
+
+            <!-- Tab 4: 签章信息 -->
+            <el-tab-pane label="签章信息" name="sign">
+              <el-descriptions :column="2" border>
+                <el-descriptions-item label="卖方签章状态">
+                  <el-tag type="info" size="small">未签章</el-tag>
+                </el-descriptions-item>
+                <el-descriptions-item label="买方签章状态">
+                  <el-tag type="info" size="small">未签章</el-tag>
+                </el-descriptions-item>
+              </el-descriptions>
+            </el-tab-pane>
+
+            <!-- Tab 5: 操作日志 -->
+            <el-tab-pane label="操作日志" name="log">
+              <el-timeline style="padding: 20px 0;">
+                <el-timeline-item timestamp="2025-03-17 10:35" placement="top" type="primary">
+                  <div style="font-size: 14px; color: #333;">发送至买方</div>
+                  <div style="font-size: 12px; color: #999; margin-top: 4px;">系统自动发送对账单至买方邮箱 buyer@example.com</div>
+                </el-timeline-item>
+                <el-timeline-item timestamp="2025-03-17 10:32" placement="top" type="success">
+                  <div style="font-size: 14px; color: #333;">系统自动生成PDF</div>
+                  <div style="font-size: 12px; color: #999; margin-top: 4px;">生成标准对账模板PDF文件，共2页</div>
+                </el-timeline-item>
+                <el-timeline-item timestamp="2025-03-17 10:30" placement="top">
+                  <div style="font-size: 14px; color: #333;">创建对账单</div>
+                  <div style="font-size: 12px; color: #999; margin-top: 4px;">张经理 创建对账单 R202503001，包含5条明细</div>
+                </el-timeline-item>
+              </el-timeline>
+            </el-tab-pane>
+          </el-tabs>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const { createApp, ref } = Vue;
+const app = createApp({
+  setup() {
+    const activeTab = ref('detail');
+
+    const detailData = ref([
+      { contractNo: 'HT2025001', orderNo: 'DD202502001', product: '螺纹钢', spec: 'Φ20', material: 'HRB400', quantity: 100, weight: '2.50', unitPrice: '4,500', amount: '¥11,250.00', invoiceStatus: '已开票' },
+      { contractNo: 'HT2025001', orderNo: 'DD202502002', product: '盘螺', spec: 'Φ10', material: 'Q235', quantity: 50, weight: '1.20', unitPrice: '4,200', amount: '¥5,040.00', invoiceStatus: '未开票' },
+      { contractNo: 'HT2025002', orderNo: 'DD202502003', product: '热轧卷板', spec: '3.0mm', material: 'Q235B', quantity: 200, weight: '8.60', unitPrice: '4,100', amount: '¥35,260.00', invoiceStatus: '已开票' },
+      { contractNo: 'HT2025002', orderNo: 'DD202502004', product: '冷轧板', spec: '1.5mm', material: 'SPCC', quantity: 80, weight: '5.80', unitPrice: '5,200', amount: '¥30,160.00', invoiceStatus: '部分开票' },
+      { contractNo: 'HT2025003', orderNo: 'DD202502005', product: 'H型钢', spec: '200×200', material: 'Q345B', quantity: 120, weight: '10.50', unitPrice: '4,180', amount: '¥43,890.00', invoiceStatus: '未开票' },
+    ]);
+
+    const paymentData = ref([
+      { payNo: 'FK202503001', amount: '¥50,000.00', date: '2025-02-15', method: '银行转账', status: '已确认' },
+    ]);
+
+    const invoiceStatusType = (status) => {
+      const map = { '已开票': 'success', '未开票': 'info', '部分开票': 'warning' };
+      return map[status] || '';
+    };
+
+    return { activeTab, detailData, paymentData, invoiceStatusType };
+  }
+});
+app.use(ElementPlus);
+for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+  app.component(key, component);
+}
+app.mount('#app');
+</script>
+</body>
+</html>

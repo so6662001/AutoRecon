@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>系统设置 - 对账通原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; background: #f0f2f5; }
+    .layout { display: flex; min-height: 100vh; }
+    .sidebar {
+      width: 220px;
+      background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+      color: #fff; flex-shrink: 0; display: flex; flex-direction: column;
+    }
+    .sidebar-logo {
+      padding: 20px; font-size: 18px; font-weight: 700;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .sidebar-logo .dot { width: 10px; height: 10px; background: #67c23a; border-radius: 50%; }
+    .sidebar-menu { padding: 12px 0; flex: 1; }
+    .menu-group-title { padding: 12px 20px 6px; font-size: 11px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 1px; }
+    .menu-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 11px 20px; cursor: pointer; font-size: 14px; color: rgba(255,255,255,0.65);
+      transition: all 0.2s; border-left: 3px solid transparent;
+    }
+    .menu-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .menu-item.active { background: rgba(64,158,255,0.15); color: #409eff; border-left-color: #409eff; }
+    .menu-item .el-icon { font-size: 18px; }
+    .main-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .header {
+      height: 56px; background: #fff; border-bottom: 1px solid #e8e8e8;
+      display: flex; align-items: center; justify-content: space-between; padding: 0 24px;
+    }
+    .header-left { display: flex; align-items: center; gap: 16px; }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .content { flex: 1; padding: 24px; overflow-y: auto; }
+    .page-title { font-size: 20px; font-weight: 700; color: #1a1a2e; margin-bottom: 20px; }
+    .settings-card {
+      background: #fff; border-radius: 8px; padding: 24px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+    .form-section { max-width: 600px; }
+    .priority-display {
+      display: flex; align-items: center; gap: 8px; padding: 8px 0;
+    }
+    .priority-item {
+      background: #ecf5ff; color: #409eff; border: 1px solid #b3d8ff;
+      padding: 4px 14px; border-radius: 4px; font-size: 13px; font-weight: 500;
+    }
+    .priority-arrow { color: #c0c4cc; font-weight: 700; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-logo"><span class="dot"></span><span>对账通 AutoRecon</span></div>
+      <nav class="sidebar-menu">
+        <div class="menu-group-title">核心功能</div>
+        <div class="menu-item"><el-icon><Odometer /></el-icon><span>工作台</span></div>
+        <div class="menu-item"><el-icon><Document /></el-icon><span>对账单管理</span></div>
+        <div class="menu-item"><el-icon><DataAnalysis /></el-icon><span>比对结果</span></div>
+        <div class="menu-item"><el-icon><Money /></el-icon><span>付款管理</span></div>
+        <div class="menu-group-title">辅助功能</div>
+        <div class="menu-item"><el-icon><Stamp /></el-icon><span>待签章</span></div>
+        <div class="menu-item"><el-icon><TrophyBase /></el-icon><span>信用评分</span></div>
+        <div class="menu-item"><el-icon><DataLine /></el-icon><span>数据分析</span></div>
+        <div class="menu-group-title">系统</div>
+        <div class="menu-item active"><el-icon><Setting /></el-icon><span>系统设置</span></div>
+      </nav>
+    </aside>
+
+    <div class="main-area">
+      <header class="header">
+        <div class="header-left"><span style="font-size:14px;color:#606266;">系统 / 系统设置</span></div>
+        <div class="header-right">
+          <el-badge :value="3" :max="99"><el-icon :size="20"><Bell /></el-icon></el-badge>
+          <el-avatar :size="32" style="background:#409eff;">管</el-avatar>
+          <span style="font-size:14px;color:#303133;">管理员</span>
+        </div>
+      </header>
+
+      <div class="content">
+        <div class="page-title">系统设置</div>
+        <div class="settings-card">
+          <el-tabs v-model="activeTab" type="border-card">
+            <!-- Tab 1: ERP配置 -->
+            <el-tab-pane label="ERP配置" name="erp">
+              <div class="form-section">
+                <el-form :model="erpForm" label-width="100px" size="default" style="margin-top: 12px;">
+                  <el-form-item label="对接模式">
+                    <el-select v-model="erpForm.mode" style="width: 100%;">
+                      <el-option label="REST API" value="rest" />
+                      <el-option label="数据库直连" value="db" />
+                      <el-option label="WebService" value="ws" />
+                      <el-option label="文件导入" value="file" />
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item label="API 地址">
+                    <el-input v-model="erpForm.apiUrl" placeholder="https://erp.example.com/api/v1" />
+                  </el-form-item>
+                  <el-form-item label="API 密钥">
+                    <el-input v-model="erpForm.apiKey" type="password" show-password placeholder="请输入 API 密钥" />
+                  </el-form-item>
+                  <el-form-item label="同步频率">
+                    <el-select v-model="erpForm.syncFreq" style="width: 100%;">
+                      <el-option label="每小时" value="hourly" />
+                      <el-option label="每6小时" value="6h" />
+                      <el-option label="每日" value="daily" />
+                      <el-option label="手动触发" value="manual" />
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item>
+                    <el-button type="primary" @click="ElMessage.success('连接测试成功')">测试连接</el-button>
+                    <el-button type="success" @click="ElMessage.success('配置已保存')">保存配置</el-button>
+                    <el-tag type="success" style="margin-left: 16px;" effect="plain">
+                      <el-icon style="vertical-align: middle;"><CircleCheck /></el-icon>
+                      连接正常
+                    </el-tag>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </el-tab-pane>
+
+            <!-- Tab 2: 对账规则 -->
+            <el-tab-pane label="对账规则" name="rules">
+              <div class="form-section">
+                <el-form :model="ruleForm" label-width="120px" size="default" style="margin-top: 12px;">
+                  <el-form-item label="匹配模式">
+                    <el-select v-model="ruleForm.matchMode" style="width: 100%;">
+                      <el-option label="精确匹配" value="exact" />
+                      <el-option label="模糊匹配" value="fuzzy" />
+                      <el-option label="智能匹配" value="smart" />
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item label="重量容差">
+                    <el-input-number v-model="ruleForm.weightTolerance" :min="0" :max="10" :step="0.1" :precision="1" />
+                    <span style="margin-left: 8px; color: #909399;">%</span>
+                  </el-form-item>
+                  <el-form-item label="金额容差">
+                    <el-input-number v-model="ruleForm.amountTolerance" :min="0" :max="10" :step="0.1" :precision="1" />
+                    <span style="margin-left: 8px; color: #909399;">%</span>
+                  </el-form-item>
+                  <el-form-item label="自动容差学习">
+                    <el-switch v-model="ruleForm.autoLearn" active-text="开启" inactive-text="关闭" />
+                  </el-form-item>
+                  <el-form-item label="匹配优先级">
+                    <div class="priority-display">
+                      <span class="priority-item">合同号</span>
+                      <span class="priority-arrow">></span>
+                      <span class="priority-item">订单号</span>
+                      <span class="priority-arrow">></span>
+                      <span class="priority-item">品名+规格</span>
+                    </div>
+                  </el-form-item>
+                  <el-form-item>
+                    <el-button type="primary" @click="ElMessage.success('规则已保存')">保存规则</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </el-tab-pane>
+
+            <!-- Tab 3: 超时确认 -->
+            <el-tab-pane label="超时确认" name="timeout">
+              <div class="form-section">
+                <el-form :model="timeoutForm" label-width="140px" size="default" style="margin-top: 12px;">
+                  <el-form-item label="默认确认天数">
+                    <el-input-number v-model="timeoutForm.defaultDays" :min="1" :max="60" />
+                    <span style="margin-left: 8px; color: #909399;">天</span>
+                  </el-form-item>
+                  <el-form-item label="平台允许范围">
+                    <el-slider v-model="timeoutForm.range" range :min="3" :max="30" :marks="{3: '3天', 7: '7天', 14: '14天', 30: '30天'}" style="max-width: 400px;" />
+                  </el-form-item>
+                  <el-form-item>
+                    <el-button type="primary" @click="ElMessage.success('配置已保存')">保存配置</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+              <el-divider>客户自定义配置</el-divider>
+              <el-table :data="customerOverrides" border stripe style="max-width: 700px;">
+                <el-table-column prop="customer" label="客户名称" width="180" />
+                <el-table-column prop="days" label="确认天数" width="120" align="center">
+                  <template #default="{ row }">
+                    <el-tag>{{ row.days }}天</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="reason" label="原因" />
+                <el-table-column label="操作" width="100" align="center">
+                  <template #default>
+                    <el-button type="primary" link size="small">编辑</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </el-tab-pane>
+
+            <!-- Tab 4: 通知模板 -->
+            <el-tab-pane label="通知模板" name="notify">
+              <el-table :data="notifyTemplates" border stripe style="margin-top: 12px;">
+                <el-table-column prop="name" label="模板名" width="140" />
+                <el-table-column label="渠道" width="220">
+                  <template #default="{ row }">
+                    <el-tag v-for="ch in row.channels" :key="ch" size="small" style="margin-right: 6px;" :type="ch === 'SMS' ? '' : ch === '邮件' ? 'success' : 'warning'">{{ ch }}</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="状态" width="120" align="center">
+                  <template #default="{ row }">
+                    <el-switch v-model="row.enabled" active-text="启用" inactive-text="禁用" size="small" />
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="100" align="center">
+                  <template #default>
+                    <el-button type="primary" link size="small">编辑</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </el-tab-pane>
+          </el-tabs>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const { createApp, ref } = Vue;
+const app = createApp({
+  setup() {
+    const activeTab = ref('erp');
+
+    const erpForm = ref({
+      mode: 'rest',
+      apiUrl: 'https://erp.example.com/api/v1',
+      apiKey: 'sk-xxxx-xxxx-xxxx',
+      syncFreq: 'daily',
+    });
+
+    const ruleForm = ref({
+      matchMode: 'smart',
+      weightTolerance: 0.5,
+      amountTolerance: 0.1,
+      autoLearn: true,
+    });
+
+    const timeoutForm = ref({
+      defaultDays: 7,
+      range: [3, 30],
+    });
+
+    const customerOverrides = ref([
+      { customer: '某某贸易有限公司', days: 14, reason: '大客户特殊协议' },
+      { customer: 'YY建设集团', days: 5, reason: '信用评级A，缩短周期' },
+      { customer: 'ZZ贸易有限公司', days: 21, reason: '偏远地区物流延迟' },
+    ]);
+
+    const notifyTemplates = ref([
+      { name: '对账单发送', channels: ['SMS', '邮件', '微信'], enabled: true },
+      { name: '异议通知', channels: ['SMS', '邮件'], enabled: true },
+      { name: '签章提醒', channels: ['SMS', '微信'], enabled: true },
+      { name: '催收通知', channels: ['SMS', '邮件', '微信'], enabled: true },
+      { name: '超时预警', channels: ['SMS', '邮件'], enabled: true },
+      { name: '付款确认', channels: ['邮件', '微信'], enabled: false },
+    ]);
+
+    return { activeTab, erpForm, ruleForm, timeoutForm, customerOverrides, notifyTemplates, ElMessage };
+  }
+});
+for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+  app.component(key, component);
+}
+app.use(ElementPlus);
+app.mount('#app');
+</script>
+</body>
+</html>

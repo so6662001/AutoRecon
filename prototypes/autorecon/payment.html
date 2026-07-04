@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>付款管理 - 对账通原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; background: #f0f2f5; }
+    .layout { display: flex; min-height: 100vh; }
+    .sidebar {
+      width: 220px;
+      background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+      color: #fff;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar-logo {
+      padding: 20px;
+      font-size: 18px;
+      font-weight: 700;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .sidebar-logo .dot { width: 10px; height: 10px; background: #67c23a; border-radius: 50%; }
+    .sidebar-menu { padding: 12px 0; flex: 1; }
+    .menu-group-title { padding: 12px 20px 6px; font-size: 11px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 1px; }
+    .menu-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 11px 20px; cursor: pointer; font-size: 14px; color: rgba(255,255,255,0.65);
+      transition: all 0.2s; border-left: 3px solid transparent;
+    }
+    .menu-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .menu-item.active { background: rgba(64,158,255,0.15); color: #409eff; border-left-color: #409eff; }
+    .menu-item .el-icon { font-size: 18px; }
+    .main-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .header {
+      height: 56px; background: #fff; border-bottom: 1px solid #e8e8e8;
+      display: flex; align-items: center; justify-content: space-between; padding: 0 24px;
+    }
+    .header-left { display: flex; align-items: center; gap: 16px; }
+    .breadcrumb { font-size: 14px; color: #606266; }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .content { flex: 1; padding: 24px; overflow-y: auto; }
+    .page-title { font-size: 20px; font-weight: 700; color: #1a1a2e; margin-bottom: 20px; }
+    .search-card { background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+    .action-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .action-left { display: flex; align-items: center; gap: 12px; }
+    .table-card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+    .status-tag-partial { background: #fdf6ec; color: #e6a23c; border-color: #f5dab1; }
+    .status-tag-done { background: #f0f9eb; color: #67c23a; border-color: #c2e7b0; }
+    .status-tag-none { background: #f4f4f5; color: #909399; border-color: #d3d4d6; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <span class="dot"></span>
+        <span>对账通 AutoRecon</span>
+      </div>
+      <nav class="sidebar-menu">
+        <div class="menu-group-title">核心功能</div>
+        <div class="menu-item"><el-icon><Odometer /></el-icon><span>工作台</span></div>
+        <div class="menu-item"><el-icon><Document /></el-icon><span>对账单管理</span></div>
+        <div class="menu-item"><el-icon><DataAnalysis /></el-icon><span>比对结果</span></div>
+        <div class="menu-item active"><el-icon><Money /></el-icon><span>付款管理</span></div>
+        <div class="menu-group-title">辅助功能</div>
+        <div class="menu-item"><el-icon><Stamp /></el-icon><span>待签章</span></div>
+        <div class="menu-item"><el-icon><TrophyBase /></el-icon><span>信用评分</span></div>
+        <div class="menu-item"><el-icon><DataLine /></el-icon><span>数据分析</span></div>
+        <div class="menu-group-title">系统</div>
+        <div class="menu-item"><el-icon><Setting /></el-icon><span>系统设置</span></div>
+      </nav>
+    </aside>
+
+    <!-- Main -->
+    <div class="main-area">
+      <header class="header">
+        <div class="header-left">
+          <span class="breadcrumb">核心功能 / 付款管理</span>
+        </div>
+        <div class="header-right">
+          <el-badge :value="3" :max="99">
+            <el-icon :size="20"><Bell /></el-icon>
+          </el-badge>
+          <el-avatar :size="32" style="background: #409eff;">管</el-avatar>
+          <span style="font-size: 14px; color: #303133;">管理员</span>
+        </div>
+      </header>
+
+      <div class="content">
+        <div class="page-title">付款管理</div>
+
+        <!-- Search Form -->
+        <div class="search-card">
+          <el-form :inline="true" :model="search" size="default">
+            <el-form-item label="买方">
+              <el-input v-model="search.buyer" placeholder="请输入买方名称" clearable style="width: 180px;" />
+            </el-form-item>
+            <el-form-item label="卖方">
+              <el-input v-model="search.seller" placeholder="请输入卖方名称" clearable style="width: 180px;" />
+            </el-form-item>
+            <el-form-item label="付款方式">
+              <el-select v-model="search.method" placeholder="全部" clearable style="width: 150px;">
+                <el-option label="银行转账" value="bank" />
+                <el-option label="承兑汇票" value="bill" />
+                <el-option label="现金" value="cash" />
+                <el-option label="其他" value="other" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="日期范围">
+              <el-date-picker v-model="search.dateRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" style="width: 260px;" />
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" :icon="Search">查询</el-button>
+              <el-button :icon="Refresh" @click="resetSearch">重置</el-button>
+            </el-form-item>
+          </el-form>
+        </div>
+
+        <!-- Action Bar -->
+        <div class="action-bar">
+          <div class="action-left">
+            <el-button type="primary" :icon="Plus">登记付款</el-button>
+            <el-select v-model="batchStrategy" placeholder="抵扣策略" style="width: 150px;" size="default">
+              <el-option label="先进先出" value="fifo" />
+              <el-option label="金额优先" value="amount" />
+              <el-option label="日期优先" value="date" />
+            </el-select>
+            <el-button :icon="Operation">批量自动抵扣</el-button>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-card">
+          <el-table :data="tableData" border stripe style="width: 100%;">
+            <el-table-column prop="id" label="付款流水号" width="140" />
+            <el-table-column prop="payer" label="付款方" width="110" />
+            <el-table-column prop="payee" label="收款方" width="110" />
+            <el-table-column prop="date" label="付款日期" width="110" />
+            <el-table-column prop="amount" label="付款金额" width="120" align="right">
+              <template #default="{ row }">
+                <span style="font-weight: 600; color: #303133;">{{ row.amount }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="method" label="付款方式" width="100" />
+            <el-table-column prop="allocated" label="已分配" width="110" align="right">
+              <template #default="{ row }">
+                <span style="color: #67c23a;">{{ row.allocated }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="unallocated" label="未分配" width="110" align="right">
+              <template #default="{ row }">
+                <span :style="{ color: row.unallocated === '¥0' ? '#c0c4cc' : '#f56c6c', fontWeight: row.unallocated !== '¥0' ? '600' : '400' }">{{ row.unallocated }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="status" label="状态" width="100" align="center">
+              <template #default="{ row }">
+                <el-tag :type="row.statusType" size="small">{{ row.status }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="140" fixed="right" align="center">
+              <template #default="{ row }">
+                <el-button v-if="row.statusType !== 'success'" type="primary" link size="small">分配</el-button>
+                <el-button type="primary" link size="small">查看</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+          <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
+            <el-pagination
+              v-model:current-page="currentPage"
+              :page-size="10"
+              :total="50"
+              layout="total, prev, pager, next, jumper"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const { createApp, ref, shallowRef } = Vue;
+const app = createApp({
+  setup() {
+    const Search = shallowRef(ElementPlusIconsVue.Search);
+    const Refresh = shallowRef(ElementPlusIconsVue.Refresh);
+    const Plus = shallowRef(ElementPlusIconsVue.Plus);
+    const Operation = shallowRef(ElementPlusIconsVue.Operation);
+
+    const search = ref({ buyer: '', seller: '', method: '', dateRange: null });
+    const batchStrategy = ref('fifo');
+    const currentPage = ref(1);
+
+    const resetSearch = () => {
+      search.value = { buyer: '', seller: '', method: '', dateRange: null };
+    };
+
+    const tableData = ref([
+      { id: 'PM202503001', payer: '某某贸易', payee: '某某钢铁', date: '2025-03-15', amount: '¥125,800', method: '银行转账', allocated: '¥50,000', unallocated: '¥75,800', status: '部分分配', statusType: 'warning' },
+      { id: 'PM202503002', payer: '某某制造', payee: '某某钢铁', date: '2025-03-14', amount: '¥89,500', method: '银行转账', allocated: '¥89,500', unallocated: '¥0', status: '已分配', statusType: 'success' },
+      { id: 'PM202503003', payer: '某某科技', payee: '某某钢铁', date: '2025-03-12', amount: '¥200,000', method: '承兑汇票', allocated: '¥100,000', unallocated: '¥100,000', status: '部分分配', statusType: 'warning' },
+      { id: 'PM202503004', payer: '某某建材', payee: '某某钢铁', date: '2025-03-10', amount: '¥67,200', method: '银行转账', allocated: '¥0', unallocated: '¥67,200', status: '未分配', statusType: 'info' },
+      { id: 'PM202503005', payer: '某某物流', payee: '某某钢铁', date: '2025-03-08', amount: '¥312,000', method: '银行转账', allocated: '¥312,000', unallocated: '¥0', status: '已分配', statusType: 'success' },
+    ]);
+
+    return { search, batchStrategy, currentPage, tableData, resetSearch, Search, Refresh, Plus, Operation };
+  }
+});
+for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+  app.component(key, component);
+}
+app.use(ElementPlus);
+app.mount('#app');
+</script>
+</body>
+</html>

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>原型导航首页 - 对账通原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #f0f2f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; min-height: 100vh; }
+    .header-area {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+      padding: 60px 40px 80px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .header-area::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at 20% 50%, rgba(255,255,255,0.1) 0%, transparent 50%),
+                  radial-gradient(circle at 80% 20%, rgba(255,255,255,0.08) 0%, transparent 40%),
+                  radial-gradient(circle at 50% 80%, rgba(255,255,255,0.06) 0%, transparent 30%);
+      pointer-events: none;
+    }
+    .header-area h1 {
+      color: #fff;
+      font-size: 36px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      position: relative;
+      z-index: 1;
+      letter-spacing: 2px;
+    }
+    .header-area p {
+      color: rgba(255,255,255,0.85);
+      font-size: 16px;
+      position: relative;
+      z-index: 1;
+    }
+    .logo-icon {
+      width: 64px;
+      height: 64px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+      backdrop-filter: blur(10px);
+      position: relative;
+      z-index: 1;
+    }
+    .logo-icon svg {
+      width: 36px;
+      height: 36px;
+      fill: #fff;
+    }
+    .content-area {
+      max-width: 1200px;
+      margin: -40px auto 40px;
+      padding: 0 24px;
+      position: relative;
+      z-index: 2;
+    }
+    .category-section {
+      margin-bottom: 32px;
+    }
+    .category-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #303133;
+      margin-bottom: 16px;
+      padding-left: 12px;
+      border-left: 4px solid #667eea;
+      line-height: 1.4;
+    }
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px;
+    }
+    .proto-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px 20px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: 1px solid #e4e7ed;
+      text-decoration: none;
+      display: block;
+    }
+    .proto-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 32px rgba(102, 126, 234, 0.15);
+      border-color: #667eea;
+    }
+    .card-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 14px;
+      font-size: 22px;
+      color: #fff;
+    }
+    .icon-blue { background: linear-gradient(135deg, #409eff, #667eea); }
+    .icon-purple { background: linear-gradient(135deg, #764ba2, #9b59b6); }
+    .icon-orange { background: linear-gradient(135deg, #e6a23c, #f39c12); }
+    .icon-green { background: linear-gradient(135deg, #67c23a, #2ecc71); }
+    .icon-red { background: linear-gradient(135deg, #f56c6c, #e74c3c); }
+    .icon-cyan { background: linear-gradient(135deg, #17a2b8, #20c997); }
+    .card-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: #303133;
+      margin-bottom: 6px;
+    }
+    .card-desc {
+      font-size: 12px;
+      color: #909399;
+      line-height: 1.5;
+    }
+    .footer-area {
+      text-align: center;
+      padding: 24px;
+      color: #909399;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="header-area">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/></svg>
+      </div>
+      <h1>对账通 · 高保真原型导航</h1>
+      <p>点击卡片进入对应页面原型</p>
+    </div>
+
+    <div class="content-area">
+      <div class="category-section" v-for="cat in categories" :key="cat.name">
+        <div class="category-title">{{ cat.name }}</div>
+        <div class="card-grid">
+          <a class="proto-card" v-for="page in cat.pages" :key="page.name" :href="page.link">
+            <div class="card-icon" :class="page.iconClass">
+              <span>{{ page.icon }}</span>
+            </div>
+            <div class="card-name">{{ page.name }}</div>
+            <div class="card-desc">{{ page.desc }}</div>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-area">
+      对账通 AutoRecon &copy; 2025 — 高保真原型演示
+    </div>
+  </div>
+
+  <script>
+    const { createApp } = Vue;
+    const app = createApp({
+      data() {
+        return {
+          categories: [
+            {
+              name: '核心页面',
+              pages: [
+                { name: '登录页', desc: '用户登录入口，支持演示账号快捷登录', icon: '🔐', iconClass: 'icon-purple', link: 'login.html' },
+                { name: '工作台', desc: '数据概览、待办事项与快捷入口', icon: '📊', iconClass: 'icon-blue', link: 'dashboard.html' },
+                { name: '对账单列表', desc: '查看全部对账单，支持筛选与搜索', icon: '📋', iconClass: 'icon-blue', link: 'recon-list.html' },
+                { name: '发起对账', desc: '创建新对账单，选择客户与明细', icon: '✏️', iconClass: 'icon-green', link: 'recon-create.html' },
+                { name: '对账单详情', desc: '对账单全貌查看，状态流转跟踪', icon: '📄', iconClass: 'icon-blue', link: 'recon-detail.html' },
+                { name: '比对结果', desc: '逐项比对差异，处理异议与确认', icon: '🔍', iconClass: 'icon-cyan', link: 'recon-compare.html' },
+              ]
+            },
+            {
+              name: '买方端',
+              pages: [
+                { name: '买方免注册查看', desc: '买方通过链接免注册查看对账单', icon: '👤', iconClass: 'icon-orange', link: 'guest-view.html' },
+              ]
+            },
+            {
+              name: '财务管理',
+              pages: [
+                { name: '付款管理', desc: '管理付款记录与付款计划', icon: '💰', iconClass: 'icon-green', link: 'payment.html' },
+                { name: '催收管理', desc: '逾期账款催收跟踪与提醒', icon: '📞', iconClass: 'icon-red', link: 'collection.html' },
+                { name: '信用评分', desc: '客户信用评估与评分管理', icon: '⭐', iconClass: 'icon-orange', link: 'credit-score.html' },
+              ]
+            },
+            {
+              name: '签章管理',
+              pages: [
+                { name: '待签章', desc: '待签章对账单列表与电子签章操作', icon: '✍️', iconClass: 'icon-purple', link: 'pending-sign.html' },
+              ]
+            },
+            {
+              name: '系统管理',
+              pages: [
+                { name: '系统设置', desc: '组织信息、用户权限与系统配置', icon: '⚙️', iconClass: 'icon-blue', link: 'settings.html' },
+              ]
+            },
+            {
+              name: '数据分析',
+              pages: [
+                { name: '数据分析看板', desc: '多维度数据可视化与业务洞察', icon: '📈', iconClass: 'icon-cyan', link: 'analytics.html' },
+              ]
+            },
+          ]
+        };
+      }
+    });
+    app.use(ElementPlus);
+    app.mount('#app');
+  </script>
+</body>
+</html>

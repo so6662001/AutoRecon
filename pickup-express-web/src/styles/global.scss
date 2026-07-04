@@ -1,0 +1,175 @@
+@use './variables.scss' as *;
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Noto Sans', sans-serif;
+}
+
+#app {
+  height: 100%;
+}
+
+/* Scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Common utility classes */
+.flex {
+  display: flex;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.full-height {
+  height: 100%;
+}
+
+.page-container {
+  background: #fff;
+  border-radius: 8px;
+  padding: 24px;
+  min-height: 100%;
+
+  h2 {
+    margin: 0 0 16px;
+    font-size: 20px;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0;
+    color: #666;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-container {
+    padding: 12px !important;
+    border-radius: 4px;
+
+    h2 {
+      font-size: 18px;
+    }
+  }
+
+  .el-table {
+    font-size: 13px;
+  }
+
+  .el-table-column .cell {
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+  }
+
+  .el-descriptions {
+    font-size: 13px;
+  }
+
+  .el-dialog {
+    width: 95% !important;
+    margin: 8px auto !important;
+  }
+
+  .el-card {
+    margin-bottom: 12px;
+  }
+
+  .el-form--inline .el-form-item {
+    display: block;
+    margin-right: 0;
+    margin-bottom: 12px;
+    width: 100%;
+  }
+
+  .el-form--inline .el-form-item .el-input,
+  .el-form--inline .el-form-item .el-select {
+    width: 100% !important;
+  }
+
+  .el-row {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .el-pagination {
+    flex-wrap: wrap;
+    justify-content: center;
+
+    .el-pagination__sizes,
+    .el-pagination__jump {
+      display: none;
+    }
+  }
+
+  .el-tabs__header {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .el-button + .el-button {
+    margin-left: 4px;
+  }
+
+  .el-descriptions .el-descriptions__body .el-descriptions__table {
+    display: block;
+  }
+
+  .el-descriptions--2 .el-descriptions__body .el-descriptions__table .el-descriptions__row {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .page-container .el-table,
+  .el-card .el-table {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .filter-bar,
+  .search-bar,
+  .toolbar,
+  .page-header,
+  .action-bar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px;
+
+    .el-button {
+      width: 100%;
+    }
+  }
+}
