@@ -310,12 +310,6 @@
                   <el-option label="收款单" value="pay" />
                   <el-option label="调整单" value="adjust" />
                 </el-select>
-                <el-select v-model="subjectF" placeholder="全部科目" clearable style="width:160px;">
-                  <el-option label="销售收入" value="revenue" />
-                  <el-option label="应收账款" value="ar" />
-                  <el-option label="HK-回扣" value="hk" />
-                  <el-option label="NB-内部" value="nb" />
-                </el-select>
                 <div style="display:flex; align-items:center; gap:6px; margin-left:8px;">
                   <span style="font-size:13px; color:#606266;">显示过滤项:</span>
                   <el-switch v-model="showFiltered" active-color="#f56c6c" />
@@ -325,13 +319,19 @@
               </div>
 
               <el-table :data="filteredFlowRows" style="width: 100%" class="bank-table" :row-class-name="rowClassName" size="default" :header-cell-style="{background:'#fafafa',color:'#606266',fontWeight:600}">
-                <el-table-column label="日期 / 单号 / 摘要" min-width="200" fixed="left">
+                <el-table-column label="日期" width="110" fixed="left">
                   <template #default="{row}">
-                    <div class="flow-stack">
-                      <div class="flow-date">{{ row.date }}</div>
-                      <div class="flow-docno"><span class="doc-tag">{{ row.docNo }}</span></div>
-                      <div class="flow-memo">{{ row.memo }}</div>
-                    </div>
+                    <span class="flow-date">{{ row.date }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="单号" width="140" fixed="left">
+                  <template #default="{row}">
+                    <span class="doc-tag">{{ row.docNo }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="摘要" min-width="180">
+                  <template #default="{row}">
+                    <span class="flow-memo">{{ row.memo }}</span>
                   </template>
                 </el-table-column>
                 <el-table-column label="单据类型" width="110">
@@ -369,12 +369,6 @@
                 <el-table-column label="内部余额" width="120" align="right">
                   <template #default="{row}">
                     <span class="balance-int">¥{{ fmt(row.balanceInt) }}</span>
-                  </template>
-                </el-table-column>
-                <el-table-column label="科目" width="120">
-                  <template #default="{row}">
-                    <span v-if="row.subject" style="font-size:13px; color:#606266;">{{ row.subject }}</span>
-                    <span v-else style="color:#c0c4cc;">-</span>
                   </template>
                 </el-table-column>
                 <el-table-column label="状态" width="100" align="center">
