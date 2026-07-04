@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>买方免注册查看 - 对账通v2原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: linear-gradient(180deg, #e0eaff 0%, #f5f7fa 40%);
+      color: #303133;
+      min-height: 100vh;
+    }
+    .page-header {
+      background: linear-gradient(135deg, #667eea 0%, #4a67d0 100%);
+      color: #fff;
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 18px;
+      font-weight: 600;
+    }
+    .brand .brand-badge {
+      background: rgba(255,255,255,0.2);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .brand-tag {
+      background: rgba(255,255,255,0.15);
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+    }
+    .container {
+      max-width: 920px;
+      margin: 24px auto;
+      padding: 0 20px;
+    }
+
+    /* State 1: verify */
+    .verify-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 40px 40px 32px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+    }
+    .verify-title {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .verify-title h2 {
+      font-size: 22px;
+      color: #303133;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+    .verify-title p { color: #909399; font-size: 13px; }
+    .verify-preview {
+      background: #f5f7fa;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .verify-preview .label { color: #909399; font-size: 12px; }
+    .verify-preview .value { color: #303133; font-weight: 500; font-size: 14px; }
+
+    /* State 2: statement (bank style) */
+    .statement-card {
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+    }
+    .statement-header {
+      background: linear-gradient(135deg, #001529 0%, #003a70 100%);
+      color: #fff;
+      padding: 24px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .statement-header .title-block h2 {
+      font-size: 24px;
+      margin-bottom: 6px;
+      font-weight: 600;
+      letter-spacing: 2px;
+    }
+    .statement-header .title-block .period {
+      font-size: 13px;
+      opacity: 0.85;
+    }
+    .statement-header .no-block {
+      text-align: right;
+      font-size: 12px;
+      opacity: 0.85;
+    }
+    .statement-header .no-block .no {
+      font-family: 'SFMono-Regular', Consolas, monospace;
+      font-size: 14px;
+      font-weight: 500;
+      margin-top: 4px;
+    }
+    .statement-info {
+      padding: 20px 28px;
+      background: #fafbfc;
+      border-bottom: 1px solid #ebeef5;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .info-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+    }
+    .info-row .info-label {
+      color: #909399;
+      min-width: 48px;
+    }
+    .info-row .info-value {
+      color: #303133;
+      font-weight: 500;
+    }
+
+    /* Balance panel */
+    .balance-panel {
+      padding: 20px 28px;
+      background: linear-gradient(135deg, #fff8e6 0%, #fff 100%);
+      border-bottom: 1px solid #ebeef5;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      align-items: stretch;
+    }
+    .balance-item {
+      display: flex;
+      flex-direction: column;
+      padding: 0 8px;
+      border-right: 1px dashed #dcdfe6;
+    }
+    .balance-item:last-child { border-right: none; }
+    .balance-item .balance-label {
+      font-size: 12px;
+      color: #909399;
+      margin-bottom: 8px;
+    }
+    .balance-item .balance-value {
+      font-size: 20px;
+      font-weight: 600;
+      font-family: 'SFMono-Regular', Consolas, monospace;
+    }
+    .balance-item.income .balance-value { color: #67c23a; }
+    .balance-item.paid .balance-value { color: #409eff; }
+    .balance-item.opening .balance-value { color: #606266; }
+    .balance-item.closing {
+      background: linear-gradient(135deg, #f56c6c, #ff8a80);
+      color: #fff;
+      border-radius: 8px;
+      border-right: none;
+      padding: 12px;
+    }
+    .balance-item.closing .balance-label { color: rgba(255,255,255,0.9); font-size: 13px; }
+    .balance-item.closing .balance-value {
+      color: #fff;
+      font-size: 26px;
+      font-weight: 700;
+    }
+
+    /* Transactions table */
+    .txn-section {
+      padding: 20px 28px 0;
+    }
+    .txn-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #303133;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .txn-title .accent {
+      width: 3px;
+      height: 14px;
+      background: #409eff;
+      border-radius: 2px;
+    }
+    .txn-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .txn-table th {
+      background: #f5f7fa;
+      color: #606266;
+      font-weight: 500;
+      padding: 12px 10px;
+      text-align: left;
+      border-bottom: 2px solid #ebeef5;
+    }
+    .txn-table th.num, .txn-table td.num { text-align: right; font-family: 'SFMono-Regular', Consolas, monospace; }
+    .txn-table th.center, .txn-table td.center { text-align: center; }
+    .txn-table td {
+      padding: 12px 10px;
+      border-bottom: 1px solid #f2f3f5;
+      color: #303133;
+    }
+    .txn-table tr:hover td { background: #fafbfc; }
+    .txn-table .row-opening { background: #f5f7fa; font-weight: 500; }
+    .txn-table .row-opening td { color: #909399; }
+    .txn-table .row-closing { background: linear-gradient(90deg, #fff8e6, #fef0f0); font-weight: 600; }
+    .txn-table .row-closing td { color: #303133; border-top: 2px solid #dcdfe6; padding: 14px 10px; }
+    .txn-table .row-closing td.final { color: #f56c6c; font-size: 15px; }
+    .amt-pos { color: #67c23a; font-weight: 500; }
+    .amt-paid { color: #409eff; font-weight: 500; }
+    .amt-balance { color: #303133; font-weight: 600; }
+
+    /* Actions */
+    .action-section {
+      padding: 20px 28px 28px;
+    }
+    .action-secondary {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .action-primary {
+      display: flex;
+      gap: 12px;
+      flex-direction: column;
+    }
+    .btn-confirm {
+      height: 56px;
+      font-size: 17px;
+      font-weight: 600;
+      background: linear-gradient(135deg, #67c23a, #85ce61);
+      border: none;
+    }
+    .btn-dispute {
+      height: 44px;
+      font-size: 15px;
+    }
+    .agreement {
+      text-align: center;
+      color: #909399;
+      font-size: 12px;
+      margin: 16px 0 4px;
+    }
+
+    /* Footer */
+    .page-footer {
+      text-align: center;
+      padding: 20px;
+      color: #909399;
+      font-size: 12px;
+    }
+    .page-footer .footer-items {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-bottom: 8px;
+    }
+    .page-footer .footer-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .toggle-bar {
+      max-width: 920px;
+      margin: 12px auto 0;
+      padding: 0 20px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    /* Dispute dialog textarea */
+    .dispute-desc { color: #909399; font-size: 13px; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="page-header">
+      <div class="brand">
+        <el-icon><Document/></el-icon>
+        对账通 <span class="brand-badge">v2.1</span>
+      </div>
+      <div class="brand-tag">买方免注册查看 · 安全验证</div>
+    </div>
+
+    <div class="toggle-bar">
+      <el-radio-group v-model="state" size="small">
+        <el-radio-button value="verify">1. 手机验证</el-radio-button>
+        <el-radio-button value="statement">2. 对账单查看</el-radio-button>
+      </el-radio-group>
+    </div>
+
+    <div class="container">
+      <!-- State 1: verify -->
+      <div v-if="state === 'verify'" class="verify-card">
+        <div class="verify-title">
+          <el-icon style="font-size:44px;color:#409eff;margin-bottom:12px"><Lock/></el-icon>
+          <h2>身份验证</h2>
+          <p>为保障对账安全，请通过预留手机号进行验证</p>
+        </div>
+
+        <div class="verify-preview">
+          <div>
+            <div class="label">卖方企业</div>
+            <div class="value">某某钢铁有限公司</div>
+          </div>
+          <div>
+            <div class="label">对账单编号</div>
+            <div class="value" style="font-family:monospace">R202503001</div>
+          </div>
+          <div>
+            <div class="label">对账周期</div>
+            <div class="value">2025-03-01 ~ 2025-03-31</div>
+          </div>
+        </div>
+
+        <el-form label-position="top">
+          <el-form-item label="预留手机号">
+            <el-input v-model="phone" placeholder="请输入接收对账单的手机号" size="large" maxlength="11">
+              <template #prefix><el-icon><Iphone/></el-icon></template>
+            </el-input>
+          </el-form-item>
+          <el-form-item label="短信验证码">
+            <div style="display:flex;gap:10px;width:100%">
+              <el-input v-model="code" placeholder="6位验证码" size="large" maxlength="6"/>
+              <el-button size="large" :disabled="cooldown>0" @click="sendCode" style="min-width:120px">
+                {{ cooldown > 0 ? cooldown + 's 后重发' : '获取验证码' }}
+              </el-button>
+            </div>
+          </el-form-item>
+        </el-form>
+
+        <el-button type="primary" size="large" style="width:100%;height:46px;margin-top:8px" @click="onVerify">
+          验证并查看对账单
+        </el-button>
+        <p style="text-align:center;color:#909399;font-size:12px;margin-top:16px">
+          <el-icon style="vertical-align:-2px"><Warning/></el-icon>
+          此链接为专属加密链接，请勿转发给他人
+        </p>
+      </div>
+
+      <!-- State 2: bank-style statement -->
+      <div v-else class="statement-card">
+        <div class="statement-header">
+          <div class="title-block">
+            <h2>对 账 单</h2>
+            <div class="period">对账周期: 2025-03-01 ~ 2025-03-31</div>
+          </div>
+          <div class="no-block">
+            <div>对账单号</div>
+            <div class="no">R202503001</div>
+            <div style="margin-top:8px">生成时间: 2025-04-01 09:15</div>
+          </div>
+        </div>
+
+        <div class="statement-info">
+          <div class="info-row">
+            <span class="info-label">卖方:</span>
+            <span class="info-value">某某钢铁有限公司</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">买方:</span>
+            <span class="info-value">某某贸易有限公司</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">账套:</span>
+            <span class="info-value">主营账套 - 螺纹钢/盘螺</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">币种:</span>
+            <span class="info-value">人民币 (CNY)</span>
+          </div>
+        </div>
+
+        <!-- Balance summary -->
+        <div class="balance-panel">
+          <div class="balance-item opening">
+            <span class="balance-label">期初余额</span>
+            <span class="balance-value">¥20,500.00</span>
+          </div>
+          <div class="balance-item income">
+            <span class="balance-label">本期应收</span>
+            <span class="balance-value">+¥25,000.00</span>
+          </div>
+          <div class="balance-item paid">
+            <span class="balance-label">本期实收</span>
+            <span class="balance-value">-¥8,000.00</span>
+          </div>
+          <div class="balance-item closing">
+            <span class="balance-label">期末余额</span>
+            <span class="balance-value">¥37,500.00</span>
+          </div>
+        </div>
+
+        <!-- Transactions -->
+        <div class="txn-section">
+          <div class="txn-title">
+            <span class="accent"></span>
+            往来流水（本期 4 笔）
+          </div>
+          <table class="txn-table">
+            <thead>
+              <tr>
+                <th style="width:80px">日期</th>
+                <th style="width:80px">单号</th>
+                <th>摘要</th>
+                <th class="center" style="width:90px">结算数量</th>
+                <th class="num" style="width:110px">本期应收</th>
+                <th class="num" style="width:110px">本期实收</th>
+                <th class="num" style="width:120px">应收余额</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="row-opening">
+                <td>期初</td>
+                <td>-</td>
+                <td>上期结转</td>
+                <td class="center">-</td>
+                <td class="num">-</td>
+                <td class="num">-</td>
+                <td class="num amt-balance">¥20,500.00</td>
+              </tr>
+              <tr>
+                <td>03-01</td>
+                <td>S001</td>
+                <td>螺纹钢销售（HRB400 φ12）</td>
+                <td class="center">100 件</td>
+                <td class="num amt-pos">+¥10,000.00</td>
+                <td class="num">-</td>
+                <td class="num amt-balance">¥30,500.00</td>
+              </tr>
+              <tr>
+                <td>03-10</td>
+                <td>R001</td>
+                <td>银行收款（工行网银）</td>
+                <td class="center">-</td>
+                <td class="num">-</td>
+                <td class="num amt-paid">+¥8,000.00</td>
+                <td class="num amt-balance">¥22,500.00</td>
+              </tr>
+              <tr>
+                <td>03-20</td>
+                <td>S002</td>
+                <td>盘螺销售（HRB400 φ8）</td>
+                <td class="center">50 件</td>
+                <td class="num amt-pos">+¥15,000.00</td>
+                <td class="num">-</td>
+                <td class="num amt-balance">¥37,500.00</td>
+              </tr>
+              <tr class="row-closing">
+                <td>期末</td>
+                <td>-</td>
+                <td>本期合计</td>
+                <td class="center">150 件</td>
+                <td class="num amt-pos">¥25,000.00</td>
+                <td class="num amt-paid">¥8,000.00</td>
+                <td class="num final">¥37,500.00</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Actions -->
+        <div class="action-section">
+          <div class="action-secondary">
+            <el-button size="large" plain><el-icon><Download/></el-icon>下载 PDF</el-button>
+            <el-button size="large" plain @click="showDetail = true"><el-icon><Tickets/></el-icon>查看应收明细</el-button>
+          </div>
+
+          <p class="agreement">
+            <el-icon style="vertical-align:-2px"><CircleCheck/></el-icon>
+            确认即视为对本对账单内容无异议，具有同等法律效力
+          </p>
+
+          <div class="action-primary">
+            <el-button type="success" size="large" class="btn-confirm" @click="onConfirm">
+              <el-icon style="font-size:22px;margin-right:6px"><CircleCheckFilled/></el-icon>
+              确认无异议
+            </el-button>
+            <el-button type="danger" plain size="large" class="btn-dispute" @click="showDispute = true">
+              <el-icon><Warning/></el-icon>
+              我有异议
+            </el-button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <div class="footer-items">
+        <span class="footer-item"><el-icon><Lock/></el-icon>安全加密</span>
+        <span class="footer-item"><el-icon><CircleCheck/></el-icon>合规存证</span>
+        <span class="footer-item"><el-icon><Service/></el-icon>7×24 支持</span>
+      </div>
+      <div>© 2026 对账通 AutoRecon v2.1 · 由 某某钢铁有限公司 提供</div>
+    </div>
+
+    <!-- Dispute dialog -->
+    <el-dialog v-model="showDispute" title="提交异议" width="520px">
+      <p class="dispute-desc">请描述您对账单的异议内容，卖方将在 1 个工作日内联系您复核。</p>
+      <el-form label-position="top">
+        <el-form-item label="异议类型">
+          <el-radio-group v-model="dispute.type">
+            <el-radio value="金额不符">金额不符</el-radio>
+            <el-radio value="数量不符">数量不符</el-radio>
+            <el-radio value="流水缺失">流水缺失</el-radio>
+            <el-radio value="其它">其它</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="异议说明">
+          <el-input v-model="dispute.desc" type="textarea" rows="4" placeholder="请详细说明异议内容与差额金额…"/>
+        </el-form-item>
+        <el-form-item label="附件（可选）">
+          <el-upload action="#" :auto-upload="false"><el-button plain><el-icon><Upload/></el-icon>上传凭证</el-button></el-upload>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showDispute = false">取消</el-button>
+        <el-button type="danger" @click="submitDispute">提交异议</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Detail dialog -->
+    <el-dialog v-model="showDetail" title="应收明细" width="640px">
+      <el-table :data="details" size="small">
+        <el-table-column prop="date" label="日期" width="90"/>
+        <el-table-column prop="no" label="单据号" width="100"/>
+        <el-table-column prop="item" label="品名规格" min-width="180"/>
+        <el-table-column prop="qty" label="数量" width="80" align="center"/>
+        <el-table-column label="金额" width="110" align="right">
+          <template #default="{row}">¥{{ row.amount.toLocaleString() }}</template>
+        </el-table-column>
+      </el-table>
+    </el-dialog>
+  </div>
+
+  <script>
+    const { createApp } = Vue;
+    const app = createApp({
+      data() {
+        return {
+          state: 'verify',
+          phone: '138****6789',
+          code: '',
+          cooldown: 0,
+          showDispute: false,
+          showDetail: false,
+          dispute: { type: '金额不符', desc: '' },
+          details: [
+            { date: '2025-03-01', no: 'S001-1', item: 'HRB400 φ12 螺纹钢', qty: '50 件', amount: 5000 },
+            { date: '2025-03-01', no: 'S001-2', item: 'HRB400 φ12 螺纹钢', qty: '50 件', amount: 5000 },
+            { date: '2025-03-20', no: 'S002-1', item: 'HRB400 φ8 盘螺', qty: '30 件', amount: 9000 },
+            { date: '2025-03-20', no: 'S002-2', item: 'HRB400 φ8 盘螺', qty: '20 件', amount: 6000 }
+          ]
+        }
+      },
+      methods: {
+        sendCode() {
+          if (!this.phone) { ElementPlus.ElMessage.warning('请输入手机号'); return; }
+          this.cooldown = 60;
+          ElementPlus.ElMessage.success('验证码已发送（演示：123456）');
+          const t = setInterval(() => {
+            this.cooldown--;
+            if (this.cooldown <= 0) clearInterval(t);
+          }, 1000);
+        },
+        onVerify() {
+          if (!this.code) { ElementPlus.ElMessage.warning('请输入验证码'); return; }
+          ElementPlus.ElMessage.success('验证通过，正在加载对账单…');
+          setTimeout(() => { this.state = 'statement'; }, 400);
+        },
+        onConfirm() {
+          ElementPlus.ElMessageBox.confirm(
+            '确认后将生成电子确认凭据，法律效力等同签署。是否继续？',
+            '确认对账单',
+            { confirmButtonText: '确认无异议', cancelButtonText: '再看看', type: 'success' }
+          ).then(() => {
+            ElementPlus.ElMessage.success('对账单已确认，感谢您的配合！');
+          }).catch(()=>{});
+        },
+        submitDispute() {
+          if (!this.dispute.desc) { ElementPlus.ElMessage.warning('请填写异议说明'); return; }
+          this.showDispute = false;
+          ElementPlus.ElMessage.success('异议已提交，卖方将尽快联系您');
+        }
+      }
+    });
+    app.use(ElementPlus);
+    for (const [k, v] of Object.entries(ElementPlusIconsVue)) {
+      app.component(k, v);
+    }
+    app.mount('#app');
+  </script>
+</body>
+</html>

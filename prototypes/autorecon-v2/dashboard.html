@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>工作台 - 对账通v2原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f5f7fa;
+      color: #303133;
+    }
+    .layout { display: flex; min-height: 100vh; }
+
+    /* Sidebar */
+    .sidebar {
+      width: 220px;
+      background: #001529;
+      color: #fff;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      overflow-y: auto;
+      z-index: 10;
+    }
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-thumb { background: #1f3145; border-radius: 2px; }
+    .sidebar-logo {
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      gap: 8px;
+    }
+    .sidebar-logo .logo-badge {
+      background: linear-gradient(135deg, #409eff, #9c27b0);
+      color: #fff;
+      font-size: 11px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+    .el-menu.sidebar-menu {
+      background: transparent;
+      border-right: none;
+    }
+    .el-menu.sidebar-menu .el-menu-item,
+    .el-menu.sidebar-menu .el-sub-menu__title {
+      color: #b6c2d1;
+      height: 44px;
+      line-height: 44px;
+    }
+    .el-menu.sidebar-menu .el-menu-item.is-active {
+      color: #fff;
+      background: #409eff !important;
+    }
+    .el-menu.sidebar-menu .el-menu-item:hover,
+    .el-menu.sidebar-menu .el-sub-menu__title:hover {
+      background: #0a2540 !important;
+      color: #fff !important;
+    }
+    .el-menu.sidebar-menu .el-sub-menu .el-menu {
+      background: #000c17;
+    }
+    .el-menu.sidebar-menu .el-sub-menu .el-menu-item {
+      background: #000c17;
+      padding-left: 48px !important;
+    }
+    .el-menu.sidebar-menu .el-sub-menu .el-menu-item.is-active {
+      background: #409eff !important;
+    }
+
+    /* Main */
+    .main { flex: 1; margin-left: 220px; display: flex; flex-direction: column; }
+    .header {
+      height: 60px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+    .breadcrumb-wrap { display: flex; align-items: center; gap: 12px; }
+    .header-right { display: flex; align-items: center; gap: 20px; }
+    .enterprise-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #f0f7ff;
+      color: #409eff;
+      padding: 6px 12px;
+      border-radius: 16px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .header-icon-btn {
+      color: #606266;
+      cursor: pointer;
+      font-size: 18px;
+      position: relative;
+    }
+    .header-user {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+    .header-user .name { font-size: 13px; color: #303133; }
+    .header-user .role { font-size: 11px; color: #909399; }
+
+    .content { padding: 20px 24px; }
+    .page-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #303133;
+      margin-bottom: 4px;
+    }
+    .page-subtitle {
+      font-size: 13px;
+      color: #909399;
+      margin-bottom: 20px;
+    }
+
+    /* Stat cards */
+    .stat-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 20px; }
+    .stat-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+      transition: transform 0.2s;
+    }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .stat-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 26px;
+      flex-shrink: 0;
+    }
+    .stat-icon.blue { background: linear-gradient(135deg, #409eff, #36cfc9); }
+    .stat-icon.orange { background: linear-gradient(135deg, #e6a23c, #f5a962); }
+    .stat-icon.green { background: linear-gradient(135deg, #67c23a, #95d475); }
+    .stat-icon.red { background: linear-gradient(135deg, #f56c6c, #f89898); }
+    .stat-icon.purple { background: linear-gradient(135deg, #9c27b0, #e91e63); }
+    .stat-info .label { font-size: 13px; color: #909399; margin-bottom: 6px; }
+    .stat-info .value { font-size: 22px; font-weight: 600; color: #303133; }
+    .stat-info .trend { font-size: 12px; color: #67c23a; margin-top: 2px; }
+    .stat-info .trend.down { color: #f56c6c; }
+
+    /* Charts row */
+    .chart-row { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 20px; }
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #303133;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-title .accent {
+      width: 3px;
+      height: 14px;
+      background: #409eff;
+      border-radius: 2px;
+    }
+    .chart {
+      width: 100%;
+      height: 300px;
+    }
+
+    /* Kanban table */
+    .kanban-card { margin-bottom: 20px; }
+    .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    /* Todo list */
+    .todo-row { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    .todo-list { list-style: none; }
+    .todo-item {
+      display: flex;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px dashed #ebeef5;
+      gap: 12px;
+    }
+    .todo-item:last-child { border-bottom: none; }
+    .todo-tag {
+      min-width: 72px;
+      text-align: center;
+    }
+    .todo-text { flex: 1; color: #303133; font-size: 14px; }
+    .todo-time { color: #909399; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="layout">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-logo">
+          对账通 <span class="logo-badge">v2</span>
+        </div>
+        <el-menu class="sidebar-menu" :default-active="activeMenu" :default-openeds="['customer','recon','collect','report','system']" background-color="#001529" text-color="#b6c2d1" active-text-color="#fff" unique-opened router :collapse="false">
+          <el-menu-item index="dashboard" @click="go('dashboard.html')">
+            <el-icon><Odometer/></el-icon>
+            <template #title>工作台</template>
+          </el-menu-item>
+
+          <el-sub-menu index="customer">
+            <template #title><el-icon><UserFilled/></el-icon><span>客户中心</span></template>
+            <el-menu-item index="customer-ledger" @click="go('customer-ledger.html')">客户往来账</el-menu-item>
+            <el-menu-item index="customer-types" @click="go('customer-types.html')">客户类型</el-menu-item>
+            <el-menu-item index="customer-tags" @click="go('customer-tags.html')">客户标签</el-menu-item>
+          </el-sub-menu>
+
+          <el-sub-menu index="recon">
+            <template #title><el-icon><List/></el-icon><span>对账管理</span></template>
+            <el-menu-item index="statement-list" @click="go('statement-list.html')">对账单列表</el-menu-item>
+            <el-menu-item index="statement-create" @click="go('statement-create.html')">发起对账</el-menu-item>
+          </el-sub-menu>
+
+          <el-sub-menu index="collect">
+            <template #title><el-icon><Phone/></el-icon><span>催收中心</span></template>
+            <el-menu-item index="collection-orders" @click="go('collection-orders.html')">催收工单</el-menu-item>
+            <el-menu-item index="collection-profiles" @click="go('collection-profiles.html')">催收策略</el-menu-item>
+            <el-menu-item index="call-tasks" @click="go('call-tasks.html')">外呼任务</el-menu-item>
+            <el-menu-item index="call-records" @click="go('call-records.html')">外呼记录</el-menu-item>
+          </el-sub-menu>
+
+          <el-menu-item index="messages" @click="go('messages.html')">
+            <el-icon><Bell/></el-icon>
+            <template #title>
+              <span>消息中心</span>
+              <el-badge :value="12" class="msg-badge" style="margin-left:8px"/>
+            </template>
+          </el-menu-item>
+
+          <el-sub-menu index="report">
+            <template #title><el-icon><DataAnalysis/></el-icon><span>报表分析</span></template>
+            <el-menu-item index="receivable-report" @click="go('receivable-report.html')">应收报表</el-menu-item>
+            <el-menu-item index="collection-report" @click="go('collection-report.html')">催收报表</el-menu-item>
+          </el-sub-menu>
+
+          <el-sub-menu index="system">
+            <template #title><el-icon><Setting/></el-icon><span>系统设置</span></template>
+            <el-menu-item index="subjects-filter" @click="go('subjects-filter.html')">科目过滤</el-menu-item>
+            <el-menu-item index="call-scripts" @click="go('call-scripts.html')">AI话术管理</el-menu-item>
+            <el-menu-item index="aliyun-config" @click="go('aliyun-config.html')">阿里云配置</el-menu-item>
+            <el-menu-item index="holiday-calendar" @click="go('holiday-calendar.html')">节假日日历</el-menu-item>
+            <el-menu-item index="tpl">对账单模板</el-menu-item>
+            <el-menu-item index="erp">ERP配置</el-menu-item>
+            <el-menu-item index="user">用户管理</el-menu-item>
+            <el-menu-item index="enterprise">企业设置</el-menu-item>
+          </el-sub-menu>
+        </el-menu>
+      </aside>
+
+      <!-- Main -->
+      <div class="main">
+        <header class="header">
+          <div class="breadcrumb-wrap">
+            <el-breadcrumb separator="/">
+              <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
+              <el-breadcrumb-item>工作台</el-breadcrumb-item>
+            </el-breadcrumb>
+          </div>
+          <div class="header-right">
+            <el-tooltip content="刷新数据" placement="bottom"><el-icon class="header-icon-btn"><Refresh/></el-icon></el-tooltip>
+            <el-tooltip content="全屏" placement="bottom"><el-icon class="header-icon-btn"><FullScreen/></el-icon></el-tooltip>
+            <el-badge :value="12" class="msg-badge">
+              <el-icon class="header-icon-btn" @click="go('messages.html')"><Bell/></el-icon>
+            </el-badge>
+            <span class="enterprise-chip"><el-icon><OfficeBuilding/></el-icon>某某钢铁有限公司</span>
+            <el-dropdown>
+              <div class="header-user">
+                <el-avatar :size="32" style="background:#409eff">李</el-avatar>
+                <div>
+                  <div class="name">李财务</div>
+                  <div class="role">企业管理员</div>
+                </div>
+              </div>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item>个人设置</el-dropdown-item>
+                  <el-dropdown-item>修改密码</el-dropdown-item>
+                  <el-dropdown-item divided @click="go('login.html')">退出登录</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+        </header>
+
+        <main class="content">
+          <div class="page-title">工作台</div>
+          <div class="page-subtitle">今天是 2025-03-18，欢迎回来！以下是今日运营概览。</div>
+
+          <!-- Stat cards -->
+          <div class="stat-row">
+            <div class="stat-card">
+              <div class="stat-icon blue"><el-icon><Document/></el-icon></div>
+              <div class="stat-info">
+                <div class="label">本月对账单</div>
+                <div class="value">128</div>
+                <div class="trend">↑ 12% vs 上月</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon orange"><el-icon><Warning/></el-icon></div>
+              <div class="stat-info">
+                <div class="label">待确认</div>
+                <div class="value">15</div>
+                <div class="trend down">↓ 3 vs 昨日</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon green"><el-icon><Money/></el-icon></div>
+              <div class="stat-info">
+                <div class="label">应收总额</div>
+                <div class="value">¥2,568,900</div>
+                <div class="trend">↑ 5.6%</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon red"><el-icon><Bell/></el-icon></div>
+              <div class="stat-info">
+                <div class="label">逾期客户</div>
+                <div class="value">8</div>
+                <div class="trend down">↑ 2 新增</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon purple"><el-icon><Phone/></el-icon></div>
+              <div class="stat-info">
+                <div class="label">AI外呼今日</div>
+                <div class="value">42</div>
+                <div class="trend">接通率 66%</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Charts -->
+          <div class="chart-row">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title"><span class="accent"></span>本月应收趋势</div>
+                <el-radio-group v-model="trendRange" size="small">
+                  <el-radio-button value="30">近30天</el-radio-button>
+                  <el-radio-button value="7">近7天</el-radio-button>
+                </el-radio-group>
+              </div>
+              <div ref="trendChart" class="chart"></div>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title"><span class="accent"></span>客户对账状态分布</div>
+              </div>
+              <div ref="pieChart" class="chart"></div>
+            </div>
+          </div>
+
+          <!-- Kanban table (NEW v2 key feature) -->
+          <div class="card kanban-card">
+            <div class="card-header">
+              <div class="card-title"><span class="accent"></span>客户对账状态看板</div>
+              <div>
+                <el-input v-model="kanbanSearch" placeholder="搜索客户" size="small" style="width:180px" clearable>
+                  <template #prefix><el-icon><Search/></el-icon></template>
+                </el-input>
+                <el-button size="small" style="margin-left:8px" type="primary" plain @click="go('customer-ledger.html')">查看全部</el-button>
+              </div>
+            </div>
+            <el-table :data="kanbanRows" style="width:100%" size="default" stripe>
+              <el-table-column prop="name" label="客户名称" min-width="130"/>
+              <el-table-column prop="type" label="客户类型" width="110"/>
+              <el-table-column label="等级" width="80" align="center">
+                <template #default="{row}">
+                  <el-tag :type="levelTag(row.level)" effect="dark" size="small" style="font-weight:600;width:32px">{{ row.level }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="应收余额" width="130" align="right">
+                <template #default="{row}">
+                  <span :style="{color: row.balance > 0 ? '#f56c6c' : '#67c23a', fontWeight:600}">
+                    ¥{{ row.balance.toLocaleString() }}
+                  </span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="lastReconDate" label="最近对账日" width="120" align="center"/>
+              <el-table-column label="对账状态" width="130" align="center">
+                <template #default="{row}">
+                  <span class="status-dot" :style="{background: statusColor(row.status)}"></span>
+                  {{ row.status }}
+                </template>
+              </el-table-column>
+              <el-table-column label="逾期天数" width="110" align="center">
+                <template #default="{row}">
+                  <el-tag v-if="row.overdueDays" type="danger" effect="plain" size="small">{{ row.overdueDays }}天</el-tag>
+                  <span v-else style="color:#c0c4cc">-</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="催收阶段" width="110" align="center">
+                <template #default="{row}">
+                  <el-tag v-if="row.collectStage" type="danger" effect="light" size="small">{{ row.collectStage }}</el-tag>
+                  <span v-else style="color:#c0c4cc">-</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="180" align="center">
+                <template #default="{row}">
+                  <el-button link type="primary" size="small" @click="go('statement-detail.html')">查看</el-button>
+                  <el-button v-if="row.collectStage" link type="danger" size="small">
+                    {{ row.collectStage === '阶段2' ? 'AI外呼中' : '催收' }}
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+
+          <!-- Today todo -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="accent"></span>今日待办</div>
+              <el-button link type="primary" size="small">查看全部 →</el-button>
+            </div>
+            <ul class="todo-list">
+              <li v-for="t in todos" :key="t.text" class="todo-item">
+                <el-tag :type="t.type" effect="light" size="small" class="todo-tag">{{ t.tag }}</el-tag>
+                <span class="todo-text">{{ t.text }}</span>
+                <span class="todo-time">{{ t.time }}</span>
+                <el-button link type="primary" size="small">处理</el-button>
+              </li>
+            </ul>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, onMounted, ref, nextTick } = Vue;
+    const app = createApp({
+      data() {
+        return {
+          activeMenu: 'dashboard',
+          trendRange: '30',
+          kanbanSearch: '',
+          kanbanRows: [
+            { name: '某某贸易有限公司', type: '经销商', level: 'B', balance: 75800, lastReconDate: '2025-03-17', status: '待确认', overdueDays: 0, collectStage: '' },
+            { name: '某某建材有限公司', type: '加工厂', level: 'C', balance: 67200, lastReconDate: '2025-03-15', status: '已确认', overdueDays: 15, collectStage: '阶段1' },
+            { name: '某某科技有限公司', type: '大型终端', level: 'A', balance: 156300, lastReconDate: '2025-03-16', status: '异议中', overdueDays: 0, collectStage: '' },
+            { name: '某某制造有限公司', type: '经销商', level: 'B', balance: 89500, lastReconDate: '2025-03-14', status: '已确认', overdueDays: 0, collectStage: '' },
+            { name: '某某物流有限公司', type: '同行', level: 'C', balance: 0, lastReconDate: '2025-03-15', status: '已完成', overdueDays: 0, collectStage: '' },
+            { name: '某某建筑有限公司', type: '经销商', level: 'D', balance: 98600, lastReconDate: '2025-03-14', status: '视同确认', overdueDays: 5, collectStage: '阶段2' }
+          ],
+          todos: [
+            { tag: '对账', type: 'warning', text: '15 张对账单待客户确认，其中 3 张已发送超 3 天', time: '10 分钟前' },
+            { tag: '异议', type: 'danger', text: '某某科技提出金额异议，差额 ¥5,000，等待复核', time: '1 小时前' },
+            { tag: '催收', type: 'danger', text: '某某建材催收工单需人工介入（AI外呼失败 3 次）', time: '2 小时前' },
+            { tag: '外呼', type: 'primary', text: '今日 AI 外呼任务 42 个，剩余 14 个未执行', time: '3 小时前' },
+            { tag: '系统', type: 'info', text: '阿里云外呼余额不足，剩余 ¥120 请及时充值', time: '今日 08:00' }
+          ]
+        }
+      },
+      methods: {
+        go(url) { if (url && url !== '#') window.location.href = url; },
+        levelTag(level) {
+          return { A: 'success', B: 'primary', C: 'warning', D: 'danger' }[level] || 'info';
+        },
+        statusColor(status) {
+          return {
+            '待确认': '#e6a23c',
+            '已确认': '#67c23a',
+            '已完成': '#67c23a',
+            '异议中': '#f56c6c',
+            '视同确认': '#c0c4cc'
+          }[status] || '#909399';
+        },
+        initTrendChart() {
+          const el = this.$refs.trendChart;
+          if (!el) return;
+          const chart = echarts.init(el);
+          const days = [];
+          const data = [];
+          const base = new Date('2025-03-01').getTime();
+          for (let i = 0; i < 30; i++) {
+            const d = new Date(base + i * 86400000);
+            days.push((d.getMonth() + 1) + '-' + String(d.getDate()).padStart(2,'0'));
+            data.push(Math.round(60000 + Math.random() * 90000 + Math.sin(i / 3) * 20000));
+          }
+          chart.setOption({
+            tooltip: { trigger: 'axis', formatter: p => p[0].name + '<br/>应收: ¥' + p[0].value.toLocaleString() },
+            grid: { left: 60, right: 24, top: 30, bottom: 30 },
+            xAxis: { type: 'category', data: days, axisLine: { lineStyle: { color: '#dcdfe6' } }, axisLabel: { color: '#909399' } },
+            yAxis: { type: 'value', axisLabel: { color: '#909399', formatter: v => (v/10000)+'万' }, splitLine: { lineStyle: { color: '#f0f2f5' } } },
+            series: [{
+              type: 'line',
+              smooth: true,
+              symbol: 'circle',
+              symbolSize: 6,
+              data,
+              lineStyle: { color: '#409eff', width: 2 },
+              itemStyle: { color: '#409eff' },
+              areaStyle: {
+                color: {
+                  type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+                  colorStops: [
+                    { offset: 0, color: 'rgba(64,158,255,0.35)' },
+                    { offset: 1, color: 'rgba(64,158,255,0.02)' }
+                  ]
+                }
+              }
+            }]
+          });
+          this._charts = this._charts || [];
+          this._charts.push(chart);
+        },
+        initPieChart() {
+          const el = this.$refs.pieChart;
+          if (!el) return;
+          const chart = echarts.init(el);
+          chart.setOption({
+            tooltip: { trigger: 'item', formatter: '{b}<br/>{c} 家 ({d}%)' },
+            legend: { bottom: 0, icon: 'circle', textStyle: { color: '#606266' } },
+            color: ['#67c23a', '#e6a23c', '#c0c4cc', '#f56c6c'],
+            series: [{
+              type: 'pie',
+              radius: ['48%', '72%'],
+              center: ['50%', '46%'],
+              avoidLabelOverlap: false,
+              label: { show: true, formatter: '{d}%', fontSize: 13, color: '#303133' },
+              labelLine: { show: true, length: 8, length2: 8 },
+              data: [
+                { value: 79, name: '已确认' },
+                { value: 29, name: '待确认' },
+                { value: 13, name: '视同确认' },
+                { value: 7, name: '异议中' }
+              ]
+            }]
+          });
+          this._charts = this._charts || [];
+          this._charts.push(chart);
+        }
+      },
+      mounted() {
+        nextTick(() => {
+          this.initTrendChart();
+          this.initPieChart();
+        });
+        window.addEventListener('resize', () => {
+          (this._charts || []).forEach(c => c.resize());
+        });
+      }
+    });
+    app.use(ElementPlus);
+    for (const [k, v] of Object.entries(ElementPlusIconsVue)) {
+      app.component(k, v);
+    }
+    app.mount('#app');
+  </script>
+</body>
+</html>

@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>原型导航 - 对账通v2原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f5f7fa;
+      color: #303133;
+      min-height: 100vh;
+    }
+    .banner {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      padding: 60px 40px 80px;
+      position: relative;
+      overflow: hidden;
+    }
+    .banner::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -10%;
+      width: 500px;
+      height: 500px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 50%;
+    }
+    .banner::after {
+      content: '';
+      position: absolute;
+      bottom: -80%;
+      left: -5%;
+      width: 400px;
+      height: 400px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 50%;
+    }
+    .banner-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 2;
+    }
+    .banner h1 {
+      font-size: 40px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .banner .version-tag {
+      background: rgba(255,255,255,0.25);
+      backdrop-filter: blur(10px);
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 500;
+      border: 1px solid rgba(255,255,255,0.3);
+    }
+    .banner p {
+      font-size: 18px;
+      opacity: 0.9;
+      margin-bottom: 20px;
+    }
+    .banner-meta {
+      display: flex;
+      gap: 24px;
+      margin-top: 24px;
+    }
+    .banner-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    .banner-meta-item .dot {
+      width: 8px;
+      height: 8px;
+      background: #67c23a;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #67c23a;
+    }
+    .main {
+      max-width: 1200px;
+      margin: -40px auto 40px;
+      padding: 0 24px;
+      position: relative;
+      z-index: 3;
+    }
+    .category {
+      background: #fff;
+      border-radius: 12px;
+      padding: 28px;
+      margin-bottom: 24px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+    .category-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid #f0f2f5;
+    }
+    .category-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 20px;
+    }
+    .category-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #303133;
+    }
+    .category-count {
+      background: #f0f2f5;
+      color: #909399;
+      padding: 2px 10px;
+      border-radius: 10px;
+      font-size: 12px;
+      margin-left: auto;
+    }
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .card {
+      border: 1px solid #ebeef5;
+      border-radius: 10px;
+      padding: 20px;
+      background: #fafbfc;
+      transition: all 0.25s ease;
+      display: block;
+      text-decoration: none;
+      color: inherit;
+      cursor: pointer;
+    }
+    .card:hover {
+      border-color: #409eff;
+      background: #fff;
+      box-shadow: 0 6px 20px rgba(64,158,255,0.15);
+      transform: translateY(-3px);
+    }
+    .card-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 22px;
+      margin-bottom: 14px;
+    }
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #303133;
+      margin-bottom: 6px;
+    }
+    .card-desc {
+      font-size: 13px;
+      color: #909399;
+      line-height: 1.5;
+      margin-bottom: 14px;
+      min-height: 40px;
+    }
+    .card-link {
+      font-size: 13px;
+      color: #409eff;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card-link .arrow {
+      transition: transform 0.2s;
+    }
+    .card:hover .card-link .arrow {
+      transform: translateX(4px);
+    }
+    .footer {
+      text-align: center;
+      padding: 30px 20px;
+      color: #909399;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="banner">
+      <div class="banner-inner">
+        <h1>
+          对账通 v2.1
+          <span class="version-tag">高保真原型</span>
+        </h1>
+        <p>往来账对账 + 差异化催收 + AI外呼（阿里云）</p>
+        <div class="banner-meta">
+          <div class="banner-meta-item"><span class="dot"></span>共 25+ 页面原型</div>
+          <div class="banner-meta-item"><span class="dot"></span>Vue3 + Element Plus + ECharts</div>
+          <div class="banner-meta-item"><span class="dot"></span>版本 v2.1 · 2026-07</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="main">
+      <div v-for="cat in categories" :key="cat.title" class="category">
+        <div class="category-header">
+          <div class="category-icon" :style="{background: cat.color}">
+            <el-icon><component :is="cat.icon"/></el-icon>
+          </div>
+          <div class="category-title">{{ cat.title }}</div>
+          <div class="category-count">{{ cat.cards.length }} 个页面</div>
+        </div>
+        <div class="card-grid">
+          <a v-for="card in cat.cards" :key="card.name" :href="card.href" class="card">
+            <div class="card-icon" :style="{background: card.color || cat.color}">
+              <el-icon><component :is="card.icon"/></el-icon>
+            </div>
+            <div class="card-title">{{ card.name }}</div>
+            <div class="card-desc">{{ card.desc }}</div>
+            <div class="card-link">
+              进入 <span class="arrow">→</span>
+            </div>
+          </a>
+        </div>
+      </div>
+
+      <div class="footer">
+        © 2026 对账通 AutoRecon v2.1 · 内部原型 · 仅用于评审
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createApp } = Vue;
+    const app = createApp({
+      data() {
+        return {
+          categories: [
+            {
+              title: '核心页面',
+              icon: 'Star',
+              color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              cards: [
+                { name: '登录', desc: '多角色登录入口，含平台管理员 / 企业管理员 / 销售 / 财务 演示账号', icon: 'User', href: 'login.html' },
+                { name: '工作台', desc: '数据看板 + 客户对账状态看板，一屏掌握全局', icon: 'Odometer', href: 'dashboard.html' },
+                { name: '客户往来账', desc: '按客户维度的往来账列表，支持状态筛选与批量操作', icon: 'UserFilled', href: 'customer-ledger.html' },
+                { name: '客户往来明细', desc: '单个客户的往来流水 + 应收明细双视图', icon: 'Document', href: 'customer-ledger-detail.html' },
+                { name: '对账单详情', desc: '对账单查看、异议处理、电子签章', icon: 'Tickets', href: 'statement-detail.html' }
+              ]
+            },
+            {
+              title: '买方端',
+              icon: 'Promotion',
+              color: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+              cards: [
+                { name: '买方免注册查看', desc: '手机验证 + 银行对账单式流水查看 + 确认/异议', icon: 'View', href: 'guest.html' }
+              ]
+            },
+            {
+              title: '对账管理',
+              icon: 'List',
+              color: 'linear-gradient(135deg, #409eff 0%, #36cfc9 100%)',
+              cards: [
+                { name: '对账单列表', desc: '全部对账单，多维筛选（周期/状态/客户），批量催办', icon: 'List', href: 'statement-list.html' },
+                { name: '发起对账', desc: '选择客户 + 周期 + 应用科目过滤 → 生成对账单', icon: 'DocumentAdd', href: 'statement-create.html' },
+                { name: '对账单详情', desc: '往来流水视图 + 应收明细视图 + 差异标注', icon: 'Document', href: 'statement-detail.html' }
+              ]
+            },
+            {
+              title: '客户中心',
+              icon: 'UserFilled',
+              color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+              cards: [
+                { name: '客户往来账', desc: '客户列表 + 应收余额 + 对账状态 + 催收阶段', icon: 'User', href: 'customer-ledger.html' },
+                { name: '客户类型管理', desc: '经销商 / 加工厂 / 大型终端 / 同行 等类型维护', icon: 'Collection', href: 'customer-types.html' },
+                { name: '客户标签管理', desc: '客户等级 A/B/C/D + 差异化催收策略绑定', icon: 'PriceTag', href: 'customer-tags.html' }
+              ]
+            },
+            {
+              title: '催收中心',
+              icon: 'Phone',
+              color: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+              cards: [
+                { name: '催收工单列表', desc: '按阶段分组的催收工单，支持批量派单', icon: 'Tickets', href: 'collection-orders.html' },
+                { name: '催收工单详情', desc: '工单流转 + AI外呼记录 + 承诺付款跟踪', icon: 'Memo', href: 'collection-order-detail.html' },
+                { name: '催收策略配置', desc: '按客户等级配置三阶段催收流程', icon: 'SetUp', href: 'collection-profiles.html' },
+                { name: '编辑催收策略', desc: '阶段/触发条件/动作/话术/间隔 可视化编辑器', icon: 'Edit', href: 'collection-profile-edit.html' }
+              ]
+            },
+            {
+              title: 'AI外呼',
+              icon: 'Microphone',
+              color: 'linear-gradient(135deg, #9c27b0 0%, #e91e63 100%)',
+              cards: [
+                { name: '外呼任务监控', desc: '实时监控外呼任务进度、接通率、承诺率', icon: 'DataLine', href: 'call-tasks.html' },
+                { name: '外呼记录+录音', desc: '外呼记录查询 + 通话录音回放 + 意图识别', icon: 'Headset', href: 'call-records.html' },
+                { name: 'AI话术管理', desc: '按催收阶段配置话术模板 + 变量替换', icon: 'ChatDotRound', href: 'call-scripts.html' },
+                { name: '阿里云外呼配置', desc: 'AppKey / 号码 / 并发 / 计费 全套接入配置', icon: 'Cloudy', href: 'aliyun-config.html' }
+              ]
+            },
+            {
+              title: '系统配置',
+              icon: 'Setting',
+              color: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+              cards: [
+                { name: '科目过滤（通配符）', desc: '按会计科目通配符规则过滤对账项目 + 余额快照', icon: 'Filter', href: 'subjects-filter.html' },
+                { name: '节假日日历', desc: '滚动周期节假日顺延配置，支持自定义调整', icon: 'Calendar', href: 'holiday-calendar.html' },
+                { name: '消息中心', desc: '对账/催收/异议/系统消息统一入口，未读提醒', icon: 'Bell', href: 'messages.html' },
+                { name: '应收/催收报表', desc: '应收报表账龄分析 + 催收报表转化漏斗', icon: 'DataAnalysis', href: 'receivable-report.html' }
+              ]
+            }
+          ]
+        }
+      }
+    });
+    app.use(ElementPlus);
+    for (const [k, v] of Object.entries(ElementPlusIconsVue)) {
+      app.component(k, v);
+    }
+    app.mount('#app');
+  </script>
+</body>
+</html>

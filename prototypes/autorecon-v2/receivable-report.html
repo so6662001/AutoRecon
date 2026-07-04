@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>应收报表 - 对账通v2原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f5f7fa;
+      color: #303133;
+    }
+    .layout { display: flex; min-height: 100vh; }
+
+    /* Sidebar */
+    .sidebar {
+      width: 220px;
+      background: #001529;
+      color: #fff;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      overflow-y: auto;
+      z-index: 10;
+    }
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-thumb { background: #1f3145; border-radius: 2px; }
+    .sidebar-logo {
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      gap: 8px;
+    }
+    .sidebar-logo .logo-badge {
+      background: linear-gradient(135deg, #409eff, #9c27b0);
+      color: #fff;
+      font-size: 11px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+    .el-menu.sidebar-menu {
+      background: transparent;
+      border-right: none;
+    }
+    .el-menu.sidebar-menu .el-menu-item,
+    .el-menu.sidebar-menu .el-sub-menu__title {
+      color: #b6c2d1;
+      height: 44px;
+      line-height: 44px;
+    }
+    .el-menu.sidebar-menu .el-menu-item.is-active {
+      color: #fff;
+      background: #409eff !important;
+    }
+    .el-menu.sidebar-menu .el-menu-item:hover,
+    .el-menu.sidebar-menu .el-sub-menu__title:hover {
+      background: #0a2540 !important;
+      color: #fff !important;
+    }
+    .el-menu.sidebar-menu .el-sub-menu .el-menu {
+      background: #000c17;
+    }
+    .el-menu.sidebar-menu .el-sub-menu .el-menu-item {
+      background: #000c17;
+      padding-left: 48px !important;
+    }
+    .el-menu.sidebar-menu .el-sub-menu .el-menu-item.is-active {
+      background: #409eff !important;
+    }
+
+    /* Main */
+    .main { flex: 1; margin-left: 220px; display: flex; flex-direction: column; }
+    .header {
+      height: 60px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+    .breadcrumb-wrap { display: flex; align-items: center; gap: 12px; }
+    .header-right { display: flex; align-items: center; gap: 20px; }
+    .enterprise-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #f0f7ff;
+      color: #409eff;
+      padding: 6px 12px;
+      border-radius: 16px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .header-icon-btn {
+      color: #606266;
+      cursor: pointer;
+      font-size: 18px;
+    }
+    .header-user {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+    .header-user .name { font-size: 13px; color: #303133; }
+    .header-user .role { font-size: 11px; color: #909399; }
+
+    .content { padding: 20px 24px; }
+    .page-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #303133;
+      margin-bottom: 4px;
+    }
+    .page-subtitle {
+      font-size: 13px;
+      color: #909399;
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+      margin-bottom: 16px;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #303133;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-title .accent {
+      width: 3px;
+      height: 14px;
+      background: #409eff;
+      border-radius: 2px;
+    }
+    .card-desc {
+      font-size: 12px;
+      color: #909399;
+      margin-left: 8px;
+      font-weight: normal;
+    }
+
+    /* Filter bar */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .filter-bar .filter-label {
+      color: #606266;
+      font-size: 13px;
+    }
+
+    /* Stat cards */
+    .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 16px; }
+    .stat-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      transition: transform 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0; right: 0; bottom: 0;
+      width: 4px;
+    }
+    .stat-card.blue::before { background: #409eff; }
+    .stat-card.green::before { background: #67c23a; }
+    .stat-card.red::before { background: #f56c6c; }
+    .stat-card.purple::before { background: #9c27b0; }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .stat-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 26px;
+      flex-shrink: 0;
+    }
+    .stat-icon.blue { background: linear-gradient(135deg, #409eff, #36cfc9); }
+    .stat-icon.green { background: linear-gradient(135deg, #67c23a, #95d475); }
+    .stat-icon.red { background: linear-gradient(135deg, #f56c6c, #f89898); }
+    .stat-icon.purple { background: linear-gradient(135deg, #9c27b0, #e91e63); }
+    .stat-info .label { font-size: 13px; color: #909399; margin-bottom: 6px; display: flex; align-items: center; gap: 4px; }
+    .stat-info .value { font-size: 22px; font-weight: 600; color: #303133; }
+    .stat-info .sub { font-size: 12px; color: #909399; margin-top: 4px; }
+
+    .chart {
+      width: 100%;
+      height: 380px;
+    }
+
+    /* Table styles */
+    .cell-money { font-family: 'SFMono-Regular', Consolas, monospace; font-weight: 500; }
+    .cell-money.pos { color: #f56c6c; }
+    .cell-money.paid { color: #67c23a; }
+
+    .footer-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      padding: 12px 0 24px;
+    }
+
+    /* Age tag mini legend */
+    .age-legend {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      font-size: 12px;
+      color: #606266;
+    }
+    .age-legend .item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .age-legend .swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="layout">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-logo">
+          对账通 <span class="logo-badge">v2</span>
+        </div>
+        <el-menu class="sidebar-menu" :default-active="activeMenu" :default-openeds="['customer','recon','collect','report','system']" background-color="#001529" text-color="#b6c2d1" active-text-color="#fff" unique-opened :collapse="false">
+          <el-menu-item index="dashboard" @click="go('dashboard.html')">
+            <el-icon><Odometer/></el-icon>
+            <template #title>工作台</template>
+          </el-menu-item>
+
+          <el-sub-menu index="customer">
+            <template #title><el-icon><UserFilled/></el-icon><span>客户中心</span></template>
+            <el-menu-item index="customer-ledger" @click="go('customer-ledger.html')">客户往来账</el-menu-item>
+            <el-menu-item index="customer-types" @click="go('customer-types.html')">客户类型</el-menu-item>
+            <el-menu-item index="customer-tags" @click="go('customer-tags.html')">客户标签</el-menu-item>
+          </el-sub-menu>
+
+          <el-sub-menu index="recon">
+            <template #title><el-icon><List/></el-icon><span>对账管理</span></template>
+            <el-menu-item index="statement-list" @click="go('statement-list.html')">对账单列表</el-menu-item>
+            <el-menu-item index="statement-create" @click="go('statement-create.html')">发起对账</el-menu-item>
+          </el-sub-menu>
+
+          <el-sub-menu index="collect">
+            <template #title><el-icon><Phone/></el-icon><span>催收中心</span></template>
+            <el-menu-item index="collection-orders" @click="go('collection-orders.html')">催收工单</el-menu-item>
+            <el-menu-item index="collection-profiles" @click="go('collection-profiles.html')">催收策略</el-menu-item>
+            <el-menu-item index="call-tasks" @click="go('call-tasks.html')">外呼任务</el-menu-item>
+            <el-menu-item index="call-records" @click="go('call-records.html')">外呼记录</el-menu-item>
+          </el-sub-menu>
+
+          <el-menu-item index="messages" @click="go('messages.html')">
+            <el-icon><Bell/></el-icon>
+            <template #title>
+              <span>消息中心</span>
+              <el-badge :value="12" class="msg-badge" style="margin-left:8px"/>
+            </template>
+          </el-menu-item>
+
+          <el-sub-menu index="report">
+            <template #title><el-icon><DataAnalysis/></el-icon><span>报表分析</span></template>
+            <el-menu-item index="receivable-report" @click="go('receivable-report.html')">应收报表</el-menu-item>
+            <el-menu-item index="collection-report" @click="go('collection-report.html')">催收报表</el-menu-item>
+          </el-sub-menu>
+
+          <el-sub-menu index="system">
+            <template #title><el-icon><Setting/></el-icon><span>系统设置</span></template>
+            <el-menu-item index="subjects-filter" @click="go('subjects-filter.html')">科目过滤</el-menu-item>
+            <el-menu-item index="call-scripts" @click="go('call-scripts.html')">AI话术管理</el-menu-item>
+            <el-menu-item index="aliyun-config" @click="go('aliyun-config.html')">阿里云配置</el-menu-item>
+            <el-menu-item index="holiday-calendar" @click="go('holiday-calendar.html')">节假日日历</el-menu-item>
+            <el-menu-item index="tpl">对账单模板</el-menu-item>
+            <el-menu-item index="erp">ERP配置</el-menu-item>
+            <el-menu-item index="user">用户管理</el-menu-item>
+            <el-menu-item index="enterprise">企业设置</el-menu-item>
+          </el-sub-menu>
+        </el-menu>
+      </aside>
+
+      <!-- Main -->
+      <div class="main">
+        <header class="header">
+          <div class="breadcrumb-wrap">
+            <el-breadcrumb separator="/">
+              <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
+              <el-breadcrumb-item>报表分析</el-breadcrumb-item>
+              <el-breadcrumb-item>应收报表</el-breadcrumb-item>
+            </el-breadcrumb>
+          </div>
+          <div class="header-right">
+            <el-tooltip content="刷新" placement="bottom"><el-icon class="header-icon-btn"><Refresh/></el-icon></el-tooltip>
+            <el-tooltip content="全屏" placement="bottom"><el-icon class="header-icon-btn"><FullScreen/></el-icon></el-tooltip>
+            <el-badge :value="12" class="msg-badge">
+              <el-icon class="header-icon-btn" @click="go('messages.html')"><Bell/></el-icon>
+            </el-badge>
+            <span class="enterprise-chip"><el-icon><OfficeBuilding/></el-icon>某某钢铁有限公司</span>
+            <el-dropdown>
+              <div class="header-user">
+                <el-avatar :size="32" style="background:#409eff">李</el-avatar>
+                <div>
+                  <div class="name">李财务</div>
+                  <div class="role">企业管理员</div>
+                </div>
+              </div>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item>个人设置</el-dropdown-item>
+                  <el-dropdown-item>修改密码</el-dropdown-item>
+                  <el-dropdown-item divided @click="go('login.html')">退出登录</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+        </header>
+
+        <main class="content">
+          <div class="page-title">应收报表</div>
+          <div class="page-subtitle">按客户维度的应收账款分析 · 支持账龄分析、催收阶段联动 · 数据截至 2025-03-18</div>
+
+          <!-- Filter -->
+          <div class="card">
+            <div class="filter-bar">
+              <span class="filter-label">日期范围:</span>
+              <el-date-picker v-model="filter.dateRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" size="default" style="width:280px"/>
+              <span class="filter-label">客户类型:</span>
+              <el-select v-model="filter.custType" placeholder="全部" size="default" style="width:140px" clearable>
+                <el-option label="全部" value=""/>
+                <el-option label="经销商" value="经销商"/>
+                <el-option label="加工厂" value="加工厂"/>
+                <el-option label="大型终端" value="大型终端"/>
+                <el-option label="同行" value="同行"/>
+              </el-select>
+              <span class="filter-label">客户等级:</span>
+              <el-select v-model="filter.level" placeholder="全部" size="default" style="width:120px" clearable>
+                <el-option label="全部" value=""/>
+                <el-option label="A 级" value="A"/>
+                <el-option label="B 级" value="B"/>
+                <el-option label="C 级" value="C"/>
+                <el-option label="D 级" value="D"/>
+              </el-select>
+              <span class="filter-label">对账状态:</span>
+              <el-select v-model="filter.status" placeholder="全部" size="default" style="width:140px" clearable>
+                <el-option label="全部" value=""/>
+                <el-option label="已确认" value="已确认"/>
+                <el-option label="待确认" value="待确认"/>
+                <el-option label="视同确认" value="视同确认"/>
+                <el-option label="异议中" value="异议中"/>
+              </el-select>
+              <el-button type="primary" size="default"><el-icon><Search/></el-icon>查询</el-button>
+              <el-button size="default"><el-icon><RefreshRight/></el-icon>重置</el-button>
+            </div>
+          </div>
+
+          <!-- Stat cards -->
+          <div class="stat-row">
+            <div class="stat-card blue">
+              <div class="stat-icon blue"><el-icon><Money/></el-icon></div>
+              <div class="stat-info">
+                <div class="label">应收总额</div>
+                <div class="value">¥2,568,900</div>
+                <div class="sub">78 家客户 · 共 245 笔</div>
+              </div>
+            </div>
+            <div class="stat-card green">
+              <div class="stat-icon green"><el-icon><CircleCheckFilled/></el-icon></div>
+              <div class="stat-info">
+                <div class="label">未到期</div>
+                <div class="value" style="color:#67c23a">¥1,800,000</div>
+                <div class="sub">占比 70.1%</div>
+              </div>
+            </div>
+            <div class="stat-card red">
+              <div class="stat-icon red"><el-icon><Warning/></el-icon></div>
+              <div class="stat-info">
+                <div class="label">已逾期</div>
+                <div class="value" style="color:#f56c6c">¥568,000</div>
+                <div class="sub">18 家客户逾期 · 占比 22.1%</div>
+              </div>
+            </div>
+            <div class="stat-card purple">
+              <div class="stat-icon purple"><el-icon><Timer/></el-icon></div>
+              <div class="stat-info">
+                <div class="label">平均账龄</div>
+                <div class="value" style="color:#9c27b0">32 天</div>
+                <div class="sub">较上月 <span style="color:#f56c6c">↑ 4 天</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Aging chart -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <span class="accent"></span>
+                账龄分析
+                <span class="card-desc">按客户维度堆叠展示（Top 10）</span>
+              </div>
+              <div class="age-legend">
+                <div class="item"><span class="swatch" style="background:#67c23a"></span>0-30天</div>
+                <div class="item"><span class="swatch" style="background:#e6a23c"></span>31-60天</div>
+                <div class="item"><span class="swatch" style="background:#f5a962"></span>61-90天</div>
+                <div class="item"><span class="swatch" style="background:#f56c6c"></span>90+天</div>
+              </div>
+            </div>
+            <div ref="agingChart" class="chart"></div>
+          </div>
+
+          <!-- Detail table -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <span class="accent"></span>
+                应收明细
+                <span class="card-desc">按应收总额降序 · 共 10 条</span>
+              </div>
+              <div>
+                <el-input v-model="tableSearch" placeholder="搜索客户名称" size="small" style="width:200px" clearable>
+                  <template #prefix><el-icon><Search/></el-icon></template>
+                </el-input>
+              </div>
+            </div>
+
+            <el-table :data="rows" style="width:100%" size="default" stripe :show-summary="true" :summary-method="summarize">
+              <el-table-column prop="name" label="客户名称" min-width="140" fixed/>
+              <el-table-column label="类型 / 等级" width="140">
+                <template #default="{row}">
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <span style="color:#606266">{{ row.type }}</span>
+                    <el-tag :type="levelTag(row.level)" effect="dark" size="small" style="width:26px;text-align:center;font-weight:600">{{ row.level }}</el-tag>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column label="应收总额" width="130" align="right" sortable>
+                <template #default="{row}">
+                  <span class="cell-money pos">¥{{ row.total.toLocaleString() }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="已付款(ERP)" width="130" align="right">
+                <template #default="{row}">
+                  <span class="cell-money paid">¥{{ row.paid.toLocaleString() }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="未收金额" width="130" align="right" sortable>
+                <template #default="{row}">
+                  <span class="cell-money pos">¥{{ row.unpaid.toLocaleString() }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="账龄" width="120" align="center" sortable>
+                <template #default="{row}">
+                  <el-tag :type="ageTag(row.age)" effect="light" size="small">{{ row.age }} 天</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="lastRecon" label="最近对账" width="115" align="center"/>
+              <el-table-column label="对账状态" width="120" align="center">
+                <template #default="{row}">
+                  <el-tag :type="statusTag(row.status)" effect="light" size="small">{{ row.status }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="催收阶段" width="110" align="center" fixed="right">
+                <template #default="{row}">
+                  <el-tag v-if="row.stage" :type="stageTag(row.stage)" effect="dark" size="small">{{ row.stage }}</el-tag>
+                  <span v-else style="color:#c0c4cc">-</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="130" align="center" fixed="right">
+                <template #default>
+                  <el-button link type="primary" size="small">对账单</el-button>
+                  <el-button link type="danger" size="small">催收</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+
+            <div style="display:flex;justify-content:flex-end;margin-top:16px">
+              <el-pagination background layout="total, sizes, prev, pager, next" :total="78" :page-size="10"/>
+            </div>
+          </div>
+
+          <div class="footer-actions">
+            <el-button size="default"><el-icon><Download/></el-icon>导出 Excel</el-button>
+            <el-button size="default"><el-icon><Printer/></el-icon>导出 PDF</el-button>
+            <el-button type="primary" size="default"><el-icon><Promotion/></el-icon>批量催办</el-button>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, nextTick } = Vue;
+    const app = createApp({
+      data() {
+        return {
+          activeMenu: 'receivable-report',
+          filter: {
+            dateRange: [new Date('2025-01-01'), new Date('2025-03-31')],
+            custType: '',
+            level: '',
+            status: ''
+          },
+          tableSearch: '',
+          rows: [
+            { name: '某某科技有限公司', type: '大型终端', level: 'A', total: 356800, paid: 200500, unpaid: 156300, age: 22, lastRecon: '2025-03-16', status: '异议中', stage: '' },
+            { name: '某某建筑工程有限公司', type: '经销商', level: 'D', total: 298600, paid: 200000, unpaid: 98600, age: 65, lastRecon: '2025-03-14', status: '视同确认', stage: '阶段2' },
+            { name: '某某制造集团', type: '经销商', level: 'B', total: 289500, paid: 200000, unpaid: 89500, age: 28, lastRecon: '2025-03-14', status: '已确认', stage: '' },
+            { name: '某某物流有限公司', type: '同行', level: 'C', total: 312000, paid: 312000, unpaid: 0, age: 0, lastRecon: '2025-03-15', status: '已完成', stage: '' },
+            { name: '某某贸易有限公司', type: '经销商', level: 'B', total: 175800, paid: 100000, unpaid: 75800, age: 18, lastRecon: '2025-03-17', status: '待确认', stage: '' },
+            { name: '某某建材有限公司', type: '加工厂', level: 'C', total: 267200, paid: 200000, unpaid: 67200, age: 45, lastRecon: '2025-03-15', status: '已确认', stage: '阶段1' },
+            { name: '某某钢结构有限公司', type: '加工厂', level: 'C', total: 145600, paid: 90000, unpaid: 55600, age: 38, lastRecon: '2025-03-13', status: '已确认', stage: '阶段1' },
+            { name: '某某工程机械有限公司', type: '大型终端', level: 'A', total: 528000, paid: 480000, unpaid: 48000, age: 12, lastRecon: '2025-03-16', status: '已确认', stage: '' },
+            { name: '某某地产集团', type: '大型终端', level: 'A', total: 462000, paid: 380000, unpaid: 82000, age: 55, lastRecon: '2025-03-12', status: '已确认', stage: '阶段2' },
+            { name: '某某市政工程有限公司', type: '经销商', level: 'D', total: 218400, paid: 130000, unpaid: 88400, age: 92, lastRecon: '2025-03-10', status: '视同确认', stage: '阶段3' }
+          ]
+        }
+      },
+      methods: {
+        go(url) { if (url && url !== '#') window.location.href = url; },
+        levelTag(l) { return { A: 'success', B: 'primary', C: 'warning', D: 'danger' }[l] || 'info'; },
+        ageTag(a) {
+          if (a <= 30) return 'success';
+          if (a <= 60) return 'warning';
+          if (a <= 90) return 'warning';
+          return 'danger';
+        },
+        statusTag(s) {
+          return {
+            '已确认': 'success',
+            '已完成': 'success',
+            '待确认': 'warning',
+            '视同确认': 'info',
+            '异议中': 'danger'
+          }[s] || 'info';
+        },
+        stageTag(s) {
+          return { '阶段1': 'warning', '阶段2': 'danger', '阶段3': 'danger' }[s] || 'info';
+        },
+        summarize({ columns, data }) {
+          const sums = new Array(columns.length).fill('');
+          sums[0] = '合计';
+          const totalKey = { 2: 'total', 3: 'paid', 4: 'unpaid' };
+          for (const [i, k] of Object.entries(totalKey)) {
+            const s = data.reduce((a, r) => a + r[k], 0);
+            sums[i] = '¥' + s.toLocaleString();
+          }
+          return sums;
+        },
+        initAgingChart() {
+          const el = this.$refs.agingChart;
+          if (!el) return;
+          const chart = echarts.init(el);
+          const clientNames = [
+            '某某工程机械', '某某地产集团', '某某科技', '某某物流', '某某建筑',
+            '某某制造', '某某建材', '某某贸易', '某某钢结构', '某某市政'
+          ];
+          const s030 = [480000, 260000, 200500, 312000, 30000, 210000, 130000, 100000, 62000, 30000];
+          const s3160 = [30000, 120000, 100000, 0, 40000, 60000, 60000, 50000, 40000, 40000];
+          const s6190 = [12000, 62000, 40000, 0, 88000, 15000, 55000, 15000, 30000, 60000];
+          const s90plus = [6000, 20000, 16000, 0, 140600, 4500, 22200, 10800, 13600, 88400];
+
+          chart.setOption({
+            tooltip: {
+              trigger: 'axis',
+              axisPointer: { type: 'shadow' },
+              formatter: p => {
+                let sum = 0;
+                let s = p[0].axisValueLabel + '<br/>';
+                p.forEach(x => { sum += x.value; s += x.marker + x.seriesName + ': ¥' + x.value.toLocaleString() + '<br/>'; });
+                s += '<b>合计: ¥' + sum.toLocaleString() + '</b>';
+                return s;
+              }
+            },
+            legend: { top: 8, right: 20, icon: 'roundRect', itemWidth: 12, itemHeight: 10, textStyle: { color: '#606266' } },
+            grid: { left: 70, right: 30, top: 50, bottom: 60 },
+            xAxis: {
+              type: 'category',
+              data: clientNames,
+              axisLabel: { color: '#606266', rotate: 20, interval: 0 },
+              axisLine: { lineStyle: { color: '#dcdfe6' } }
+            },
+            yAxis: {
+              type: 'value',
+              axisLabel: { color: '#909399', formatter: v => (v / 10000) + '万' },
+              splitLine: { lineStyle: { color: '#f0f2f5' } }
+            },
+            series: [
+              { name: '0-30 天', type: 'bar', stack: 'age', data: s030, itemStyle: { color: '#67c23a' }, barMaxWidth: 42 },
+              { name: '31-60 天', type: 'bar', stack: 'age', data: s3160, itemStyle: { color: '#e6a23c' } },
+              { name: '61-90 天', type: 'bar', stack: 'age', data: s6190, itemStyle: { color: '#f5a962' } },
+              { name: '90+ 天', type: 'bar', stack: 'age', data: s90plus, itemStyle: { color: '#f56c6c' } }
+            ]
+          });
+          this._chart = chart;
+        }
+      },
+      mounted() {
+        nextTick(() => this.initAgingChart());
+        window.addEventListener('resize', () => this._chart && this._chart.resize());
+      }
+    });
+    app.use(ElementPlus);
+    for (const [k, v] of Object.entries(ElementPlusIconsVue)) {
+      app.component(k, v);
+    }
+    app.mount('#app');
+  </script>
+</body>
+</html>

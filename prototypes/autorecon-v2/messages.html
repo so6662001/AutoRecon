@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>消息中心 - 对账通v2原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f5f7fa;
+      color: #303133;
+    }
+    .layout { display: flex; min-height: 100vh; }
+
+    /* Sidebar */
+    .sidebar {
+      width: 220px;
+      background: #001529;
+      color: #fff;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      overflow-y: auto;
+      z-index: 10;
+    }
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-thumb { background: #1f3145; border-radius: 2px; }
+    .sidebar-logo {
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      gap: 8px;
+    }
+    .sidebar-logo .logo-badge {
+      background: linear-gradient(135deg, #409eff, #9c27b0);
+      color: #fff;
+      font-size: 11px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+    .el-menu.sidebar-menu {
+      background: transparent;
+      border-right: none;
+    }
+    .el-menu.sidebar-menu .el-menu-item,
+    .el-menu.sidebar-menu .el-sub-menu__title {
+      color: #b6c2d1;
+      height: 44px;
+      line-height: 44px;
+    }
+    .el-menu.sidebar-menu .el-menu-item.is-active {
+      color: #fff;
+      background: #409eff !important;
+    }
+    .el-menu.sidebar-menu .el-menu-item:hover,
+    .el-menu.sidebar-menu .el-sub-menu__title:hover {
+      background: #0a2540 !important;
+      color: #fff !important;
+    }
+    .el-menu.sidebar-menu .el-sub-menu .el-menu {
+      background: #000c17;
+    }
+    .el-menu.sidebar-menu .el-sub-menu .el-menu-item {
+      background: #000c17;
+      padding-left: 48px !important;
+    }
+    .el-menu.sidebar-menu .el-sub-menu .el-menu-item.is-active {
+      background: #409eff !important;
+    }
+
+    /* Main */
+    .main { flex: 1; margin-left: 220px; display: flex; flex-direction: column; }
+    .header {
+      height: 60px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+    .breadcrumb-wrap { display: flex; align-items: center; gap: 12px; }
+    .header-right { display: flex; align-items: center; gap: 20px; }
+    .enterprise-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #f0f7ff;
+      color: #409eff;
+      padding: 6px 12px;
+      border-radius: 16px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .header-icon-btn {
+      color: #606266;
+      cursor: pointer;
+      font-size: 18px;
+    }
+    .header-user {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+    .header-user .name { font-size: 13px; color: #303133; }
+    .header-user .role { font-size: 11px; color: #909399; }
+
+    .content { padding: 20px 24px; }
+    .page-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #303133;
+      margin-bottom: 4px;
+    }
+    .page-subtitle {
+      font-size: 13px;
+      color: #909399;
+      margin-bottom: 20px;
+    }
+
+    /* Messages layout */
+    .msg-layout {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 16px;
+    }
+    .msg-main {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+      overflow: hidden;
+    }
+    .msg-tabs {
+      padding: 0 20px;
+      border-bottom: 1px solid #ebeef5;
+    }
+    .msg-subbar {
+      padding: 12px 20px;
+      background: #fafbfc;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #f0f2f5;
+    }
+    .msg-list {
+      padding: 4px 0;
+    }
+    .msg-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 16px 20px;
+      border-bottom: 1px solid #f2f3f5;
+      transition: background 0.15s;
+      cursor: pointer;
+      position: relative;
+    }
+    .msg-item:hover {
+      background: #fafbfc;
+    }
+    .msg-item.unread {
+      background: #f8fbff;
+      border-left: 3px solid #409eff;
+      padding-left: 17px;
+    }
+    .msg-item.unread .msg-title {
+      font-weight: 600;
+    }
+    .msg-item:last-child { border-bottom: none; }
+    .msg-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    .msg-avatar.recon { background: linear-gradient(135deg, #409eff, #36cfc9); }
+    .msg-avatar.collect { background: linear-gradient(135deg, #e6a23c, #f5a962); }
+    .msg-avatar.dispute { background: linear-gradient(135deg, #f56c6c, #f89898); }
+    .msg-avatar.system { background: linear-gradient(135deg, #909399, #b1b3b8); }
+    .msg-avatar.call { background: linear-gradient(135deg, #9c27b0, #e91e63); }
+    .msg-avatar.success { background: linear-gradient(135deg, #67c23a, #95d475); }
+    .msg-body {
+      flex: 1;
+      min-width: 0;
+    }
+    .msg-title {
+      color: #303133;
+      font-size: 14px;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .msg-desc {
+      color: #606266;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .msg-desc strong {
+      color: #f56c6c;
+      font-weight: 600;
+    }
+    .msg-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 8px;
+    }
+    .msg-time {
+      color: #c0c4cc;
+      font-size: 12px;
+    }
+    .msg-actions {
+      display: flex;
+      gap: 4px;
+    }
+    .unread-dot {
+      width: 8px;
+      height: 8px;
+      background: #f56c6c;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 6px;
+    }
+    .msg-item:not(.unread) .unread-dot { visibility: hidden; }
+
+    /* Right panel */
+    .side-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+      margin-bottom: 16px;
+    }
+    .side-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #303133;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .side-title .accent {
+      width: 3px;
+      height: 14px;
+      background: #409eff;
+      border-radius: 2px;
+    }
+    .unread-summary {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .unread-item {
+      background: #fafbfc;
+      border-radius: 8px;
+      padding: 14px 12px;
+      text-align: center;
+      transition: all 0.15s;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+    .unread-item:hover {
+      background: #fff;
+      border-color: #409eff;
+      box-shadow: 0 2px 8px rgba(64,158,255,0.15);
+    }
+    .unread-item .u-num {
+      font-size: 22px;
+      font-weight: 600;
+      color: #303133;
+      margin-bottom: 4px;
+    }
+    .unread-item .u-label {
+      font-size: 12px;
+      color: #909399;
+    }
+    .unread-item.hot .u-num { color: #f56c6c; }
+    .unread-item.warn .u-num { color: #e6a23c; }
+    .unread-item.info .u-num { color: #409eff; }
+    .unread-item.done .u-num { color: #67c23a; }
+
+    .quick-filter {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .quick-filter .qf-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      color: #606266;
+      font-size: 13px;
+      transition: background 0.15s;
+    }
+    .quick-filter .qf-item:hover {
+      background: #f5f7fa;
+    }
+    .quick-filter .qf-item.active {
+      background: #ecf5ff;
+      color: #409eff;
+      font-weight: 500;
+    }
+
+    .push-set-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px dashed #ebeef5;
+      font-size: 13px;
+      color: #606266;
+    }
+    .push-set-item:last-child { border-bottom: none; }
+
+    .msg-source-tag {
+      background: #f0f2f5;
+      color: #909399;
+      padding: 0 6px;
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: normal;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="layout">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-logo">
+          对账通 <span class="logo-badge">v2</span>
+        </div>
+        <el-menu class="sidebar-menu" :default-active="activeMenu" :default-openeds="['customer','recon','collect','report','system']" background-color="#001529" text-color="#b6c2d1" active-text-color="#fff" unique-opened :collapse="false">
+          <el-menu-item index="dashboard" @click="go('dashboard.html')">
+            <el-icon><Odometer/></el-icon>
+            <template #title>工作台</template>
+          </el-menu-item>
+
+          <el-sub-menu index="customer">
+            <template #title><el-icon><UserFilled/></el-icon><span>客户中心</span></template>
+            <el-menu-item index="customer-ledger" @click="go('customer-ledger.html')">客户往来账</el-menu-item>
+            <el-menu-item index="customer-types" @click="go('customer-types.html')">客户类型</el-menu-item>
+            <el-menu-item index="customer-tags" @click="go('customer-tags.html')">客户标签</el-menu-item>
+          </el-sub-menu>
+
+          <el-sub-menu index="recon">
+            <template #title><el-icon><List/></el-icon><span>对账管理</span></template>
+            <el-menu-item index="statement-list" @click="go('statement-list.html')">对账单列表</el-menu-item>
+            <el-menu-item index="statement-create" @click="go('statement-create.html')">发起对账</el-menu-item>
+          </el-sub-menu>
+
+          <el-sub-menu index="collect">
+            <template #title><el-icon><Phone/></el-icon><span>催收中心</span></template>
+            <el-menu-item index="collection-orders" @click="go('collection-orders.html')">催收工单</el-menu-item>
+            <el-menu-item index="collection-profiles" @click="go('collection-profiles.html')">催收策略</el-menu-item>
+            <el-menu-item index="call-tasks" @click="go('call-tasks.html')">外呼任务</el-menu-item>
+            <el-menu-item index="call-records" @click="go('call-records.html')">外呼记录</el-menu-item>
+          </el-sub-menu>
+
+          <el-menu-item index="messages" @click="go('messages.html')">
+            <el-icon><Bell/></el-icon>
+            <template #title>
+              <span>消息中心</span>
+              <el-badge :value="12" class="msg-badge" style="margin-left:8px"/>
+            </template>
+          </el-menu-item>
+
+          <el-sub-menu index="report">
+            <template #title><el-icon><DataAnalysis/></el-icon><span>报表分析</span></template>
+            <el-menu-item index="receivable-report" @click="go('receivable-report.html')">应收报表</el-menu-item>
+            <el-menu-item index="collection-report" @click="go('collection-report.html')">催收报表</el-menu-item>
+          </el-sub-menu>
+
+          <el-sub-menu index="system">
+            <template #title><el-icon><Setting/></el-icon><span>系统设置</span></template>
+            <el-menu-item index="subjects-filter" @click="go('subjects-filter.html')">科目过滤</el-menu-item>
+            <el-menu-item index="call-scripts" @click="go('call-scripts.html')">AI话术管理</el-menu-item>
+            <el-menu-item index="aliyun-config" @click="go('aliyun-config.html')">阿里云配置</el-menu-item>
+            <el-menu-item index="holiday-calendar" @click="go('holiday-calendar.html')">节假日日历</el-menu-item>
+            <el-menu-item index="tpl">对账单模板</el-menu-item>
+            <el-menu-item index="erp">ERP配置</el-menu-item>
+            <el-menu-item index="user">用户管理</el-menu-item>
+            <el-menu-item index="enterprise">企业设置</el-menu-item>
+          </el-sub-menu>
+        </el-menu>
+      </aside>
+
+      <!-- Main -->
+      <div class="main">
+        <header class="header">
+          <div class="breadcrumb-wrap">
+            <el-breadcrumb separator="/">
+              <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
+              <el-breadcrumb-item>消息中心</el-breadcrumb-item>
+            </el-breadcrumb>
+          </div>
+          <div class="header-right">
+            <el-tooltip content="刷新" placement="bottom"><el-icon class="header-icon-btn"><Refresh/></el-icon></el-tooltip>
+            <el-tooltip content="全屏" placement="bottom"><el-icon class="header-icon-btn"><FullScreen/></el-icon></el-tooltip>
+            <el-badge :value="12" class="msg-badge">
+              <el-icon class="header-icon-btn"><Bell/></el-icon>
+            </el-badge>
+            <span class="enterprise-chip"><el-icon><OfficeBuilding/></el-icon>某某钢铁有限公司</span>
+            <el-dropdown>
+              <div class="header-user">
+                <el-avatar :size="32" style="background:#409eff">李</el-avatar>
+                <div>
+                  <div class="name">李财务</div>
+                  <div class="role">企业管理员</div>
+                </div>
+              </div>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item>个人设置</el-dropdown-item>
+                  <el-dropdown-item>修改密码</el-dropdown-item>
+                  <el-dropdown-item divided @click="go('login.html')">退出登录</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+        </header>
+
+        <main class="content">
+          <div class="page-title">消息中心</div>
+          <div class="page-subtitle">对账、催收、异议、系统消息统一入口 · 支持多端同步推送</div>
+
+          <div class="msg-layout">
+            <!-- Left: message main list -->
+            <div class="msg-main">
+              <div class="msg-tabs">
+                <el-tabs v-model="activeTab" @tab-change="onTabChange">
+                  <el-tab-pane name="all">
+                    <template #label>全部 <el-badge :value="24" type="info" class="tab-badge" style="margin-left:4px"/></template>
+                  </el-tab-pane>
+                  <el-tab-pane name="recon">
+                    <template #label>对账 <el-badge :value="12" type="primary" class="tab-badge" style="margin-left:4px"/></template>
+                  </el-tab-pane>
+                  <el-tab-pane name="collect">
+                    <template #label>催收 <el-badge :value="8" type="warning" class="tab-badge" style="margin-left:4px"/></template>
+                  </el-tab-pane>
+                  <el-tab-pane name="dispute">
+                    <template #label>异议 <el-badge :value="2" type="danger" class="tab-badge" style="margin-left:4px"/></template>
+                  </el-tab-pane>
+                  <el-tab-pane name="system">
+                    <template #label>系统 <el-badge :value="2" type="info" class="tab-badge" style="margin-left:4px"/></template>
+                  </el-tab-pane>
+                </el-tabs>
+              </div>
+
+              <div class="msg-subbar">
+                <el-radio-group v-model="readFilter" size="small">
+                  <el-radio-button value="all">全部</el-radio-button>
+                  <el-radio-button value="unread">未读 (9)</el-radio-button>
+                </el-radio-group>
+                <div style="display:flex;gap:8px">
+                  <el-button size="small" plain><el-icon><Select/></el-icon>全部标为已读</el-button>
+                  <el-button size="small" plain><el-icon><Setting/></el-icon>推送设置</el-button>
+                </div>
+              </div>
+
+              <div class="msg-list">
+                <div
+                  v-for="m in filteredMessages"
+                  :key="m.id"
+                  class="msg-item"
+                  :class="{unread: m.unread}"
+                >
+                  <div class="unread-dot"></div>
+                  <div class="msg-avatar" :class="m.iconType">
+                    <el-icon><component :is="m.icon"/></el-icon>
+                  </div>
+                  <div class="msg-body">
+                    <div class="msg-title">
+                      <el-tag :type="m.tagType" size="small" effect="light">{{ m.tag }}</el-tag>
+                      <span>{{ m.title }}</span>
+                      <span v-if="m.source" class="msg-source-tag">{{ m.source }}</span>
+                    </div>
+                    <div class="msg-desc" v-html="m.desc"></div>
+                    <div class="msg-meta">
+                      <span class="msg-time"><el-icon style="vertical-align:-2px"><Clock/></el-icon> {{ m.time }}</span>
+                      <div class="msg-actions">
+                        <el-button v-if="m.action" link type="primary" size="small">{{ m.action }} →</el-button>
+                        <el-button link size="small">标记已读</el-button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="text-align:center;padding:16px;color:#909399;font-size:13px;border-top:1px solid #ebeef5">
+                共 24 条消息 · <el-button link type="primary" size="small">加载更多</el-button>
+              </div>
+            </div>
+
+            <!-- Right side panel -->
+            <div>
+              <div class="side-card">
+                <div class="side-title"><span class="accent"></span>未读统计</div>
+                <div class="unread-summary">
+                  <div class="unread-item hot">
+                    <div class="u-num">4</div>
+                    <div class="u-label">紧急</div>
+                  </div>
+                  <div class="unread-item warn">
+                    <div class="u-num">3</div>
+                    <div class="u-label">待处理</div>
+                  </div>
+                  <div class="unread-item info">
+                    <div class="u-num">2</div>
+                    <div class="u-label">通知</div>
+                  </div>
+                  <div class="unread-item done">
+                    <div class="u-num">15</div>
+                    <div class="u-label">已完成</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="side-card">
+                <div class="side-title"><span class="accent"></span>快捷筛选</div>
+                <div class="quick-filter">
+                  <div class="qf-item active">
+                    <span><el-icon style="vertical-align:-2px;margin-right:6px"><Bell/></el-icon>今日消息</span>
+                    <el-tag size="small" type="primary" effect="light">9</el-tag>
+                  </div>
+                  <div class="qf-item">
+                    <span><el-icon style="vertical-align:-2px;margin-right:6px"><Warning/></el-icon>需我处理</span>
+                    <el-tag size="small" type="danger" effect="light">5</el-tag>
+                  </div>
+                  <div class="qf-item">
+                    <span><el-icon style="vertical-align:-2px;margin-right:6px"><User/></el-icon>@我的</span>
+                    <el-tag size="small" type="warning" effect="light">2</el-tag>
+                  </div>
+                  <div class="qf-item">
+                    <span><el-icon style="vertical-align:-2px;margin-right:6px"><Phone/></el-icon>AI外呼动态</span>
+                    <el-tag size="small" type="info" effect="light">8</el-tag>
+                  </div>
+                  <div class="qf-item">
+                    <span><el-icon style="vertical-align:-2px;margin-right:6px"><Star/></el-icon>已加星标</span>
+                    <el-tag size="small" type="info" effect="light">3</el-tag>
+                  </div>
+                </div>
+              </div>
+
+              <div class="side-card">
+                <div class="side-title"><span class="accent"></span>推送设置</div>
+                <div class="push-set-item">
+                  <span><el-icon style="vertical-align:-2px;margin-right:6px;color:#409eff"><Message/></el-icon>站内消息</span>
+                  <el-switch v-model="push.web"/>
+                </div>
+                <div class="push-set-item">
+                  <span><el-icon style="vertical-align:-2px;margin-right:6px;color:#67c23a"><Iphone/></el-icon>短信通知</span>
+                  <el-switch v-model="push.sms"/>
+                </div>
+                <div class="push-set-item">
+                  <span><el-icon style="vertical-align:-2px;margin-right:6px;color:#e6a23c"><ChatDotRound/></el-icon>企业微信</span>
+                  <el-switch v-model="push.wechat"/>
+                </div>
+                <div class="push-set-item">
+                  <span><el-icon style="vertical-align:-2px;margin-right:6px;color:#909399"><Message/></el-icon>邮件通知</span>
+                  <el-switch v-model="push.mail"/>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createApp } = Vue;
+    const app = createApp({
+      data() {
+        return {
+          activeMenu: 'messages',
+          activeTab: 'all',
+          readFilter: 'all',
+          push: { web: true, sms: true, wechat: true, mail: false },
+          allMessages: [
+            { id: 1, cat: 'recon', tag: '对账·待确认', tagType: 'warning', iconType: 'recon', icon: 'Document', title: '某某贸易 R202503001 待确认', desc: '对账单已发送 <strong>3天</strong> 仍未确认，建议主动跟进或触发催办流程', time: '10 分钟前', unread: true, action: '查看对账单', source: '站内+短信' },
+            { id: 2, cat: 'collect', tag: '催收·逾期', tagType: 'danger', iconType: 'collect', icon: 'Warning', title: '某某建材 逾期款项 ¥67,200', desc: '逾期 <strong>15 天</strong>，已自动进入 <strong>阶段1</strong> 通知催收（短信+邮件），预计3天后升级', time: '1 小时前', unread: true, action: '进入工单', source: '站内' },
+            { id: 3, cat: 'recon', tag: '对账·已确认', tagType: 'success', iconType: 'success', icon: 'CircleCheckFilled', title: '某某制造 R202503002 已确认', desc: '客户已通过 手机验证 + 电子签章 完成确认，对账单已归档', time: '2 小时前', unread: true, action: '查看凭证', source: '站内' },
+            { id: 4, cat: 'dispute', tag: '对账·异议', tagType: 'danger', iconType: 'dispute', icon: 'Warning', title: '某某科技 提出异议', desc: '异议类型：<strong>金额不符</strong>（差额 ¥5,000），客户备注："3月20日发货重量与结算不符"', time: '昨天 14:30', unread: true, action: '异议复核', source: '站内+邮件' },
+            { id: 5, cat: 'collect', tag: '催收·到款', tagType: 'success', iconType: 'success', icon: 'Money', title: '某某物流 已回款 ¥312,000', desc: '款项已到账，工单 <strong>C-20250310-018</strong> 自动关闭，回款周期 12 天', time: '昨天 10:15', unread: true, action: '查看工单', source: '站内+短信' },
+            { id: 6, cat: 'collect', tag: '外呼·承诺', tagType: 'warning', iconType: 'call', icon: 'Phone', title: '某某建筑 AI外呼承诺付款', desc: '客户承诺 <strong>03-25 前</strong>付款 ¥98,600（含意图识别：高置信度 92%），已加入跟单', time: '前天 16:40', unread: true, action: '听录音', source: 'AI外呼' },
+            { id: 7, cat: 'collect', tag: '催收·外呼', tagType: 'primary', iconType: 'call', icon: 'Headset', title: 'AI外呼今日汇总', desc: '发起外呼 <strong>42 次</strong>，成功接通 <strong>28 次</strong>（接通率 66.7%），承诺付款 8 条', time: '今天 09:00', unread: true, action: '查看报表', source: '站内' },
+            { id: 8, cat: 'system', tag: '系统·告警', tagType: 'danger', iconType: 'system', icon: 'WarningFilled', title: '阿里云外呼余额不足', desc: '当前余额 <strong>¥120</strong>，按日均消耗预计仅可支持 2 天，请及时充值以免影响催收', time: '今天 08:00', unread: true, action: '前往充值', source: '站内+短信' },
+            { id: 9, cat: 'recon', tag: '对账·视同确认', tagType: 'info', iconType: 'recon', icon: 'DocumentChecked', title: '某某建筑 视同确认', desc: '对账单 R202503005 超过 7 天未回应，已自动标记为"视同确认"（不改变财务状态）', time: '今天 07:30', unread: true, action: '查看', source: '站内' },
+            { id: 10, cat: 'recon', tag: '对账·滚动生成', tagType: 'primary', iconType: 'recon', icon: 'Refresh', title: '滚动周期自动生成对账单', desc: '调度器已为 <strong>3 家</strong>客户（5天周期）自动生成 3 月新对账单，等待发送', time: '今天 06:00', unread: false, action: '查看列表', source: '系统' },
+            { id: 11, cat: 'collect', tag: '催收·转人工', tagType: 'warning', iconType: 'collect', icon: 'User', title: '某某科技工单已转人工', desc: 'AI外呼失败 3 次后自动转派给 <strong>王销售</strong>，请及时跟进', time: '昨天 09:20', unread: false, action: '查看工单', source: '站内' },
+            { id: 12, cat: 'recon', tag: '对账·打开', tagType: 'success', iconType: 'success', icon: 'View', title: '客户打开对账单', desc: '某某贸易 已于刚才打开对账链接查看，尚未确认', time: '昨天 08:12', unread: false, source: '站内' },
+            { id: 13, cat: 'system', tag: '系统·升级', tagType: 'info', iconType: 'system', icon: 'Setting', title: '系统将于本周日凌晨升级', desc: '2025-03-23 02:00-04:00 系统维护，届时无法访问，请提前安排', time: '前天', unread: false, source: '公告' },
+            { id: 14, cat: 'collect', tag: '催收·完成', tagType: 'success', iconType: 'success', icon: 'CircleCheckFilled', title: '某某贸易 阶段2 催收完成', desc: 'AI外呼 3 次 + 短信 2 条，客户已承诺 03-30 前付款', time: '前天', unread: false, source: '站内' },
+            { id: 15, cat: 'recon', tag: '对账·发送', tagType: 'primary', iconType: 'recon', icon: 'Promotion', title: '批量发送对账单', desc: '本次向 <strong>18 家</strong>客户批量发送对账单，短信+站内推送均成功', time: '3 天前', unread: false, source: '系统' },
+            { id: 16, cat: 'dispute', tag: '对账·异议·关闭', tagType: 'success', iconType: 'success', icon: 'CircleClose', title: '某某贸易 异议已协商关闭', desc: '双方达成一致：金额修正为 ¥12,500，已重新生成对账单', time: '3 天前', unread: false, source: '站内' }
+          ]
+        }
+      },
+      computed: {
+        filteredMessages() {
+          let list = this.allMessages;
+          if (this.activeTab !== 'all') list = list.filter(m => m.cat === this.activeTab);
+          if (this.readFilter === 'unread') list = list.filter(m => m.unread);
+          return list;
+        }
+      },
+      methods: {
+        go(url) { if (url && url !== '#') window.location.href = url; },
+        onTabChange() {}
+      }
+    });
+    app.use(ElementPlus);
+    for (const [k, v] of Object.entries(ElementPlusIconsVue)) {
+      app.component(k, v);
+    }
+    app.mount('#app');
+  </script>
+</body>
+</html>
