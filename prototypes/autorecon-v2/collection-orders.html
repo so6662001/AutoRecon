@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>催收工单 - 对账通v2原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body, #app { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f0f2f5;
+      color: #303133;
+    }
+    .layout { display: flex; height: 100vh; overflow: hidden; }
+
+    /* Sidebar */
+    .sidebar {
+      width: 220px;
+      background: #001529;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+    .logo {
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      background: rgba(255,255,255,0.03);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .logo .badge {
+      margin-left: 6px;
+      padding: 1px 6px;
+      background: #409eff;
+      border-radius: 3px;
+      font-size: 11px;
+      letter-spacing: 0;
+    }
+    .sidebar .el-menu {
+      background: transparent;
+      border-right: none;
+      flex: 1;
+      overflow-y: auto;
+    }
+    .sidebar .el-menu::-webkit-scrollbar { width: 4px; }
+    .sidebar .el-menu::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
+    .sidebar .el-sub-menu__title,
+    .sidebar .el-menu-item {
+      color: rgba(255,255,255,0.75) !important;
+      height: 44px;
+      line-height: 44px;
+    }
+    .sidebar .el-menu-item:hover,
+    .sidebar .el-sub-menu__title:hover {
+      background: rgba(255,255,255,0.05) !important;
+      color: #fff !important;
+    }
+    .sidebar .el-menu-item.is-active {
+      background: #409eff !important;
+      color: #fff !important;
+    }
+    .sidebar .el-sub-menu .el-menu-item {
+      background: #000c17 !important;
+      padding-left: 48px !important;
+    }
+    .sidebar .el-sub-menu .el-menu-item.is-active {
+      background: #409eff !important;
+    }
+
+    /* Main */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .header {
+      height: 60px;
+      background: #fff;
+      border-bottom: 1px solid #e4e7ed;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+    }
+    .header .breadcrumb { font-size: 14px; }
+    .header .right { display: flex; align-items: center; gap: 20px; }
+    .header .company {
+      padding: 4px 12px;
+      background: #f0f5ff;
+      color: #2f54eb;
+      border-radius: 4px;
+      font-size: 13px;
+      border: 1px solid #d6e4ff;
+    }
+    .user-drop { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .user-drop .el-avatar { background: #409eff; }
+
+    .content { flex: 1; overflow-y: auto; padding: 20px; }
+    .page-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #1f2d3d;
+    }
+
+    /* Stat cards */
+    .stat-row { margin-bottom: 16px; }
+    .stat-card {
+      background: #fff;
+      border-radius: 6px;
+      padding: 18px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-left: 4px solid transparent;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .stat-card .label { color: #909399; font-size: 13px; margin-bottom: 8px; }
+    .stat-card .value { font-size: 26px; font-weight: 600; color: #1f2d3d; }
+    .stat-card .sub { font-size: 12px; color: #909399; margin-top: 4px; }
+    .stat-card .icon-wrap {
+      width: 48px; height: 48px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 8px;
+      font-size: 24px;
+    }
+    .stat-blue { border-left-color: #409eff; }
+    .stat-blue .icon-wrap { background: #ecf5ff; color: #409eff; }
+    .stat-yellow { border-left-color: #e6a23c; }
+    .stat-yellow .icon-wrap { background: #fdf6ec; color: #e6a23c; }
+    .stat-orange { border-left-color: #f56c22; }
+    .stat-orange .icon-wrap { background: #fef0e6; color: #f56c22; }
+    .stat-red { border-left-color: #f56c6c; }
+    .stat-red .icon-wrap { background: #fef0f0; color: #f56c6c; }
+
+    /* Filter card */
+    .filter-card, .table-card {
+      background: #fff;
+      border-radius: 6px;
+      padding: 16px 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .filter-card .el-form-item { margin-bottom: 12px; }
+    .action-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .action-bar .left { display: flex; gap: 8px; }
+    .action-bar .right { color: #909399; font-size: 13px; }
+
+    /* Table cells */
+    .mode-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .mode-full {
+      background: #ecf5ff;
+      color: #409eff;
+      border: 1px solid #b3d8ff;
+    }
+    .mode-partial {
+      background: #fef0e6;
+      color: #f56c22;
+      border: 1px solid #fcd6bc;
+    }
+    .fraction {
+      font-size: 11px;
+      color: #909399;
+      margin-top: 2px;
+      display: block;
+    }
+    .fraction strong { color: #f56c22; font-weight: 600; }
+    .stage-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .stage-1 { background: #fdf6ec; color: #b88230; }
+    .stage-2 { background: #fef0e6; color: #cf5314; }
+    .stage-3 { background: #fef0f0; color: #d93a3a; }
+    .dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      margin-right: 2px;
+    }
+    .dot.d-yellow { background: #e6a23c; }
+    .dot.d-orange { background: #f56c22; }
+    .dot.d-red { background: #f56c6c; }
+    .dot.d-blue { background: #409eff; }
+    .amount-red { color: #f56c6c; font-weight: 600; }
+    .cust-name { font-weight: 500; color: #303133; }
+    .cust-sub { font-size: 12px; color: #909399; margin-top: 2px; }
+    .action-links { display: flex; gap: 6px; }
+    .action-links .el-link { font-size: 13px; }
+    .pagination-wrap {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="layout">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="logo">对账通 <span class="badge">v2</span></div>
+        <el-menu default-active="collection-orders" :default-openeds="['customer','recon','collect','report','system']" background-color="#001529" text-color="#b6c2d1" active-text-color="#fff">
+          <el-menu-item index="dashboard" @click="go('dashboard.html')">
+            <el-icon><component :is="ElementPlusIconsVue.Odometer" /></el-icon>
+            <template #title>工作台</template>
+          </el-menu-item>
+          <el-sub-menu index="customer">
+            <template #title><el-icon><component :is="ElementPlusIconsVue.UserFilled" /></el-icon><span>客户中心</span></template>
+            <el-menu-item index="customer-ledger" @click="go('customer-ledger.html')">客户往来账</el-menu-item>
+            <el-menu-item index="customer-types" @click="go('customer-types.html')">客户类型</el-menu-item>
+            <el-menu-item index="customer-tags">客户标签</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="recon">
+            <template #title><el-icon><component :is="ElementPlusIconsVue.List" /></el-icon><span>对账管理</span></template>
+            <el-menu-item index="statement-list" @click="go('statement-list.html')">对账单列表</el-menu-item>
+            <el-menu-item index="statement-create" @click="go('statement-create.html')">发起对账</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="collect">
+            <template #title><el-icon><component :is="ElementPlusIconsVue.Phone" /></el-icon><span>催收中心</span></template>
+            <el-menu-item index="collection-orders" @click="go('collection-orders.html')">催收工单</el-menu-item>
+            <el-menu-item index="collection-profiles" @click="go('collection-profiles.html')">催收策略</el-menu-item>
+            <el-menu-item index="call-tasks" @click="go('call-tasks.html')">外呼任务</el-menu-item>
+            <el-menu-item index="call-records" @click="go('call-records.html')">外呼记录</el-menu-item>
+          </el-sub-menu>
+          <el-menu-item index="messages" @click="go('messages.html')">
+            <el-icon><component :is="ElementPlusIconsVue.Bell" /></el-icon>
+            <template #title>消息中心</template>
+          </el-menu-item>
+          <el-sub-menu index="report">
+            <template #title><el-icon><component :is="ElementPlusIconsVue.DataAnalysis" /></el-icon><span>报表分析</span></template>
+            <el-menu-item index="receivable-report">应收报表</el-menu-item>
+            <el-menu-item index="collection-report">催收报表</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="system">
+            <template #title><el-icon><component :is="ElementPlusIconsVue.Setting" /></el-icon><span>系统设置</span></template>
+            <el-menu-item index="subjects-filter">科目过滤</el-menu-item>
+            <el-menu-item index="call-scripts" @click="go('call-scripts.html')">AI话术管理</el-menu-item>
+            <el-menu-item index="aliyun-config" @click="go('aliyun-config.html')">阿里云配置</el-menu-item>
+            <el-menu-item index="holiday-calendar">节假日日历</el-menu-item>
+            <el-menu-item index="tpl">对账单模板</el-menu-item>
+            <el-menu-item index="erp">ERP配置</el-menu-item>
+            <el-menu-item index="user">用户管理</el-menu-item>
+            <el-menu-item index="enterprise">企业设置</el-menu-item>
+          </el-sub-menu>
+        </el-menu>
+      </aside>
+
+      <!-- Main -->
+      <div class="main">
+        <!-- Header -->
+        <div class="header">
+          <el-breadcrumb class="breadcrumb" separator="/">
+            <el-breadcrumb-item>催收中心</el-breadcrumb-item>
+            <el-breadcrumb-item>催收工单</el-breadcrumb-item>
+          </el-breadcrumb>
+          <div class="right">
+            <div class="company">
+              <el-icon style="vertical-align: middle;"><component :is="ElementPlusIconsVue.OfficeBuilding" /></el-icon>
+              某某钢铁有限公司
+            </div>
+            <el-badge :value="12" :max="99">
+              <el-icon style="font-size: 18px; color: #606266; cursor: pointer;"><component :is="ElementPlusIconsVue.Bell" /></el-icon>
+            </el-badge>
+            <el-dropdown>
+              <div class="user-drop">
+                <el-avatar :size="30">王</el-avatar>
+                <span>王管理员</span>
+                <el-icon><component :is="ElementPlusIconsVue.CaretBottom" /></el-icon>
+              </div>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item>个人中心</el-dropdown-item>
+                  <el-dropdown-item>切换企业</el-dropdown-item>
+                  <el-dropdown-item divided>退出登录</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+        </div>
+
+        <!-- Content -->
+        <div class="content">
+          <div class="page-title">催收工单</div>
+
+          <!-- Stat cards -->
+          <el-row :gutter="16" class="stat-row">
+            <el-col :span="6">
+              <div class="stat-card stat-blue">
+                <div>
+                  <div class="label">进行中工单</div>
+                  <div class="value">28</div>
+                  <div class="sub">较昨日 +3</div>
+                </div>
+                <div class="icon-wrap">
+                  <el-icon><component :is="ElementPlusIconsVue.Tickets" /></el-icon>
+                </div>
+              </div>
+            </el-col>
+            <el-col :span="6">
+              <div class="stat-card stat-yellow">
+                <div>
+                  <div class="label">阶段1（通知）</div>
+                  <div class="value">12</div>
+                  <div class="sub">SMS/微信提醒中</div>
+                </div>
+                <div class="icon-wrap">
+                  <el-icon><component :is="ElementPlusIconsVue.ChatDotRound" /></el-icon>
+                </div>
+              </div>
+            </el-col>
+            <el-col :span="6">
+              <div class="stat-card stat-orange">
+                <div>
+                  <div class="label">阶段2（AI外呼）</div>
+                  <div class="value">10</div>
+                  <div class="sub">智能助理跟进中</div>
+                </div>
+                <div class="icon-wrap">
+                  <el-icon><component :is="ElementPlusIconsVue.PhoneFilled" /></el-icon>
+                </div>
+              </div>
+            </el-col>
+            <el-col :span="6">
+              <div class="stat-card stat-red">
+                <div>
+                  <div class="label">阶段3（人工）</div>
+                  <div class="value">6</div>
+                  <div class="sub">已转销售跟进</div>
+                </div>
+                <div class="icon-wrap">
+                  <el-icon><component :is="ElementPlusIconsVue.UserFilled" /></el-icon>
+                </div>
+              </div>
+            </el-col>
+          </el-row>
+
+          <!-- Filter -->
+          <div class="filter-card">
+            <el-form :inline="true" :model="filterForm" size="default">
+              <el-form-item label="工单号">
+                <el-input v-model="filterForm.orderNo" placeholder="请输入工单号" clearable style="width: 180px;" />
+              </el-form-item>
+              <el-form-item label="客户名称">
+                <el-input v-model="filterForm.customer" placeholder="请输入客户名称" clearable style="width: 180px;" />
+              </el-form-item>
+              <el-form-item label="催收模式">
+                <el-select v-model="filterForm.mode" placeholder="全部" clearable style="width: 140px;">
+                  <el-option label="整单催" value="full" />
+                  <el-option label="部分催" value="partial" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="当前阶段">
+                <el-select v-model="filterForm.stage" placeholder="全部" clearable style="width: 160px;">
+                  <el-option label="阶段1 通知" value="1" />
+                  <el-option label="阶段2 AI外呼" value="2" />
+                  <el-option label="阶段3 人工" value="3" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="客户类型">
+                <el-select v-model="filterForm.custType" placeholder="全部" clearable style="width: 140px;">
+                  <el-option label="大型终端" value="da" />
+                  <el-option label="经销商" value="jing" />
+                  <el-option label="加工厂" value="jia" />
+                  <el-option label="同行" value="tong" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="客户等级">
+                <el-select v-model="filterForm.level" placeholder="全部" clearable style="width: 120px;">
+                  <el-option label="A" value="A" />
+                  <el-option label="B" value="B" />
+                  <el-option label="C" value="C" />
+                  <el-option label="D" value="D" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="逾期区间">
+                <el-select v-model="filterForm.overdueRange" placeholder="全部" clearable style="width: 140px;">
+                  <el-option label="1-15天" value="1-15" />
+                  <el-option label="15-30天" value="15-30" />
+                  <el-option label="30-60天" value="30-60" />
+                  <el-option label="60+天" value="60+" />
+                </el-select>
+              </el-form-item>
+              <el-form-item>
+                <el-button type="primary" :icon="ElementPlusIconsVue.Search">查询</el-button>
+                <el-button :icon="ElementPlusIconsVue.RefreshRight">重置</el-button>
+              </el-form-item>
+            </el-form>
+          </div>
+
+          <!-- Action Bar + Table -->
+          <div class="table-card">
+            <div class="action-bar">
+              <div class="left">
+                <el-button :icon="ElementPlusIconsVue.Top" :disabled="selectedRows.length === 0">批量升级阶段</el-button>
+                <el-button :icon="ElementPlusIconsVue.User" :disabled="selectedRows.length === 0">批量转人工</el-button>
+                <el-button :icon="ElementPlusIconsVue.CircleCheck" :disabled="selectedRows.length === 0">批量核销</el-button>
+                <el-button :icon="ElementPlusIconsVue.Download">导出</el-button>
+              </div>
+              <div class="right">已选 {{ selectedRows.length }} 项 / 共 28 条</div>
+            </div>
+            <el-table :data="tableData" stripe @selection-change="handleSelectionChange" style="width: 100%;">
+              <el-table-column type="selection" width="42" />
+              <el-table-column label="工单号" prop="orderNo" width="140">
+                <template #default="{ row }">
+                  <el-link type="primary" href="collection-order-detail.html">{{ row.orderNo }}</el-link>
+                </template>
+              </el-table-column>
+              <el-table-column label="客户" min-width="140">
+                <template #default="{ row }">
+                  <div class="cust-name">{{ row.customer }}</div>
+                </template>
+              </el-table-column>
+              <el-table-column label="类型/等级" width="130">
+                <template #default="{ row }">
+                  <span>{{ row.custType }} / </span>
+                  <el-tag :type="levelType(row.level)" size="small" effect="light">{{ row.level }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="催收模式" width="170">
+                <template #default="{ row }">
+                  <span v-if="row.mode === 'full'" class="mode-tag mode-full">
+                    <span class="dot d-blue"></span>整单催
+                  </span>
+                  <template v-else>
+                    <span class="mode-tag mode-partial">
+                      <span class="dot d-orange"></span>部分催
+                    </span>
+                    <span class="fraction">
+                      <strong>¥{{ formatMoney(row.overdueAmount) }}</strong> / ¥{{ formatMoney(row.statementTotal) }}
+                    </span>
+                  </template>
+                </template>
+              </el-table-column>
+              <el-table-column label="逾期金额" width="120" align="right">
+                <template #default="{ row }">
+                  <span class="amount-red">¥{{ formatMoney(row.overdueAmount) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="逾期天数" width="90" align="center">
+                <template #default="{ row }">
+                  <el-tag :type="overdueType(row.overdueDays)" size="small">{{ row.overdueDays }}天</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="当前阶段" width="160">
+                <template #default="{ row }">
+                  <span class="stage-tag" :class="'stage-' + row.stage">
+                    <span class="dot" :class="stageDot(row.stage)"></span>
+                    {{ stageName(row.stage) }}
+                  </span>
+                  <div class="cust-sub">{{ row.stageDetail }}</div>
+                </template>
+              </el-table-column>
+              <el-table-column label="上次动作" min-width="180">
+                <template #default="{ row }">
+                  <div style="font-size: 13px;">{{ row.lastAction }}</div>
+                </template>
+              </el-table-column>
+              <el-table-column label="承诺回款" width="110" align="center">
+                <template #default="{ row }">
+                  <el-tag v-if="row.promiseDate" type="warning" size="small">{{ row.promiseDate }}</el-tag>
+                  <span v-else style="color: #c0c4cc;">-</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="180" fixed="right">
+                <template #default="{ row }">
+                  <div class="action-links">
+                    <el-link type="primary" href="collection-order-detail.html">详情</el-link>
+                    <el-link v-if="row.canUpgrade" type="warning">升级</el-link>
+                    <el-link v-if="row.needAssign" type="danger">分配</el-link>
+                    <el-link v-if="row.stage === 3" type="success">跟进</el-link>
+                    <el-link v-if="row.canPause" type="info">暂停</el-link>
+                  </div>
+                </template>
+              </el-table-column>
+            </el-table>
+            <div class="pagination-wrap">
+              <el-pagination background layout="total, sizes, prev, pager, next, jumper" :total="28" :page-size="10" :current-page="1" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, ref, reactive } = Vue;
+    const app = createApp({
+      setup() {
+        const filterForm = reactive({
+          orderNo: '', customer: '', mode: '', stage: '', custType: '', level: '', overdueRange: ''
+        });
+        const selectedRows = ref([]);
+        const handleSelectionChange = (rows) => { selectedRows.value = rows; };
+
+        const tableData = ref([
+          { orderNo: 'CO202503001', customer: '某某贸易', custType: '经销商', level: 'B', mode: 'partial', overdueAmount: 45300, statementTotal: 88100, overdueDays: 15, stage: 1, stageDetail: 'SMS×2', lastAction: '03-15 SMS已送达', promiseDate: '', canUpgrade: true, canPause: true },
+          { orderNo: 'CO202503002', customer: '某某建材', custType: '加工厂', level: 'C', mode: 'full', overdueAmount: 67200, statementTotal: 67200, overdueDays: 20, stage: 2, stageDetail: 'AI外呼×1', lastAction: '03-15 已承诺03-25付款', promiseDate: '03-25', canPause: true },
+          { orderNo: 'CO202503003', customer: '某某科技', custType: '大型终端', level: 'A', mode: 'full', overdueAmount: 156300, statementTotal: 156300, overdueDays: 30, stage: 3, stageDetail: '人工跟进', lastAction: '03-14 张三跟进', promiseDate: '04-01' },
+          { orderNo: 'CO202503004', customer: '某某建筑', custType: '经销商', level: 'D', mode: 'partial', overdueAmount: 98600, statementTotal: 120000, overdueDays: 45, stage: 3, stageDetail: '人工跟进', lastAction: '- 未分配', promiseDate: '', needAssign: true },
+          { orderNo: 'CO202503005', customer: 'ZZ贸易', custType: '经销商', level: 'C', mode: 'full', overdueAmount: 178400, statementTotal: 178400, overdueDays: 25, stage: 2, stageDetail: 'AI外呼×2', lastAction: '03-16 未接通', promiseDate: '', canUpgrade: true },
+          { orderNo: 'CO202503006', customer: 'AA工程', custType: '大型终端', level: 'B', mode: 'partial', overdueAmount: 25000, statementTotal: 125000, overdueDays: 10, stage: 1, stageDetail: '微信×1', lastAction: '03-15 微信已送达', promiseDate: '' },
+          { orderNo: 'CO202503007', customer: 'YY建设', custType: '大型终端', level: 'A', mode: 'full', overdueAmount: 285600, statementTotal: 285600, overdueDays: 25, stage: 3, stageDetail: '人工跟进', lastAction: '03-14 李四跟进', promiseDate: '' },
+          { orderNo: 'CO202503008', customer: 'BB贸易', custType: '经销商', level: 'C', mode: 'partial', overdueAmount: 12000, statementTotal: 80000, overdueDays: 5, stage: 1, stageDetail: 'SMS×1', lastAction: '03-15 已送达', promiseDate: '' },
+          { orderNo: 'CO202503009', customer: 'CC钢构', custType: '加工厂', level: 'D', mode: 'full', overdueAmount: 58900, statementTotal: 58900, overdueDays: 60, stage: 3, stageDetail: '人工跟进', lastAction: '03-13 王五跟进', promiseDate: '04-10' },
+          { orderNo: 'CO202503010', customer: 'DD建材', custType: '经销商', level: 'D', mode: 'full', overdueAmount: 45600, statementTotal: 45600, overdueDays: 35, stage: 2, stageDetail: 'AI外呼×1', lastAction: '03-15 拒绝回复', promiseDate: '', canUpgrade: true }
+        ]);
+
+        const formatMoney = (n) => n.toLocaleString('zh-CN');
+        const levelType = (l) => ({ A: 'danger', B: 'warning', C: 'primary', D: 'info' }[l] || '');
+        const overdueType = (d) => d >= 60 ? 'danger' : d >= 30 ? 'warning' : d >= 15 ? '' : 'info';
+        const stageName = (s) => ({ 1: '阶段1 通知', 2: '阶段2 AI外呼', 3: '阶段3 人工' }[s]);
+        const stageDot = (s) => ({ 1: 'd-yellow', 2: 'd-orange', 3: 'd-red' }[s]);
+
+        const go = (url) => { window.location.href = url; };
+        return { filterForm, tableData, selectedRows, handleSelectionChange, formatMoney, levelType, overdueType, stageName, stageDot, go, ElementPlusIconsVue };
+      }
+    });
+    app.use(ElementPlus);
+    for (const [key, comp] of Object.entries(ElementPlusIconsVue)) {
+      app.component(key, comp);
+    }
+    app.mount('#app');
+  </script>
+</body>
+</html>

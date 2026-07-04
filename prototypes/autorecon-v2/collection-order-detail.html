@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>催收工单详情 - 对账通v2原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body, #app { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f0f2f5;
+      color: #303133;
+    }
+    .layout { display: flex; height: 100vh; overflow: hidden; }
+    .sidebar { width: 220px; background: #001529; color: #fff; display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; }
+    .logo { height: 60px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px; font-weight: 600; letter-spacing: 2px; background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .logo .badge { margin-left: 6px; padding: 1px 6px; background: #409eff; border-radius: 3px; font-size: 11px; letter-spacing: 0; }
+    .sidebar .el-menu { background: transparent; border-right: none; flex: 1; overflow-y: auto; }
+    .sidebar .el-menu::-webkit-scrollbar { width: 4px; }
+    .sidebar .el-menu::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
+    .sidebar .el-sub-menu__title, .sidebar .el-menu-item { color: rgba(255,255,255,0.75) !important; height: 44px; line-height: 44px; }
+    .sidebar .el-menu-item:hover, .sidebar .el-sub-menu__title:hover { background: rgba(255,255,255,0.05) !important; color: #fff !important; }
+    .sidebar .el-menu-item.is-active { background: #409eff !important; color: #fff !important; }
+    .sidebar .el-sub-menu .el-menu-item { background: #000c17 !important; padding-left: 48px !important; }
+    .sidebar .el-sub-menu .el-menu-item.is-active { background: #409eff !important; }
+
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .header { height: 60px; background: #fff; border-bottom: 1px solid #e4e7ed; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+    .header .breadcrumb { font-size: 14px; }
+    .header .right { display: flex; align-items: center; gap: 20px; }
+    .header .company { padding: 4px 12px; background: #f0f5ff; color: #2f54eb; border-radius: 4px; font-size: 13px; border: 1px solid #d6e4ff; }
+    .user-drop { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+
+    .content { flex: 1; overflow-y: auto; padding: 20px; }
+
+    /* Page header bar */
+    .page-header {
+      background: #fff;
+      border-radius: 6px;
+      padding: 16px 20px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .page-header .title-block { display: flex; align-items: center; gap: 12px; }
+    .page-header .title-block .back-btn { color: #606266; }
+    .page-header .title { font-size: 18px; font-weight: 600; color: #1f2d3d; }
+    .page-header .order-no { color: #909399; font-size: 13px; margin-left: 4px; }
+    .page-header .btn-group { display: flex; gap: 8px; }
+
+    /* Info cards */
+    .info-row { margin-bottom: 16px; }
+    .info-card {
+      background: #fff;
+      border-radius: 6px;
+      padding: 16px 20px;
+      height: 100%;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .info-card .card-title {
+      font-size: 13px;
+      color: #909399;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .info-card .card-title .el-icon { font-size: 14px; }
+    .info-card .primary-value {
+      font-size: 20px;
+      font-weight: 600;
+      color: #1f2d3d;
+      margin-bottom: 8px;
+    }
+    .info-card .sub-line {
+      font-size: 13px;
+      color: #606266;
+      margin-top: 6px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .info-card .sub-line .k { color: #909399; }
+    .amount-red { color: #f56c6c; font-weight: 600; }
+    .amount-orange { color: #e6a23c; font-weight: 600; }
+
+    /* Timeline of stages */
+    .stage-card {
+      background: #fff;
+      border-radius: 6px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .stage-card h3 { font-size: 15px; margin-bottom: 20px; color: #1f2d3d; }
+
+    .stage-flow { display: flex; align-items: stretch; gap: 0; }
+    .stage-step {
+      flex: 1;
+      background: #f5f7fa;
+      border-radius: 6px;
+      padding: 16px;
+      position: relative;
+      border: 1px solid transparent;
+    }
+    .stage-step + .stage-step { margin-left: 8px; }
+    .stage-step.active { background: #fef6ed; border-color: #f0b070; }
+    .stage-step.done { background: #f0f9eb; border-color: #b3e19d; }
+    .stage-step.pending { background: #f5f7fa; border-color: #ebeef5; opacity: 0.7; }
+    .stage-step .step-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .stage-step .step-num {
+      width: 26px; height: 26px;
+      display: flex; align-items: center; justify-content: center;
+      background: #dcdfe6; color: #909399;
+      border-radius: 50%; font-size: 13px; font-weight: 600;
+    }
+    .stage-step.active .step-num { background: #f56c22; color: #fff; }
+    .stage-step.done .step-num { background: #67c23a; color: #fff; }
+    .stage-step .step-title { font-size: 14px; font-weight: 600; color: #1f2d3d; }
+    .stage-step .step-status { margin-left: auto; font-size: 12px; }
+    .stage-step .step-body ul { list-style: none; }
+    .stage-step .step-body ul li {
+      font-size: 12px; color: #606266;
+      padding: 4px 0;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .stage-step .step-body ul li .el-icon { color: #67c23a; }
+    .stage-step.pending .step-body ul li { color: #c0c4cc; }
+
+    /* Left/Right split */
+    .split-row { display: flex; gap: 16px; }
+    .left-col { flex: 1; min-width: 0; }
+    .right-col { width: 320px; flex-shrink: 0; }
+
+    .tabs-card {
+      background: #fff;
+      border-radius: 6px;
+      padding: 0 20px 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .side-card {
+      background: #fff;
+      border-radius: 6px;
+      padding: 16px 18px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .side-card h4 {
+      font-size: 14px;
+      color: #1f2d3d;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #ebeef5;
+    }
+    .quick-btn { width: 100%; margin-bottom: 8px !important; justify-content: flex-start !important; }
+    .contact-row {
+      padding: 8px 0;
+      font-size: 13px;
+      color: #606266;
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px dashed #ebeef5;
+    }
+    .contact-row:last-child { border-bottom: none; }
+    .contact-row .k { color: #909399; }
+
+    /* Timeline styling */
+    :deep(.el-timeline-item__node--large) { width: 14px; height: 14px; }
+    .timeline-title {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 14px; font-weight: 500; color: #1f2d3d;
+    }
+    .timeline-meta { font-size: 12px; color: #909399; margin-top: 4px; }
+    .timeline-content {
+      background: #f5f7fa;
+      border-radius: 4px;
+      padding: 10px 14px;
+      margin-top: 8px;
+      font-size: 13px;
+      color: #606266;
+    }
+    .timeline-content .action-links {
+      margin-top: 6px;
+      display: flex;
+      gap: 12px;
+    }
+    .tag-badge {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-size: 11px;
+      background: #ecf5ff;
+      color: #409eff;
+    }
+    .tag-badge.orange { background: #fef0e6; color: #f56c22; }
+    .tag-badge.green { background: #f0f9eb; color: #67c23a; }
+    .tag-badge.gray { background: #f4f4f5; color: #909399; }
+
+    .call-play-btn {
+      display: inline-flex; align-items: center; gap: 4px;
+      color: #409eff; cursor: pointer;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="layout">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="logo">对账通 <span class="badge">v2</span></div>
+        <el-menu default-active="collection-orders" :default-openeds="['customer','recon','collect','report','system']" background-color="#001529" text-color="#b6c2d1" active-text-color="#fff">
+          <el-menu-item index="dashboard" @click="go('dashboard.html')">
+            <el-icon><component :is="ElementPlusIconsVue.Odometer" /></el-icon>
+            <template #title>工作台</template>
+          </el-menu-item>
+          <el-sub-menu index="customer">
+            <template #title><el-icon><component :is="ElementPlusIconsVue.UserFilled" /></el-icon><span>客户中心</span></template>
+            <el-menu-item index="customer-ledger" @click="go('customer-ledger.html')">客户往来账</el-menu-item>
+            <el-menu-item index="customer-types" @click="go('customer-types.html')">客户类型</el-menu-item>
+            <el-menu-item index="customer-tags">客户标签</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="recon">
+            <template #title><el-icon><component :is="ElementPlusIconsVue.List" /></el-icon><span>对账管理</span></template>
+            <el-menu-item index="statement-list" @click="go('statement-list.html')">对账单列表</el-menu-item>
+            <el-menu-item index="statement-create" @click="go('statement-create.html')">发起对账</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="collect">
+            <template #title><el-icon><component :is="ElementPlusIconsVue.Phone" /></el-icon><span>催收中心</span></template>
+            <el-menu-item index="collection-orders" @click="go('collection-orders.html')">催收工单</el-menu-item>
+            <el-menu-item index="collection-profiles" @click="go('collection-profiles.html')">催收策略</el-menu-item>
+            <el-menu-item index="call-tasks" @click="go('call-tasks.html')">外呼任务</el-menu-item>
+            <el-menu-item index="call-records" @click="go('call-records.html')">外呼记录</el-menu-item>
+          </el-sub-menu>
+          <el-menu-item index="messages" @click="go('messages.html')">
+            <el-icon><component :is="ElementPlusIconsVue.Bell" /></el-icon>
+            <template #title>消息中心</template>
+          </el-menu-item>
+          <el-sub-menu index="report">
+            <template #title><el-icon><component :is="ElementPlusIconsVue.DataAnalysis" /></el-icon><span>报表分析</span></template>
+            <el-menu-item index="receivable-report">应收报表</el-menu-item>
+            <el-menu-item index="collection-report">催收报表</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="system">
+            <template #title><el-icon><component :is="ElementPlusIconsVue.Setting" /></el-icon><span>系统设置</span></template>
+            <el-menu-item index="subjects-filter">科目过滤</el-menu-item>
+            <el-menu-item index="call-scripts" @click="go('call-scripts.html')">AI话术管理</el-menu-item>
+            <el-menu-item index="aliyun-config" @click="go('aliyun-config.html')">阿里云配置</el-menu-item>
+            <el-menu-item index="holiday-calendar">节假日日历</el-menu-item>
+            <el-menu-item index="tpl">对账单模板</el-menu-item>
+            <el-menu-item index="erp">ERP配置</el-menu-item>
+            <el-menu-item index="user">用户管理</el-menu-item>
+            <el-menu-item index="enterprise">企业设置</el-menu-item>
+          </el-sub-menu>
+        </el-menu>
+      </aside>
+
+      <div class="main">
+        <div class="header">
+          <el-breadcrumb class="breadcrumb" separator="/">
+            <el-breadcrumb-item>催收中心</el-breadcrumb-item>
+            <el-breadcrumb-item :to="{ path: 'collection-orders.html' }">催收工单</el-breadcrumb-item>
+            <el-breadcrumb-item>工单详情</el-breadcrumb-item>
+          </el-breadcrumb>
+          <div class="right">
+            <div class="company">
+              <el-icon style="vertical-align: middle;"><component :is="ElementPlusIconsVue.OfficeBuilding" /></el-icon>
+              某某钢铁有限公司
+            </div>
+            <el-badge :value="12" :max="99"><el-icon style="font-size: 18px; color: #606266; cursor: pointer;"><component :is="ElementPlusIconsVue.Bell" /></el-icon></el-badge>
+            <el-dropdown>
+              <div class="user-drop"><el-avatar :size="30">王</el-avatar><span>王管理员</span><el-icon><component :is="ElementPlusIconsVue.CaretBottom" /></el-icon></div>
+              <template #dropdown><el-dropdown-menu><el-dropdown-item>个人中心</el-dropdown-item><el-dropdown-item>切换企业</el-dropdown-item><el-dropdown-item divided>退出登录</el-dropdown-item></el-dropdown-menu></template>
+            </el-dropdown>
+          </div>
+        </div>
+
+        <div class="content">
+          <!-- Page header -->
+          <div class="page-header">
+            <div class="title-block">
+              <el-button link class="back-btn" @click="goBack">
+                <el-icon><component :is="ElementPlusIconsVue.ArrowLeft" /></el-icon>返回
+              </el-button>
+              <div>
+                <div class="title">
+                  催收工单
+                  <span class="order-no">工单号 CO202503001</span>
+                  <el-tag type="warning" size="small" style="margin-left: 8px;">进行中</el-tag>
+                  <el-tag type="danger" size="small" effect="light" style="margin-left: 4px;">部分催</el-tag>
+                </div>
+              </div>
+            </div>
+            <div class="btn-group">
+              <el-button :icon="ElementPlusIconsVue.EditPen">跟进记录</el-button>
+              <el-button :icon="ElementPlusIconsVue.VideoPause">暂停</el-button>
+              <el-button type="warning" :icon="ElementPlusIconsVue.Top">升级阶段</el-button>
+              <el-button type="success" :icon="ElementPlusIconsVue.CircleCheck">核销</el-button>
+            </div>
+          </div>
+
+          <!-- Alert info -->
+          <el-alert type="info" :closable="false" show-icon style="margin-bottom: 16px;">
+            <template #title>
+              本工单为 <b style="color: #f56c22;">「部分催收」</b> 模式：对账单总额 <b>¥88,100</b>，其中已付 <b style="color: #67c23a;">¥42,800</b>（ERP同步），仅催收未付部分 <b class="amount-red">¥45,300</b>。
+            </template>
+          </el-alert>
+
+          <!-- Top 3 info cards -->
+          <el-row :gutter="16" class="info-row">
+            <el-col :span="8">
+              <div class="info-card">
+                <div class="card-title"><el-icon><component :is="ElementPlusIconsVue.User" /></el-icon>客户信息</div>
+                <div class="primary-value">
+                  某某贸易有限公司
+                  <el-tag type="warning" size="small" effect="light" style="margin-left: 6px;">VIP</el-tag>
+                </div>
+                <div class="sub-line"><span class="k">类型 / 等级</span><span>经销商 / <el-tag type="warning" size="small" effect="light">B</el-tag></span></div>
+                <div class="sub-line"><span class="k">联系人</span><span>李经理  138****1234</span></div>
+                <div class="sub-line"><span class="k">销售负责人</span><span>张三</span></div>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="info-card">
+                <div class="card-title"><el-icon><component :is="ElementPlusIconsVue.Money" /></el-icon>逾期信息</div>
+                <div class="primary-value amount-red">¥45,300.00</div>
+                <div class="sub-line"><span class="k">逾期天数</span><span><el-tag type="warning" size="small">15 天</el-tag></span></div>
+                <div class="sub-line"><span class="k">到期日</span><span>2026-03-01</span></div>
+                <div class="sub-line"><span class="k">对账单</span><span><el-link type="primary" :underline="false">S2026030001</el-link></span></div>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="info-card">
+                <div class="card-title"><el-icon><component :is="ElementPlusIconsVue.Warning" /></el-icon>当前阶段</div>
+                <div class="primary-value" style="color: #b88230;">阶段1 · 通知提醒</div>
+                <div class="sub-line"><span class="k">已提醒次数</span><span>2 / 3 次</span></div>
+                <div class="sub-line"><span class="k">下次提醒</span><span>2026-03-18 10:00</span></div>
+                <div class="sub-line"><span class="k">适用策略</span><span><el-link type="primary" :underline="false">普通经销商策略</el-link></span></div>
+              </div>
+            </el-col>
+          </el-row>
+
+          <!-- Stage flow -->
+          <div class="stage-card">
+            <h3>催收进度</h3>
+            <div class="stage-flow">
+              <div class="stage-step active">
+                <div class="step-head">
+                  <div class="step-num">1</div>
+                  <div class="step-title">通知提醒</div>
+                  <el-tag type="warning" size="small" class="step-status">进行中</el-tag>
+                </div>
+                <div class="step-body">
+                  <ul>
+                    <li><el-icon><component :is="ElementPlusIconsVue.Check" /></el-icon>03-08 首次通知（SMS已送达）</li>
+                    <li><el-icon><component :is="ElementPlusIconsVue.Check" /></el-icon>03-15 二次通知（微信已送达）</li>
+                    <li style="color: #909399;"><el-icon style="color: #909399;"><component :is="ElementPlusIconsVue.Clock" /></el-icon>03-18 三次通知（待发送）</li>
+                    <li style="color: #909399;"><el-icon style="color: #909399;"><component :is="ElementPlusIconsVue.ArrowRight" /></el-icon>若未回款则升级至阶段2</li>
+                  </ul>
+                </div>
+              </div>
+              <div class="stage-step pending">
+                <div class="step-head">
+                  <div class="step-num">2</div>
+                  <div class="step-title">AI外呼</div>
+                  <el-tag type="info" size="small" class="step-status">待进入</el-tag>
+                </div>
+                <div class="step-body">
+                  <ul>
+                    <li>逾期30天自动进入</li>
+                    <li>话术：标准催收-友好版</li>
+                    <li>外呼间隔 7 天，最多 2 次</li>
+                  </ul>
+                </div>
+              </div>
+              <div class="stage-step pending">
+                <div class="step-head">
+                  <div class="step-num">3</div>
+                  <div class="step-title">人工跟进</div>
+                  <el-tag type="info" size="small" class="step-status">待进入</el-tag>
+                </div>
+                <div class="step-body">
+                  <ul>
+                    <li>逾期60天自动进入</li>
+                    <li>分配方式：自动分配给销售张三</li>
+                    <li>紧急程度：普通</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Split -->
+          <div class="split-row">
+            <div class="left-col">
+              <div class="tabs-card">
+                <el-tabs v-model="activeTab">
+                  <el-tab-pane label="关联应收明细" name="receivables">
+                    <el-alert type="warning" :closable="false" show-icon style="margin-bottom: 12px;">
+                      <template #title>
+                        该工单为「部分催收」模式，仅列出实际催收中的应收明细（未付部分）。已付部分不再催收。
+                      </template>
+                    </el-alert>
+                    <el-table :data="receivableData" stripe border style="width: 100%;">
+                      <el-table-column label="源单号" prop="srcNo" width="90" />
+                      <el-table-column label="日期" prop="date" width="110" />
+                      <el-table-column label="摘要" prop="desc" min-width="140" />
+                      <el-table-column label="原始金额" width="120" align="right">
+                        <template #default="{ row }">¥{{ row.total.toLocaleString() }}</template>
+                      </el-table-column>
+                      <el-table-column label="已付" width="110" align="right">
+                        <template #default="{ row }">
+                          <span style="color: #67c23a;">¥{{ row.paid.toLocaleString() }}</span>
+                        </template>
+                      </el-table-column>
+                      <el-table-column label="未付（催收）" width="130" align="right">
+                        <template #default="{ row }">
+                          <span class="amount-red">¥{{ row.unpaid.toLocaleString() }}</span>
+                        </template>
+                      </el-table-column>
+                      <el-table-column label="到期日" prop="dueDate" width="110" />
+                      <el-table-column label="逾期" width="80" align="center">
+                        <template #default="{ row }">
+                          <el-tag type="warning" size="small">{{ row.overdue }}天</el-tag>
+                        </template>
+                      </el-table-column>
+                      <el-table-column label="状态" width="90" align="center">
+                        <template #default>
+                          <el-tag type="danger" size="small" effect="light">催收中</el-tag>
+                        </template>
+                      </el-table-column>
+                    </el-table>
+                    <div style="padding: 12px; background: #fafbfc; border-radius: 4px; margin-top: 12px; display: flex; justify-content: space-between;">
+                      <span style="color: #606266; font-size: 13px;">关联应收 <b>1</b> 笔</span>
+                      <span style="font-size: 13px;">催收金额合计：<span class="amount-red" style="font-size: 15px;">¥45,300.00</span></span>
+                    </div>
+                  </el-tab-pane>
+
+                  <el-tab-pane label="跟进记录" name="followup">
+                    <div style="padding: 12px 0;">
+                      <el-timeline>
+                        <el-timeline-item
+                          v-for="(item, i) in followups"
+                          :key="i"
+                          :timestamp="item.time"
+                          :type="item.type"
+                          size="large"
+                          placement="top"
+                        >
+                          <div class="timeline-title">
+                            <span class="tag-badge" :class="item.tagClass">{{ item.tag }}</span>
+                            {{ item.title }}
+                            <el-tag v-if="item.status" :type="item.statusType" size="small" effect="light">{{ item.status }}</el-tag>
+                          </div>
+                          <div class="timeline-content" v-if="item.content">
+                            {{ item.content }}
+                            <div v-if="item.hasAudio" class="action-links">
+                              <span class="call-play-btn">
+                                <el-icon><component :is="ElementPlusIconsVue.VideoPlay" /></el-icon>播放录音 (1:32)
+                              </span>
+                              <el-link type="primary" :underline="false" size="small">查看转写</el-link>
+                              <el-link type="primary" :underline="false" size="small">意图详情</el-link>
+                            </div>
+                          </div>
+                        </el-timeline-item>
+                      </el-timeline>
+                    </div>
+                  </el-tab-pane>
+
+                  <el-tab-pane label="外呼计划" name="calls">
+                    <el-table :data="callPlans" stripe style="width: 100%;">
+                      <el-table-column label="任务ID" prop="id" width="130" />
+                      <el-table-column label="计划时间" prop="planTime" width="160" />
+                      <el-table-column label="话术模板" prop="template" min-width="180" />
+                      <el-table-column label="话术风格" width="90">
+                        <template #default="{ row }">
+                          <el-tag :type="row.style === '正式' ? 'warning' : row.style === '紧急' ? 'danger' : 'success'" size="small" effect="light">{{ row.style }}</el-tag>
+                        </template>
+                      </el-table-column>
+                      <el-table-column label="状态" width="100">
+                        <template #default="{ row }">
+                          <el-tag :type="row.status === '已完成' ? 'success' : row.status === '待执行' ? 'info' : 'warning'" size="small">{{ row.status }}</el-tag>
+                        </template>
+                      </el-table-column>
+                      <el-table-column label="结果" prop="result" min-width="180" />
+                      <el-table-column label="操作" width="120">
+                        <template #default="{ row }">
+                          <el-link v-if="row.status === '已完成'" type="primary">详情</el-link>
+                          <el-link v-if="row.status === '待执行'" type="warning">取消</el-link>
+                        </template>
+                      </el-table-column>
+                    </el-table>
+                  </el-tab-pane>
+                </el-tabs>
+              </div>
+            </div>
+
+            <!-- Right side -->
+            <div class="right-col">
+              <div class="side-card">
+                <h4>快捷操作</h4>
+                <el-button class="quick-btn" :icon="ElementPlusIconsVue.EditPen">新增跟进记录</el-button>
+                <el-button class="quick-btn" type="primary" :icon="ElementPlusIconsVue.PhoneFilled">手动触发AI外呼</el-button>
+                <el-button class="quick-btn" type="warning" :icon="ElementPlusIconsVue.Top">升级到阶段2/3</el-button>
+                <el-button class="quick-btn" type="success" :icon="ElementPlusIconsVue.CircleCheck">标记承诺付款</el-button>
+                <el-button class="quick-btn" :icon="ElementPlusIconsVue.VideoPause">暂停催收</el-button>
+                <el-button class="quick-btn" disabled :icon="ElementPlusIconsVue.Finished">核销工单（待付款）</el-button>
+              </div>
+
+              <div class="side-card">
+                <h4>客户联系方式</h4>
+                <div class="contact-row"><span class="k">主联系人</span><span>李经理</span></div>
+                <div class="contact-row"><span class="k">手机</span><span>138****1234 <el-icon style="color: #409eff; cursor: pointer;"><component :is="ElementPlusIconsVue.PhoneFilled" /></el-icon></span></div>
+                <div class="contact-row"><span class="k">微信</span><span>lijingli_1988 <el-icon style="color: #67c23a; cursor: pointer;"><component :is="ElementPlusIconsVue.ChatDotRound" /></el-icon></span></div>
+                <div class="contact-row"><span class="k">邮箱</span><span>li@xxx.com</span></div>
+                <div class="contact-row"><span class="k">财务对接人</span><span>王会计 137****5678</span></div>
+                <div class="contact-row"><span class="k">地址</span><span style="font-size: 12px;">北京市朝阳区某某路XX号</span></div>
+              </div>
+
+              <div class="side-card">
+                <h4>客户催收摘要</h4>
+                <div class="contact-row"><span class="k">历史工单</span><span>4 次</span></div>
+                <div class="contact-row"><span class="k">按时付款率</span><span style="color: #e6a23c;">75%</span></div>
+                <div class="contact-row"><span class="k">平均逾期</span><span>12 天</span></div>
+                <div class="contact-row"><span class="k">催收难度</span><span><el-tag type="warning" size="small" effect="light">中等</el-tag></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, ref, reactive } = Vue;
+    const app = createApp({
+      setup() {
+        const activeTab = ref('receivables');
+
+        const receivableData = ref([
+          { srcNo: 'S003', date: '2026-02-20', desc: '热轧板卷 Q235B 5.75×1500×C 30吨', total: 50300, paid: 5000, unpaid: 45300, dueDate: '2026-03-01', overdue: 15 }
+        ]);
+
+        const followups = ref([
+          { time: '2026-03-15 15:30', type: 'primary', tag: '系统', tagClass: '', title: '发送微信通知（第2次）', status: '已送达', statusType: 'success', content: '模板：对账催收-友好版 · 已推送到李经理微信' },
+          { time: '2026-03-15 10:00', type: 'primary', tag: '系统', tagClass: '', title: '发送短信通知（第2次）', status: '已送达', statusType: 'success', content: '尊敬的李经理，您有一笔对账单已逾期15天，未付金额¥45,300，请尽快安排…' },
+          { time: '2026-03-12 09:00', type: 'warning', tag: 'AI外呼', tagClass: 'orange', title: '智能助理"小对" - 通话 1分32秒', status: '承诺付款', statusType: 'warning', content: '客户承诺 2026-03-25 前完成付款，已自动标记承诺日期。', hasAudio: true },
+          { time: '2026-03-10 14:20', type: 'success', tag: '销售张三', tagClass: 'green', title: '手动电话跟进', content: '客户表示已收到对账单，会尽快安排财务处理付款，本月内完成。' },
+          { time: '2026-03-08 10:30', type: 'primary', tag: '系统', tagClass: '', title: '发送短信通知（第1次）', status: '已送达', statusType: 'success', content: '模板：对账催收-友好版' },
+          { time: '2026-03-05 15:00', type: 'info', tag: '系统', tagClass: 'gray', title: '策略匹配', content: '匹配到「普通经销商策略」，催收模式：部分催（仅催未付部分¥45,300）' },
+          { time: '2026-03-05 09:00', type: 'info', tag: '系统', tagClass: 'gray', title: '工单创建', content: '对账单S2026030001到期未付，自动创建催收工单，进入阶段1' },
+          { time: '2026-03-01 00:00', type: 'danger', tag: '系统', tagClass: '', title: '对账单到期', content: '对账单S2026030001到期，未付金额¥45,300' },
+          { time: '2026-02-25 10:00', type: 'primary', tag: '系统', tagClass: '', title: '发送对账单', content: '对账单已通过微信+邮件发送给客户' },
+          { time: '2026-02-25 10:30', type: 'warning', tag: 'AI外呼', tagClass: 'orange', title: '发单跟单AI外呼', status: '已确认', statusType: 'success', content: '发送对账单30分钟后自动外呼，客户确认已收到对账单。', hasAudio: true },
+          { time: '2026-02-20 09:00', type: 'info', tag: '销售张三', tagClass: 'green', title: '销售订单确认', content: '订单S003 热轧板卷 30吨 ¥50,300 客户已确认收货' }
+        ]);
+
+        const callPlans = ref([
+          { id: 'CT20260325001', planTime: '2026-03-25 10:00', template: '承诺回款到期提醒', style: '正式', status: '待执行', result: '-' },
+          { id: 'CT20260318001', planTime: '2026-03-18 10:00', template: '通知提醒-第3次', style: '友好', status: '待执行', result: '-' },
+          { id: 'CT20260312001', planTime: '2026-03-12 09:00', template: '标准催收-友好版', style: '友好', status: '已完成', result: '接通，承诺03-25付款 (1:32)' },
+          { id: 'CT20260225001', planTime: '2026-02-25 10:30', template: '对账通知-友好版', style: '友好', status: '已完成', result: '接通，客户确认已收到 (0:48)' }
+        ]);
+
+        const goBack = () => { window.location.href = 'collection-orders.html'; };
+        const go = (url) => { window.location.href = url; };
+
+        return { activeTab, receivableData, followups, callPlans, goBack, go, ElementPlusIconsVue };
+      }
+    });
+    app.use(ElementPlus);
+    for (const [key, comp] of Object.entries(ElementPlusIconsVue)) app.component(key, comp);
+    app.mount('#app');
+  </script>
+</body>
+</html>
