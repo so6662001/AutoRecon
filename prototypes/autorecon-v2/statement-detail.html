@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>对账单详情 - 对账通v2原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; background: #f0f2f5; }
+    #app { height: 100%; }
+    .layout { display: flex; height: 100vh; overflow: hidden; }
+
+    /* Sidebar */
+    .sidebar { width: 220px; background: #001529; color: #fff; flex-shrink: 0; display: flex; flex-direction: column; }
+    .sidebar-logo { height: 64px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600; color: #fff; border-bottom: 1px solid #1f3448; letter-spacing: 2px; background: linear-gradient(90deg,#001529 0%, #002140 100%); }
+    .sidebar-logo .logo-badge { display: inline-block; width: 24px; height: 24px; border-radius: 4px; background: linear-gradient(135deg,#40a9ff,#1890ff); margin-right: 8px; text-align: center; line-height: 24px; font-size: 13px; font-weight: 700; }
+    .el-menu.sidebar-menu { border-right: none; background: transparent; flex: 1; overflow-y: auto; }
+    .sidebar-menu:not(.el-menu--collapse) { --el-menu-bg-color: transparent; --el-menu-text-color: rgba(255,255,255,0.75); --el-menu-hover-bg-color: #000c17; --el-menu-active-color: #fff; --el-menu-hover-text-color:#fff;}
+    .sidebar-menu .el-sub-menu__title { color: rgba(255,255,255,0.75) !important; }
+    .sidebar-menu .el-sub-menu__title:hover { background: #000c17 !important; color:#fff !important; }
+    .sidebar-menu .el-menu-item { color: rgba(255,255,255,0.75); }
+    .sidebar-menu .el-menu-item:hover { background: #000c17 !important; color:#fff !important; }
+    .sidebar-menu .el-menu-item.is-active { background: #1890ff !important; color: #fff !important; }
+    .sidebar-menu .el-sub-menu .el-menu { background: #000c17 !important; }
+    .sidebar-menu .el-sub-menu .el-menu-item { background: #000c17 !important; }
+    .sidebar-menu .el-sub-menu .el-menu-item.is-active { background: #1890ff !important; }
+
+    /* Main */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .header { height: 64px; background: #fff; border-bottom: 1px solid #eaeef3; display: flex; align-items: center; padding: 0 24px; justify-content: space-between; box-shadow: 0 1px 4px rgba(0,21,41,.06); }
+    .header .left { display: flex; align-items: center; gap: 16px; }
+    .header .right { display: flex; align-items: center; gap: 20px; }
+    .company-badge { display: flex; align-items: center; gap:8px; color:#333; font-weight:500; padding:6px 12px; background:#f5f7fa; border-radius:6px;}
+    .content { flex: 1; overflow-y: auto; padding: 20px 24px; }
+
+    /* Page-specific */
+    .detail-header { background:#fff; border-radius:8px; padding: 18px 24px; margin-bottom:16px; box-shadow: 0 1px 3px rgba(0,0,0,.04); display:flex; justify-content:space-between; align-items:center;}
+    .detail-header .title-block { display:flex; align-items:center; gap:12px;}
+    .detail-header h2 { margin:0; font-size:24px; color:#262626; font-family:"SF Mono",Consolas,monospace; letter-spacing:1px;}
+    .detail-header .actions { display:flex; gap:8px; flex-wrap:wrap;}
+
+    /* DEEMED_CONFIRMED unique styling */
+    .deemed-tag { background:#f0f0f0 !important; color:#595959 !important; border:1px dashed #b7b7b7 !important; font-style:italic; padding: 4px 12px !important; height:auto !important;}
+    .deemed-tag .el-icon { margin-right:4px;}
+
+    .content-grid { display:grid; grid-template-columns: 1fr 380px; gap:16px; align-items:start;}
+    .card { background:#fff; border-radius:8px; box-shadow: 0 1px 3px rgba(0,0,0,.04); padding:20px; margin-bottom:16px; }
+
+    /* Balance card */
+    .balance-card { background: linear-gradient(135deg,#fff 0%, #f8fbff 100%); border:1px solid #e6f0ff; padding:24px 28px;}
+    .balance-title { font-size:14px; color:#8c8c8c; margin-bottom:16px; display:flex; align-items:center; gap:6px;}
+    .balance-list { display:flex; flex-direction:column; gap:8px; font-family:"SF Mono",Consolas,monospace;}
+    .balance-row { display:flex; justify-content:space-between; padding:6px 0; font-size:14px;}
+    .balance-row .lbl { color:#595959; font-family:-apple-system,"PingFang SC",sans-serif; font-size:13px;}
+    .balance-row .val { font-weight:600;}
+    .balance-row.divider { border-top:2px dashed #d9d9d9; padding-top:12px; margin-top:6px;}
+    .balance-row.total .val { font-size:28px; color:#1890ff; font-weight:700;}
+    .balance-row.total .lbl { font-size:15px; color:#262626; font-weight:600; font-family:-apple-system,"PingFang SC",sans-serif;}
+    .balance-row.internal { color:#8c8c8c; font-size:12px; padding-top:8px;}
+    .balance-row.internal .val { font-weight:500; color:#8c8c8c;}
+    .internal-lock { display:inline-flex; align-items:center; gap:4px;}
+
+    /* Bank statement style table */
+    .bank-table { width:100%; border-collapse: collapse; font-size:13px; font-family:"SF Mono",Consolas,Menlo,monospace;}
+    .bank-table th, .bank-table td { padding: 10px 12px; border-bottom:1px solid #eaeef3; text-align:right;}
+    .bank-table th:nth-child(1),.bank-table td:nth-child(1),
+    .bank-table th:nth-child(2),.bank-table td:nth-child(2),
+    .bank-table th:nth-child(3),.bank-table td:nth-child(3){ text-align:left; }
+    .bank-table thead th { background:#fafafa; font-weight:600; color:#595959; border-bottom:2px solid #e8e8e8;}
+    .bank-table tbody tr:hover { background:#f5faff;}
+    .amt-pos { color:#52c41a; font-weight:600;}
+    .amt-neg { color:#f5222d; font-weight:600;}
+    .amt-bal { color:#262626; font-weight:700;}
+
+    /* PDF preview */
+    .pdf-preview { background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.04); overflow:hidden; position:sticky; top:0;}
+    .pdf-header { background:#001529; color:#fff; padding:12px 16px; display:flex; justify-content:space-between; align-items:center;}
+    .pdf-header .title { font-size:13px; display:flex; align-items:center; gap:6px;}
+    .pdf-body { padding:16px; background:#fafafa; height:520px; overflow-y:auto;}
+    .pdf-page { background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.08); padding:24px 20px; font-size:11px; transform-origin: top center;}
+    .pdf-page h4 { margin:0 0 4px 0; text-align:center; letter-spacing:6px; font-size:16px;}
+    .pdf-page .sub { text-align:center; color:#8c8c8c; margin-bottom:16px; font-size:10px;}
+    .pdf-page .parties { display:flex; justify-content:space-between; padding:8px 0; border-top:1px solid #d9d9d9; border-bottom:1px solid #d9d9d9; margin-bottom:12px;}
+    .pdf-page .summary { margin-top:12px; padding:8px; background:#fafafa; border-radius:4px; display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:10px;}
+    .pdf-page .summary .item { display:flex; justify-content:space-between;}
+    .pdf-page .stamp { margin-top:16px; text-align:right; color:#f5222d; opacity:0.7;}
+    .pdf-page table { width:100%; border-collapse:collapse; font-size:10px; font-family:"SF Mono",Consolas,monospace;}
+    .pdf-page th, .pdf-page td { padding:4px 6px; border-bottom:1px solid #eaeef3; text-align:right;}
+    .pdf-page th:first-child, .pdf-page td:first-child { text-align:left;}
+
+    .page-tabs .el-tabs__header { margin: 0 0 16px 0;}
+
+    /* Confirm info tab special */
+    .confirm-panel { display:grid; grid-template-columns: 1fr 1fr; gap:16px;}
+    .confirm-side { border:1px solid #e8e8e8; border-radius:8px; padding:20px; }
+    .confirm-side.seller { background:#f6ffed; border-color:#b7eb8f;}
+    .confirm-side.buyer  { background:#fafafa; border-color:#d9d9d9;}
+    .confirm-side h4 { margin:0 0 12px 0; display:flex; align-items:center; gap:6px;}
+    .signature-box { background:#fff; border:1px dashed #d9d9d9; padding:14px; margin-top:10px; text-align:center; border-radius:6px;}
+    .signature-box .seal { display:inline-block; width:82px; height:82px; border:2px solid #f5222d; border-radius:50%; color:#f5222d; font-weight:700; line-height:78px; text-align:center; letter-spacing:2px; transform:rotate(-8deg); font-family:"KaiTi","楷体",serif; font-size:14px; }
+    .deemed-note { background:#fff7e6; border-left:4px solid #faad14; padding:12px 14px; margin-top:12px; border-radius:4px; font-size:13px; line-height:1.6; color:#7a5b00;}
+
+    /* Timeline */
+    .log-timeline .el-timeline-item__content { padding-bottom:12px;}
+    .log-entry-title { font-weight:500; color:#262626;}
+    .log-entry-meta  { color:#8c8c8c; font-size:12px; margin-top:2px;}
+
+    /* Collect status */
+    .collect-ticket { border:1px solid #e6f0ff; background:#f0f7ff; border-radius:8px; padding:18px; }
+    .collect-ticket .kv { display:grid; grid-template-columns: 100px 1fr; gap:8px; margin-bottom:8px; font-size:13px;}
+    .collect-ticket .kv .k { color:#8c8c8c;}
+
+    .status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle;}
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="layout">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-logo"><span class="logo-badge">对</span>对账通 v2</div>
+        <el-menu class="sidebar-menu" default-active="statement-list" :default-openeds="['recon']">
+          <el-menu-item index="dashboard" @click="nav('dashboard.html')"><el-icon><component :is="Icons.Odometer" /></el-icon><span>工作台</span></el-menu-item>
+          <el-sub-menu index="customer">
+            <template #title><el-icon><component :is="Icons.User" /></el-icon><span>客户中心</span></template>
+            <el-menu-item index="customer-ledger" @click="nav('customer-ledger.html')">客户往来账</el-menu-item>
+            <el-menu-item index="customer-types">客户类型</el-menu-item>
+            <el-menu-item index="customer-tags">客户标签</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="recon">
+            <template #title><el-icon><component :is="Icons.Document" /></el-icon><span>对账管理</span></template>
+            <el-menu-item index="statement-list" @click="nav('statement-list.html')">对账单列表</el-menu-item>
+            <el-menu-item index="statement-create" @click="nav('statement-create.html')">发起对账</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="collect">
+            <template #title><el-icon><component :is="Icons.Bell" /></el-icon><span>催收中心</span></template>
+            <el-menu-item index="collection-orders" @click="nav('collection-orders.html')">催收工单</el-menu-item>
+            <el-menu-item index="collection-profiles" @click="nav('collection-profiles.html')">催收策略</el-menu-item>
+            <el-menu-item index="call-tasks" @click="nav('call-tasks.html')">外呼任务</el-menu-item>
+            <el-menu-item index="call-records" @click="nav('call-records.html')">外呼记录</el-menu-item>
+          </el-sub-menu>
+          <el-menu-item index="messages"><el-icon><component :is="Icons.ChatDotRound" /></el-icon><span>消息中心</span></el-menu-item>
+          <el-menu-item index="report"><el-icon><component :is="Icons.DataAnalysis" /></el-icon><span>报表分析</span></el-menu-item>
+          <el-menu-item index="system"><el-icon><component :is="Icons.Setting" /></el-icon><span>系统设置</span></el-menu-item>
+        </el-menu>
+      </aside>
+
+      <!-- Main -->
+      <div class="main">
+        <div class="header">
+          <div class="left">
+            <el-breadcrumb separator="/">
+              <el-breadcrumb-item>首页</el-breadcrumb-item>
+              <el-breadcrumb-item>对账管理</el-breadcrumb-item>
+              <el-breadcrumb-item><a href="./statement-list.html">对账单列表</a></el-breadcrumb-item>
+              <el-breadcrumb-item>R202503006</el-breadcrumb-item>
+            </el-breadcrumb>
+          </div>
+          <div class="right">
+            <div class="company-badge"><el-icon><component :is="Icons.OfficeBuilding" /></el-icon><span>某某钢铁有限公司</span></div>
+            <el-badge :value="12" :max="99"><el-icon size="20" color="#595959"><component :is="Icons.Bell" /></el-icon></el-badge>
+            <el-dropdown>
+              <span style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <el-avatar :size="32" style="background:#1890ff;">张</el-avatar>
+                <span>张财务</span>
+                <el-icon><component :is="Icons.ArrowDown" /></el-icon>
+              </span>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item>个人设置</el-dropdown-item>
+                  <el-dropdown-item>修改密码</el-dropdown-item>
+                  <el-dropdown-item divided>退出登录</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+        </div>
+
+        <div class="content">
+          <!-- Header with status + actions -->
+          <div class="detail-header">
+            <div class="title-block">
+              <h2>R202503006</h2>
+              <el-tooltip effect="dark" content="视同确认: 客户未反馈达约定天数，法律上视为无异议，但系统标记与已确认区分" placement="bottom">
+                <el-tag class="deemed-tag" size="large">
+                  <el-icon><component :is="Icons.CircleCheck" /></el-icon>
+                  视同确认 · DEEMED_CONFIRMED
+                </el-tag>
+              </el-tooltip>
+              <el-tag size="small" type="info" effect="plain">发送 · 2026-03-08</el-tag>
+            </div>
+            <div class="actions">
+              <el-button :icon="Icons.Download">下载 PDF</el-button>
+              <el-button :icon="Icons.DocumentChecked">下载签章版</el-button>
+              <el-button type="warning" :icon="Icons.Phone">催促客户主动确认</el-button>
+              <el-button type="danger" :icon="Icons.Delete" plain>作废</el-button>
+              <el-button :icon="Icons.View" @click="pdfCollapsed = !pdfCollapsed" circle />
+            </div>
+          </div>
+
+          <!-- DEEMED_CONFIRMED special warning alert -->
+          <el-alert type="warning" show-icon :closable="false" style="margin-bottom:16px; align-items:flex-start;">
+            <template #title>
+              <b>本对账单为「视同确认」状态</b>
+            </template>
+            <template #default>
+              <div style="line-height:1.7; margin-top:4px;">
+                客户未在约定 <b style="color:#f5222d;">15 天</b> 内反馈，根据双方协议视为无异议。<br/>
+                <b>⚠ 系统未自动改变财务状态</b>——本对账单未触发自动签章或结算，如需正式确认签章，请点击右上角
+                <el-tag size="small" type="warning" style="margin: 0 4px;">催促客户主动确认</el-tag>。
+              </div>
+            </template>
+          </el-alert>
+
+          <div class="content-grid" :style="pdfCollapsed ? 'grid-template-columns: 1fr;' : ''">
+            <!-- Left main column -->
+            <div>
+              <!-- Balance card -->
+              <div class="card balance-card">
+                <div class="balance-title">
+                  <el-icon color="#1890ff"><component :is="Icons.Money" /></el-icon>
+                  余额概览 · Balance Summary
+                </div>
+                <div class="balance-list">
+                  <div class="balance-row"><span class="lbl">期初余额</span><span class="val amt-bal">¥12,300.00</span></div>
+                  <div class="balance-row"><span class="lbl">＋ 本期应收</span><span class="val amt-pos">+¥125,800.00</span></div>
+                  <div class="balance-row"><span class="lbl">－ 本期实收</span><span class="val amt-neg">-¥50,000.00</span></div>
+                  <div class="balance-row divider total"><span class="lbl">＝ 期末应收余额（发送给客户）</span><span class="val">¥88,100.00</span></div>
+                  <div class="balance-row internal">
+                    <span class="lbl internal-lock">
+                      <el-icon><component :is="Icons.Lock" /></el-icon>
+                      内部余额（含过滤项 · 仅内部可见）
+                    </span>
+                    <span class="val">¥86,900.00 <el-tag size="small" type="info" effect="plain">差 -¥1,200</el-tag></span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Descriptions -->
+              <div class="card">
+                <el-descriptions :column="3" border title="对账单基本信息">
+                  <el-descriptions-item label="卖方">某某钢铁有限公司</el-descriptions-item>
+                  <el-descriptions-item label="买方">某某建筑集团</el-descriptions-item>
+                  <el-descriptions-item label="客户类型">
+                    <el-tag size="small" effect="plain">经销商</el-tag>
+                    <el-tag size="small" type="info" style="margin-left:4px;">D</el-tag>
+                  </el-descriptions-item>
+                  <el-descriptions-item label="对账周期">2026-03-01 ~ 2026-03-31</el-descriptions-item>
+                  <el-descriptions-item label="创建时间">2026-03-08 10:00:12</el-descriptions-item>
+                  <el-descriptions-item label="发送时间">2026-03-08 10:15:38</el-descriptions-item>
+                  <el-descriptions-item label="触发方式">
+                    <el-tag size="small">自动</el-tag>
+                    <span style="color:#8c8c8c; margin-left:4px;">（月度周期调度）</span>
+                  </el-descriptions-item>
+                  <el-descriptions-item label="视同确认日期">
+                    <b style="color:#faad14;">2026-03-15 00:00</b>
+                  </el-descriptions-item>
+                  <el-descriptions-item label="视同确认天数">
+                    <b>7 天</b>
+                    <span style="color:#8c8c8c; margin-left:4px;">（客户配置 15 天，实际提前触发）</span>
+                  </el-descriptions-item>
+                </el-descriptions>
+              </div>
+
+              <!-- Tabs -->
+              <div class="card">
+                <el-tabs v-model="activeTab" class="page-tabs">
+                  <!-- Tab 1: 往来流水 -->
+                  <el-tab-pane label="往来流水" name="tx">
+                    <template #label><span><el-icon><component :is="Icons.List" /></el-icon> 往来流水</span></template>
+
+                    <table class="bank-table">
+                      <thead>
+                        <tr>
+                          <th>日期</th><th>单号</th><th>摘要</th>
+                          <th>结算数量</th><th>应收</th><th>实收</th><th>余额</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr><td>03-01</td><td>—</td><td>期初余额</td><td>—</td><td>—</td><td>—</td><td class="amt-bal">¥12,300</td></tr>
+                        <tr><td>03-01</td><td>PO2026101</td><td>螺纹钢 HRB400E ¢12</td><td>50 吨</td><td class="amt-pos">+¥30,000</td><td>—</td><td class="amt-bal">¥42,300</td></tr>
+                        <tr><td>03-05</td><td>PO2026102</td><td>盘螺 HPB300 ¢8</td><td>25 吨</td><td class="amt-pos">+¥15,000</td><td>—</td><td class="amt-bal">¥57,300</td></tr>
+                        <tr><td>03-10</td><td>PY2026101</td><td>收到承兑汇票（工行 6688）</td><td>—</td><td>—</td><td class="amt-neg">-¥30,000</td><td class="amt-bal">¥27,300</td></tr>
+                        <tr><td>03-12</td><td>PY2026102</td><td>收到电汇 转账</td><td>—</td><td>—</td><td class="amt-neg">-¥20,000</td><td class="amt-bal">¥7,300</td></tr>
+                        <tr><td>03-20</td><td>PO2026103</td><td>热轧板 Q235 5.5mm</td><td>80 吨</td><td class="amt-pos">+¥50,300</td><td>—</td><td class="amt-bal">¥57,600</td></tr>
+                        <tr><td>03-22</td><td>PO2026104</td><td>抗震螺纹钢 HRB400E ¢18</td><td>15 吨</td><td class="amt-pos">+¥12,500</td><td>—</td><td class="amt-bal">¥70,100</td></tr>
+                        <tr><td>03-25</td><td>PO2026105</td><td>螺纹钢 HRB400E ¢16</td><td>50 吨</td><td class="amt-pos">+¥18,000</td><td>—</td><td class="amt-bal">¥88,100</td></tr>
+                        <tr style="background:#fffbe6; font-style:italic; color:#8c8c8c;"><td>03-30</td><td>NB010</td><td>内部调整 (客户不可见)</td><td>—</td><td>—</td><td>-¥1,200</td><td>¥86,900 (内部)</td></tr>
+                        <tr style="background:#fafafa; font-weight:600;">
+                          <td colspan="3">合计</td>
+                          <td>—</td>
+                          <td class="amt-pos">+¥125,800</td>
+                          <td class="amt-neg">-¥50,000</td>
+                          <td class="amt-bal">¥88,100</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </el-tab-pane>
+
+                  <!-- Tab 2: 应收明细 -->
+                  <el-tab-pane label="应收明细" name="ar">
+                    <template #label><span><el-icon><component :is="Icons.Document" /></el-icon> 应收明细</span></template>
+                    <el-alert type="info" show-icon :closable="false" style="margin-bottom:12px;">
+                      <template #title>
+                        应收明细来自 ERP（用友 U8 · 单据表 SA_SaleBillVouch），展示每笔销售订单的付款进度
+                      </template>
+                    </el-alert>
+
+                    <el-table :data="arRows" border stripe :header-cell-style="{background:'#fafafa'}">
+                      <el-table-column prop="no" label="源单号" width="90" />
+                      <el-table-column prop="date" label="日期" width="90" />
+                      <el-table-column prop="memo" label="摘要" min-width="140" />
+                      <el-table-column label="原始金额" width="120" align="right">
+                        <template #default="{row}"><span class="amt-bal">¥{{ row.amount.toLocaleString() }}</span></template>
+                      </el-table-column>
+                      <el-table-column label="已付" width="120" align="right">
+                        <template #default="{row}"><span class="amt-pos">¥{{ row.paid.toLocaleString() }}</span></template>
+                      </el-table-column>
+                      <el-table-column label="未付" width="120" align="right">
+                        <template #default="{row}"><span :class="row.unpaid>0?'amt-neg':''">¥{{ row.unpaid.toLocaleString() }}</span></template>
+                      </el-table-column>
+                      <el-table-column prop="due" label="到期日" width="100" />
+                      <el-table-column label="状态" width="110">
+                        <template #default="{row}">
+                          <el-tag size="small" :type="row.statusType">{{ row.statusText }}</el-tag>
+                        </template>
+                      </el-table-column>
+                      <el-table-column label="操作" width="100">
+                        <template #default>
+                          <el-link type="primary">查看源单</el-link>
+                        </template>
+                      </el-table-column>
+                    </el-table>
+
+                    <div style="margin-top:12px; padding:12px 16px; background:#fff2e8; border-radius:6px; border-left:4px solid #fa8c16;">
+                      <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span><b>未付合计：</b><span class="amt-neg" style="font-size:16px; font-family:'SF Mono',monospace;">¥88,100</span> <el-icon color="#52c41a"><component :is="Icons.CircleCheck" /></el-icon> <span style="color:#52c41a; font-size:12px;">与期末应收余额一致</span></span>
+                        <span style="color:#8c8c8c; font-size:12px;">2 笔已付清 · 1 笔部分付款 · 1 笔未付款</span>
+                      </div>
+                    </div>
+                  </el-tab-pane>
+
+                  <!-- Tab 3: 异议记录 -->
+                  <el-tab-pane label="异议记录" name="dispute">
+                    <template #label><span><el-icon><component :is="Icons.WarningFilled" /></el-icon> 异议记录 <el-tag size="small" round type="info">0</el-tag></span></template>
+                    <el-empty description="本对账单暂无异议记录">
+                      <template #image>
+                        <el-icon size="80" color="#d9d9d9"><component :is="Icons.CircleCheck" /></el-icon>
+                      </template>
+                      <div style="color:#8c8c8c; margin-bottom:12px;">
+                        客户在视同确认期内（03-08 ~ 03-15）未提出任何异议
+                      </div>
+                    </el-empty>
+                  </el-tab-pane>
+
+                  <!-- Tab 4: 确认信息 -->
+                  <el-tab-pane label="确认信息" name="confirm">
+                    <template #label>
+                      <span><el-icon color="#faad14"><component :is="Icons.EditPen" /></el-icon> 确认信息 <el-tag size="small" round class="deemed-tag" style="margin-left:4px;">视同</el-tag></span>
+                    </template>
+
+                    <div class="confirm-panel">
+                      <!-- Seller side -->
+                      <div class="confirm-side seller">
+                        <h4>
+                          <el-icon color="#52c41a"><component :is="Icons.CircleCheck" /></el-icon>
+                          卖方签章状态
+                          <el-tag size="small" type="success" style="margin-left:auto;">已签章</el-tag>
+                        </h4>
+                        <div style="color:#595959; font-size:13px; line-height:1.7;">
+                          <div>签章方：某某钢铁有限公司</div>
+                          <div>签章人：张财务（财务主管）</div>
+                          <div>签章时间：2026-03-08 10:14:52</div>
+                          <div>CA 证书：CFCA-<code style="background:#f0f0f0; padding:1px 4px; border-radius:2px;">SN20240807...E3A2</code></div>
+                        </div>
+                        <div class="signature-box">
+                          <div class="seal">某某钢铁 · 财务专用章</div>
+                        </div>
+                      </div>
+
+                      <!-- Buyer side (DEEMED) -->
+                      <div class="confirm-side buyer">
+                        <h4>
+                          <el-icon color="#8c8c8c"><component :is="Icons.QuestionFilled" /></el-icon>
+                          买方确认状态
+                          <el-tag class="deemed-tag" size="small" style="margin-left:auto;">
+                            <el-icon><component :is="Icons.Timer" /></el-icon>
+                            视同确认 · DEEMED
+                          </el-tag>
+                        </h4>
+                        <div style="color:#595959; font-size:13px; line-height:1.7;">
+                          <div>买方：某某建筑集团</div>
+                          <div>联系人：李经理 · 138****1234</div>
+                          <div>视同确认时间：<b style="color:#faad14;">2026-03-15 00:00</b></div>
+                          <div>触发规则：发出后 15 天未反馈</div>
+                        </div>
+
+                        <div class="deemed-note">
+                          <b>说明：</b>根据双方约定，发出后 15 天未反馈视为无异议，本对账单已于 <b>2026-03-15</b> 达到视同确认状态。
+                        </div>
+
+                        <div class="deemed-note" style="background:#e6f7ff; border-left-color:#1890ff; color:#003a8c; margin-top:8px;">
+                          <b>⚠ 提示：</b>「视同确认」不等同于「已确认」，未产生正式电子签章。如需完成签章闭环，可催促客户主动确认。
+                        </div>
+
+                        <div class="signature-box" style="border-style:dashed; color:#bfbfbf;">
+                          <div style="font-size:12px;">买方尚未签章</div>
+                          <div style="margin-top:6px;">
+                            <el-button size="small" type="warning" :icon="Icons.Phone">催促客户确认</el-button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </el-tab-pane>
+
+                  <!-- Tab 5: 催收状态 -->
+                  <el-tab-pane label="催收状态" name="collect">
+                    <template #label><span><el-icon color="#fa541c"><component :is="Icons.Bell" /></el-icon> 催收状态 <el-tag size="small" round type="danger">1</el-tag></span></template>
+
+                    <div class="collect-ticket">
+                      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                          <el-icon color="#1890ff" size="20"><component :is="Icons.Document" /></el-icon>
+                          <b style="font-size:15px;">CO202503001</b>
+                          <el-tag size="small" type="warning">催收中</el-tag>
+                          <el-tag size="small" type="info" effect="plain">按未付部分催</el-tag>
+                        </div>
+                        <el-link type="primary" :underline="false">
+                          查看工单详情 <el-icon><component :is="Icons.Right" /></el-icon>
+                        </el-link>
+                      </div>
+
+                      <div class="kv"><span class="k">催收金额</span><span><b class="amt-neg" style="font-size:15px; font-family:'SF Mono',monospace;">¥88,100.00</b></span></div>
+                      <div class="kv"><span class="k">催收模式</span><span>按未付部分催（仅对 S003 部分未付 ¥45,300 + S004 未付 ¥42,800 催收）</span></div>
+                      <div class="kv"><span class="k">当前阶段</span>
+                        <span>
+                          <el-tag size="small" type="warning">阶段 2</el-tag>
+                          <span style="margin-left:8px;">AI 外呼中</span>
+                          <span style="color:#8c8c8c; margin-left:8px;">（04-01 已进入阶段 2）</span>
+                        </span>
+                      </div>
+                      <div class="kv"><span class="k">已外呼次数</span><span><b>1</b> 次（下次 04-04 10:00 · 阿里云智能语音）</span></div>
+                      <div class="kv"><span class="k">催收进度</span>
+                        <div>
+                          <el-steps :active="2" simple style="width:100%; margin-top:4px;">
+                            <el-step title="阶段1 通知" :icon="Icons.Message" />
+                            <el-step title="阶段2 AI外呼" :icon="Icons.Phone" />
+                            <el-step title="阶段3 人工" :icon="Icons.User" />
+                            <el-step title="核销" :icon="Icons.CircleCheck" />
+                          </el-steps>
+                        </div>
+                      </div>
+                    </div>
+                  </el-tab-pane>
+
+                  <!-- Tab 6: 操作日志 -->
+                  <el-tab-pane label="操作日志" name="log">
+                    <template #label><span><el-icon><component :is="Icons.Clock" /></el-icon> 操作日志</span></template>
+
+                    <el-timeline class="log-timeline">
+                      <el-timeline-item timestamp="2026-04-01 09:00" placement="top" color="#f5222d" :icon="Icons.Bell">
+                        <div class="log-entry-title">逾期，创建催收工单</div>
+                        <div class="log-entry-meta">工单号 CO202503001 · 催收金额 ¥88,100 · 触发规则「到期未付款超过 7 天」</div>
+                      </el-timeline-item>
+
+                      <el-timeline-item timestamp="2026-03-15 00:00" placement="top" color="#faad14" :icon="Icons.Timer">
+                        <div class="log-entry-title">达到「视同确认」状态</div>
+                        <div class="log-entry-meta">
+                          系统调度器触发 · 距发送 <b>7 天</b>（客户配置 15 天，因客户已明确知晓提前标记）
+                          <el-tag class="deemed-tag" size="small" style="margin-left:8px;">DEEMED_CONFIRMED</el-tag>
+                        </div>
+                      </el-timeline-item>
+
+                      <el-timeline-item timestamp="2026-03-09 14:20" placement="top" color="#1890ff" :icon="Icons.View">
+                        <div class="log-entry-title">客户打开对账单查看</div>
+                        <div class="log-entry-meta">来源：微信小程序 · 客户端 IP: 218.75.**.** · 停留 3 分 12 秒</div>
+                      </el-timeline-item>
+
+                      <el-timeline-item timestamp="2026-03-08 10:45" placement="top" color="#722ed1" :icon="Icons.Phone">
+                        <div class="log-entry-title">AI 外呼跟单 · 已接通</div>
+                        <div class="log-entry-meta">
+                          意图识别：<el-tag size="small" type="success">知晓</el-tag>
+                          通话时长 42 秒 · 通话记录：客户表示已收到对账单，稍后核对
+                        </div>
+                      </el-timeline-item>
+
+                      <el-timeline-item timestamp="2026-03-08 10:15" placement="top" color="#52c41a" :icon="Icons.Promotion">
+                        <div class="log-entry-title">对账单已发送</div>
+                        <div class="log-entry-meta">
+                          通知渠道：
+                          <el-tag size="small" style="margin:0 2px;">SMS</el-tag>
+                          <el-tag size="small" type="success" style="margin:0 2px;">微信</el-tag>
+                          <el-tag size="small" type="warning" style="margin:0 2px;">邮件</el-tag>
+                          全部投递成功
+                        </div>
+                      </el-timeline-item>
+
+                      <el-timeline-item timestamp="2026-03-08 10:00" placement="top" color="#909399" :icon="Icons.DocumentAdd">
+                        <div class="log-entry-title">系统自动生成对账单</div>
+                        <div class="log-entry-meta">触发源：月度周期调度器 · 数据源：ERP · 应用过滤规则 HK*, NB*, !NB998</div>
+                      </el-timeline-item>
+                    </el-timeline>
+                  </el-tab-pane>
+                </el-tabs>
+              </div>
+            </div>
+
+            <!-- Right: PDF preview -->
+            <div v-show="!pdfCollapsed" class="pdf-preview">
+              <div class="pdf-header">
+                <div class="title">
+                  <el-icon><component :is="Icons.DocumentCopy" /></el-icon>
+                  PDF 预览
+                </div>
+                <el-icon style="cursor:pointer;" @click="pdfCollapsed = true"><component :is="Icons.Close" /></el-icon>
+              </div>
+              <div class="pdf-body">
+                <div class="pdf-page">
+                  <h4>对 账 单</h4>
+                  <div class="sub">Statement of Account · R202503006 · 2026-03-31</div>
+
+                  <div class="parties">
+                    <div><b>卖方：</b>某某钢铁</div>
+                    <div><b>买方：</b>某某建筑</div>
+                  </div>
+
+                  <table>
+                    <thead>
+                      <tr><th>日期</th><th>单号</th><th>摘要</th><th>应收</th><th>实收</th><th>余额</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr><td>03-01</td><td>—</td><td>期初</td><td>—</td><td>—</td><td>12,300</td></tr>
+                      <tr><td>03-01</td><td>PO101</td><td>螺纹钢 ¢12</td><td class="amt-pos">+30,000</td><td>—</td><td>42,300</td></tr>
+                      <tr><td>03-05</td><td>PO102</td><td>盘螺 ¢8</td><td class="amt-pos">+15,000</td><td>—</td><td>57,300</td></tr>
+                      <tr><td>03-10</td><td>PY101</td><td>承兑汇票</td><td>—</td><td class="amt-neg">-30,000</td><td>27,300</td></tr>
+                      <tr><td>03-12</td><td>PY102</td><td>电汇</td><td>—</td><td class="amt-neg">-20,000</td><td>7,300</td></tr>
+                      <tr><td>03-20</td><td>PO103</td><td>热轧板</td><td class="amt-pos">+50,300</td><td>—</td><td>57,600</td></tr>
+                      <tr><td>03-22</td><td>PO104</td><td>螺纹钢 ¢18</td><td class="amt-pos">+12,500</td><td>—</td><td>70,100</td></tr>
+                      <tr><td>03-25</td><td>PO105</td><td>螺纹钢 ¢16</td><td class="amt-pos">+18,000</td><td>—</td><td>88,100</td></tr>
+                    </tbody>
+                  </table>
+
+                  <div class="summary">
+                    <div class="item"><span>期初</span><b>¥12,300</b></div>
+                    <div class="item"><span>本期应收</span><b class="amt-pos">+¥125,800</b></div>
+                    <div class="item"><span>本期实收</span><b class="amt-neg">-¥50,000</b></div>
+                    <div class="item"><span>期末</span><b style="color:#1890ff; font-size:12px;">¥88,100</b></div>
+                  </div>
+
+                  <div style="margin-top:12px; font-size:10px; color:#8c8c8c; line-height:1.6;">
+                    如与贵司账目不符，请于收到后 <b style="color:#f5222d;">15</b> 天内反馈异议，逾期视同确认。
+                  </div>
+
+                  <div class="stamp">
+                    <div style="display:inline-block; border:1.5px solid #f5222d; border-radius:50%; width:60px; height:60px; line-height:56px; text-align:center; font-size:9px; letter-spacing:1px; transform:rotate(-8deg);">某某钢铁<br/>财务专用</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, ref } = Vue;
+    const Icons = ElementPlusIconsVue;
+
+    const app = createApp({
+      setup() {
+        const activeTab = ref('tx');
+        const pdfCollapsed = ref(false);
+
+        const arRows = ref([
+          { no:'S001', date:'03-01', memo:'螺纹钢 HRB400E ¢12', amount:30000, paid:30000, unpaid:0,     due:'03-15', statusText:'已付清',  statusType:'success' },
+          { no:'S002', date:'03-05', memo:'盘螺 HPB300 ¢8',    amount:15000, paid:15000, unpaid:0,     due:'03-20', statusText:'已付清',  statusType:'success' },
+          { no:'S003', date:'03-20', memo:'热轧板 Q235 5.5mm',  amount:50300, paid:5000,  unpaid:45300, due:'04-05', statusText:'部分付款', statusType:'warning' },
+          { no:'S004', date:'03-25', memo:'螺纹钢 HRB400E ¢16', amount:42800, paid:0,     unpaid:42800, due:'04-10', statusText:'未付款',  statusType:'danger' },
+        ]);
+
+        function nav(page){ window.location.href='./'+page; }
+
+        return { Icons, activeTab, pdfCollapsed, arRows, nav };
+      }
+    });
+    app.use(ElementPlus);
+    for (const [k, v] of Object.entries(ElementPlusIconsVue)) { app.component(k, v); }
+    app.mount('#app');
+  </script>
+</body>
+</html>

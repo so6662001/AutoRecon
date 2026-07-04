@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>发起对账 - 对账通v2原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; background: #f0f2f5; }
+    #app { height: 100%; }
+    .layout { display: flex; height: 100vh; overflow: hidden; }
+
+    /* Sidebar */
+    .sidebar { width: 220px; background: #001529; color: #fff; flex-shrink: 0; display: flex; flex-direction: column; }
+    .sidebar-logo { height: 64px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600; color: #fff; border-bottom: 1px solid #1f3448; letter-spacing: 2px; background: linear-gradient(90deg,#001529 0%, #002140 100%); }
+    .sidebar-logo .logo-badge { display: inline-block; width: 24px; height: 24px; border-radius: 4px; background: linear-gradient(135deg,#40a9ff,#1890ff); margin-right: 8px; text-align: center; line-height: 24px; font-size: 13px; font-weight: 700; }
+    .el-menu.sidebar-menu { border-right: none; background: transparent; flex: 1; overflow-y: auto; }
+    .sidebar-menu:not(.el-menu--collapse) { --el-menu-bg-color: transparent; --el-menu-text-color: rgba(255,255,255,0.75); --el-menu-hover-bg-color: #000c17; --el-menu-active-color: #fff; --el-menu-hover-text-color:#fff;}
+    .sidebar-menu .el-sub-menu__title { color: rgba(255,255,255,0.75) !important; }
+    .sidebar-menu .el-sub-menu__title:hover { background: #000c17 !important; color:#fff !important; }
+    .sidebar-menu .el-menu-item { color: rgba(255,255,255,0.75); }
+    .sidebar-menu .el-menu-item:hover { background: #000c17 !important; color:#fff !important; }
+    .sidebar-menu .el-menu-item.is-active { background: #1890ff !important; color: #fff !important; }
+    .sidebar-menu .el-sub-menu .el-menu { background: #000c17 !important; }
+    .sidebar-menu .el-sub-menu .el-menu-item { background: #000c17 !important; }
+    .sidebar-menu .el-sub-menu .el-menu-item.is-active { background: #1890ff !important; }
+
+    /* Main */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .header { height: 64px; background: #fff; border-bottom: 1px solid #eaeef3; display: flex; align-items: center; padding: 0 24px; justify-content: space-between; box-shadow: 0 1px 4px rgba(0,21,41,.06); }
+    .header .left { display: flex; align-items: center; gap: 16px; }
+    .header .right { display: flex; align-items: center; gap: 20px; }
+    .company-badge { display: flex; align-items: center; gap:8px; color:#333; font-weight:500; padding:6px 12px; background:#f5f7fa; border-radius:6px;}
+    .content { flex: 1; overflow-y: auto; padding: 20px 24px; }
+    .page-title { font-size: 20px; font-weight: 600; color: #262626; margin: 0 0 16px 0; display:flex; align-items:center; gap:8px;}
+
+    .card { background:#fff; border-radius:8px; box-shadow: 0 1px 3px rgba(0,0,0,.04); padding:24px; margin-bottom:16px; }
+
+    /* Bank statement style */
+    .bank-table { width:100%; border-collapse: collapse; font-size:13px; font-family:"SF Mono",Consolas,Menlo,monospace;}
+    .bank-table th, .bank-table td { padding: 8px 10px; border-bottom:1px solid #eaeef3; text-align:right;}
+    .bank-table th:nth-child(1),.bank-table td:nth-child(1),
+    .bank-table th:nth-child(2),.bank-table td:nth-child(2),
+    .bank-table th:nth-child(3),.bank-table td:nth-child(3){ text-align:left; }
+    .bank-table thead th { background:#fafafa; font-weight:600; color:#595959; border-bottom:2px solid #e8e8e8;}
+    .bank-table tbody tr.filtered { background: #fffbe6; color:#8c8c8c; font-style:italic; }
+    .bank-table tbody tr.filtered td:last-child { color:#faad14; font-weight:600; }
+    .amt-pos { color:#52c41a; font-weight:600;}
+    .amt-neg { color:#f5222d; font-weight:600;}
+    .amt-bal { color:#262626; font-weight:700;}
+    .step-panel { min-height: 400px; }
+    .form-hint { color:#8c8c8c; font-size:12px; margin-left:8px;}
+    .snapshot-badge { display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:12px; background:#e6f7ff; color:#1890ff; font-size:12px;}
+
+    /* Preview */
+    .stmt-preview { background:#fff; border:2px solid #e8e8e8; padding:32px; border-radius:6px; font-family:"PingFang SC","Microsoft YaHei",sans-serif;}
+    .stmt-preview h3 { text-align:center; margin:0 0 4px 0; letter-spacing:8px; font-size:22px;}
+    .stmt-preview .sub-title { text-align:center; color:#8c8c8c; margin-bottom:24px; font-size:13px;}
+    .stmt-parties { display:flex; justify-content:space-between; padding:12px 0; border-top:1px solid #d9d9d9; border-bottom:1px solid #d9d9d9; margin-bottom:16px; font-size:13px;}
+    .stmt-parties b { color:#595959; margin-right:8px;}
+    .stmt-summary { display:grid; grid-template-columns: repeat(4,1fr); gap:12px; margin-top:16px; padding:16px; background:#fafafa; border-radius:4px; }
+    .stmt-summary .item { text-align:center; }
+    .stmt-summary .lbl { color:#8c8c8c; font-size:12px;}
+    .stmt-summary .val { color:#262626; font-size:16px; font-weight:600; font-family:"SF Mono",Consolas,monospace; margin-top:4px;}
+    .stmt-summary .val.highlight { color:#1890ff; font-size:20px;}
+    .stmt-footer { margin-top: 20px; display:flex; justify-content:space-between; padding-top:16px; border-top:1px dashed #e8e8e8; color:#8c8c8c; font-size:12px;}
+
+    .filter-compare { display:grid; grid-template-columns:1fr 40px 1fr; gap:0; align-items:stretch;}
+    .filter-compare .arrow { display:flex; align-items:center; justify-content:center; color:#8c8c8c; font-size:24px;}
+    .filter-side { border:1px solid #e8e8e8; border-radius:6px; padding:16px;}
+    .filter-side.left { background:#fafafa; }
+    .filter-side.right { background:#f6ffed; border-color:#b7eb8f;}
+    .filter-side h4 { margin:0 0 12px 0; display:flex; justify-content:space-between; align-items:center;}
+
+    .step-actions { display:flex; justify-content:space-between; align-items:center; margin-top:24px; padding-top:20px; border-top:1px solid #eaeef3;}
+    .required-star { color:#f56c6c; margin-right:2px;}
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="layout">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-logo"><span class="logo-badge">对</span>对账通 v2</div>
+        <el-menu class="sidebar-menu" default-active="statement-create" :default-openeds="['recon']">
+          <el-menu-item index="dashboard" @click="nav('dashboard.html')">
+            <el-icon><component :is="Icons.Odometer" /></el-icon><span>工作台</span>
+          </el-menu-item>
+          <el-sub-menu index="customer">
+            <template #title>
+              <el-icon><component :is="Icons.User" /></el-icon><span>客户中心</span>
+            </template>
+            <el-menu-item index="customer-ledger" @click="nav('customer-ledger.html')">客户往来账</el-menu-item>
+            <el-menu-item index="customer-types">客户类型</el-menu-item>
+            <el-menu-item index="customer-tags">客户标签</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="recon">
+            <template #title>
+              <el-icon><component :is="Icons.Document" /></el-icon><span>对账管理</span>
+            </template>
+            <el-menu-item index="statement-list" @click="nav('statement-list.html')">对账单列表</el-menu-item>
+            <el-menu-item index="statement-create" @click="nav('statement-create.html')">发起对账</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="collect">
+            <template #title>
+              <el-icon><component :is="Icons.Bell" /></el-icon><span>催收中心</span>
+            </template>
+            <el-menu-item index="collection-orders" @click="nav('collection-orders.html')">催收工单</el-menu-item>
+            <el-menu-item index="collection-profiles" @click="nav('collection-profiles.html')">催收策略</el-menu-item>
+            <el-menu-item index="call-tasks" @click="nav('call-tasks.html')">外呼任务</el-menu-item>
+            <el-menu-item index="call-records" @click="nav('call-records.html')">外呼记录</el-menu-item>
+          </el-sub-menu>
+          <el-menu-item index="messages"><el-icon><component :is="Icons.ChatDotRound" /></el-icon><span>消息中心</span></el-menu-item>
+          <el-menu-item index="report"><el-icon><component :is="Icons.DataAnalysis" /></el-icon><span>报表分析</span></el-menu-item>
+          <el-menu-item index="system"><el-icon><component :is="Icons.Setting" /></el-icon><span>系统设置</span></el-menu-item>
+        </el-menu>
+      </aside>
+
+      <!-- Main -->
+      <div class="main">
+        <div class="header">
+          <div class="left">
+            <el-breadcrumb separator="/">
+              <el-breadcrumb-item>首页</el-breadcrumb-item>
+              <el-breadcrumb-item>对账管理</el-breadcrumb-item>
+              <el-breadcrumb-item><a href="./statement-list.html">对账单列表</a></el-breadcrumb-item>
+              <el-breadcrumb-item>发起对账</el-breadcrumb-item>
+            </el-breadcrumb>
+          </div>
+          <div class="right">
+            <div class="company-badge"><el-icon><component :is="Icons.OfficeBuilding" /></el-icon><span>某某钢铁有限公司</span></div>
+            <el-badge :value="12" :max="99"><el-icon size="20" color="#595959"><component :is="Icons.Bell" /></el-icon></el-badge>
+            <el-dropdown>
+              <span style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <el-avatar :size="32" style="background:#1890ff;">张</el-avatar>
+                <span>张财务</span>
+                <el-icon><component :is="Icons.ArrowDown" /></el-icon>
+              </span>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item>个人设置</el-dropdown-item>
+                  <el-dropdown-item>修改密码</el-dropdown-item>
+                  <el-dropdown-item divided>退出登录</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+        </div>
+
+        <div class="content">
+          <h2 class="page-title">
+            <el-icon><component :is="Icons.DocumentAdd" /></el-icon>
+            发起对账
+          </h2>
+
+          <!-- Wizard steps -->
+          <div class="card">
+            <el-steps :active="activeStep" finish-status="success" align-center>
+              <el-step title="选择客户与周期" description="确定对账对象与时间范围" :icon="Icons.User" />
+              <el-step title="拉取往来流水"   description="从 ERP / Excel 采集" :icon="Icons.Download" />
+              <el-step title="应用科目过滤"   description="生成余额快照" :icon="Icons.Filter" />
+              <el-step title="预览发送"       description="确认并推送客户" :icon="Icons.Promotion" />
+            </el-steps>
+          </div>
+
+          <!-- Step 1 -->
+          <div class="card step-panel" v-show="activeStep===0">
+            <h3 style="margin-top:0;">Step 1 · 选择客户与对账周期</h3>
+            <el-form :model="form" label-width="130px" style="max-width:900px;">
+              <el-form-item label="客户">
+                <el-select v-model="form.customerId" placeholder="请选择客户" filterable style="width:420px;" @change="onCustomerChange">
+                  <el-option v-for="c in customers" :key="c.id" :label="c.name" :value="c.id">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                      <span>{{ c.name }}</span>
+                      <span style="display:flex; gap:4px;">
+                        <el-tag size="small" effect="plain">{{ c.type }}</el-tag>
+                        <el-tag size="small" :type="levelTagType(c.level)">{{ c.level }}</el-tag>
+                      </span>
+                    </div>
+                  </el-option>
+                </el-select>
+                <span class="form-hint">当前客户: 某某建筑 · 经销商/D · 视同确认天数15天</span>
+              </el-form-item>
+
+              <el-form-item label="对账周期起始日">
+                <el-date-picker v-model="form.periodStart" type="date" style="width:200px;" />
+                <span class="form-hint">自动填写：上次对账后一天</span>
+              </el-form-item>
+
+              <el-form-item label="对账周期结束日">
+                <el-date-picker v-model="form.periodEnd" type="date" style="width:200px;" />
+                <span class="form-hint">默认：本月月末</span>
+              </el-form-item>
+
+              <el-form-item label="期初余额">
+                <span style="font-family:'SF Mono',Consolas,monospace; font-size:16px; font-weight:600; color:#1890ff;">¥20,500.00</span>
+                <span class="snapshot-badge" style="margin-left:12px;">
+                  <el-icon><component :is="Icons.Lock" /></el-icon>
+                  来自上次余额快照
+                </span>
+              </el-form-item>
+
+              <el-form-item label="数据来源">
+                <el-radio-group v-model="form.source">
+                  <el-radio value="ERP">
+                    <el-icon><component :is="Icons.Connection" /></el-icon>
+                    从ERP拉取
+                  </el-radio>
+                  <el-radio value="EXCEL">
+                    <el-icon><component :is="Icons.Document" /></el-icon>
+                    从Excel导入
+                  </el-radio>
+                </el-radio-group>
+              </el-form-item>
+
+              <el-form-item label="对账模板">
+                <el-select v-model="form.template" style="width:300px;">
+                  <el-option label="标准银行对账单模板" value="STD_BANK" />
+                  <el-option label="简化模板" value="SIMPLE" />
+                  <el-option label="自定义" value="CUSTOM" />
+                </el-select>
+              </el-form-item>
+
+              <el-form-item label="" label-width="0">
+                <el-alert type="info" show-icon :closable="false" style="width:100%;">
+                  <template #title>
+                    <span>根据客户配置，本次将应用科目过滤规则:</span>
+                    <el-tag style="margin:0 4px;" size="small" type="success">HK*</el-tag>
+                    <el-tag style="margin:0 4px;" size="small" type="success">NB*</el-tag>
+                    <el-tag style="margin:0 4px;" size="small" type="danger">!NB998</el-tag>
+                    <span style="color:#8c8c8c;">（含通配符匹配：HK*匹配所有HK开头科目，!NB998为排除项）</span>
+                  </template>
+                </el-alert>
+              </el-form-item>
+            </el-form>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="card step-panel" v-show="activeStep===1">
+            <h3 style="margin-top:0;">Step 2 · 拉取往来流水</h3>
+
+            <div v-if="pulling" style="padding:60px 0; text-align:center;">
+              <el-icon class="is-loading" size="40" color="#1890ff"><component :is="Icons.Loading" /></el-icon>
+              <p style="color:#595959; margin-top:12px;">正在从 ERP 拉取往来流水…</p>
+              <el-progress :percentage="pullProgress" style="max-width:420px; margin:16px auto 0;" />
+              <p style="color:#8c8c8c; font-size:12px;">对接系统: 用友U8 · 表: RP_TRANSACTION</p>
+            </div>
+
+            <div v-else>
+              <el-alert type="success" show-icon :closable="false" style="margin-bottom:16px;">
+                <template #title>
+                  <span>成功拉取 <b>9</b> 条流水记录（周期: 2026-03-01 ~ 2026-03-31 · 来源: ERP）</span>
+                </template>
+              </el-alert>
+
+              <table class="bank-table">
+                <thead>
+                  <tr>
+                    <th>日期</th><th>单号</th><th>摘要</th>
+                    <th>应收</th><th>实收</th><th>余额</th>
+                    <th>科目</th><th>是否过滤</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="row in tx" :key="row.no" :class="{filtered: row.filtered}">
+                    <td>{{ row.date }}</td>
+                    <td>{{ row.no }}</td>
+                    <td>{{ row.memo }}</td>
+                    <td class="amt-pos" v-if="row.dr">+¥{{ row.dr.toLocaleString() }}</td><td v-else>-</td>
+                    <td class="amt-neg" v-if="row.cr">-¥{{ row.cr.toLocaleString() }}</td><td v-else>-</td>
+                    <td class="amt-bal">¥{{ row.bal.toLocaleString() }}</td>
+                    <td>{{ row.acct }}</td>
+                    <td>
+                      <el-tag v-if="row.filtered" size="small" type="warning" effect="plain">已过滤</el-tag>
+                      <el-tag v-else size="small" type="success" effect="plain">发送</el-tag>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div style="margin-top:16px; padding:12px 16px; background:#f5f7fa; border-radius:6px; display:flex; gap:24px; font-size:13px;">
+                <span>共 <b>9</b> 条</span>
+                <span>应收合计 <b class="amt-pos">+¥105,300</b></span>
+                <span>实收合计 <b class="amt-neg">-¥50,000</b></span>
+                <span>期末余额 <b class="amt-bal">¥75,800</b></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="card step-panel" v-show="activeStep===2">
+            <h3 style="margin-top:0;">Step 3 · 应用科目过滤（生成余额快照）</h3>
+
+            <el-alert type="info" show-icon :closable="false" style="margin-bottom:16px;">
+              <template #title>
+                <span>当前过滤规则:</span>
+                <el-tag style="margin:0 4px;" size="small" type="success">HK*</el-tag>
+                <el-tag style="margin:0 4px;" size="small" type="success">NB*</el-tag>
+                <el-tag style="margin:0 4px;" size="small" type="danger">!NB998</el-tag>
+                <span style="color:#8c8c8c;">— 命中的科目将不发送给客户，但计入内部余额</span>
+              </template>
+            </el-alert>
+
+            <div class="filter-compare">
+              <div class="filter-side left">
+                <h4>
+                  <span><el-icon color="#595959"><component :is="Icons.Lock" /></el-icon> 过滤前（内部）</span>
+                  <el-tag size="small" type="info">9 条流水</el-tag>
+                </h4>
+                <table class="bank-table">
+                  <thead><tr><th>单号</th><th>摘要</th><th>金额</th><th>余额</th></tr></thead>
+                  <tbody>
+                    <tr v-for="r in tx" :key="r.no" :class="{filtered:r.filtered}">
+                      <td>{{ r.no }}</td>
+                      <td>{{ r.memo }}</td>
+                      <td :class="r.dr?'amt-pos':'amt-neg'">{{ r.dr? '+¥'+r.dr.toLocaleString() : '-¥'+r.cr.toLocaleString() }}</td>
+                      <td class="amt-bal">¥{{ r.bal.toLocaleString() }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div style="margin-top:12px; text-align:right;">
+                  <span style="color:#8c8c8c;">内部期末余额：</span>
+                  <b class="amt-bal" style="font-size:16px;">¥74,600</b>
+                </div>
+              </div>
+
+              <div class="arrow">→</div>
+
+              <div class="filter-side right">
+                <h4>
+                  <span><el-icon color="#52c41a"><component :is="Icons.Promotion" /></el-icon> 过滤后（发送给客户）</span>
+                  <el-tag size="small" type="success">7 条流水</el-tag>
+                </h4>
+                <table class="bank-table">
+                  <thead><tr><th>单号</th><th>摘要</th><th>金额</th><th>余额</th></tr></thead>
+                  <tbody>
+                    <tr v-for="r in tx.filter(t=>!t.filtered)" :key="r.no">
+                      <td>{{ r.no }}</td>
+                      <td>{{ r.memo }}</td>
+                      <td :class="r.dr?'amt-pos':'amt-neg'">{{ r.dr? '+¥'+r.dr.toLocaleString() : '-¥'+r.cr.toLocaleString() }}</td>
+                      <td class="amt-bal">¥{{ r.extBal.toLocaleString() }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div style="margin-top:12px; text-align:right;">
+                  <span style="color:#52c41a;">外部期末余额：</span>
+                  <b class="amt-bal" style="font-size:16px;color:#52c41a;">¥75,800</b>
+                </div>
+              </div>
+            </div>
+
+            <h4 style="margin-top:24px;">差异明细（2 条被过滤）</h4>
+            <el-table :data="filteredItems" border size="small" style="max-width:800px;">
+              <el-table-column prop="acct" label="科目编码" width="120" />
+              <el-table-column prop="memo" label="摘要" />
+              <el-table-column label="金额" width="140" align="right">
+                <template #default="{row}"><span class="amt-neg">-¥{{ Math.abs(row.amount).toLocaleString() }}</span></template>
+              </el-table-column>
+              <el-table-column label="状态" width="100" align="center">
+                <template #default><el-tag size="small" type="warning">已过滤</el-tag></template>
+              </el-table-column>
+            </el-table>
+
+            <div style="margin-top:16px; padding:12px 16px; background:#fff7e6; border-left:4px solid #faad14; border-radius:4px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <b>差异累计：¥1,200</b>
+                <span style="color:#8c8c8c; margin-left:8px;">（内部余额与外部余额差额，将永久记录于余额快照中）</span>
+              </div>
+              <el-checkbox v-model="form.snapshot" size="large">
+                <b>生成余额快照</b>（推荐 ✓ 已勾选）
+              </el-checkbox>
+            </div>
+          </div>
+
+          <!-- Step 4 -->
+          <div class="card step-panel" v-show="activeStep===3">
+            <h3 style="margin-top:0;">Step 4 · 预览并发送</h3>
+
+            <div style="display:grid; grid-template-columns: 1fr 340px; gap:20px;">
+              <!-- Preview -->
+              <div class="stmt-preview">
+                <h3>对 账 单</h3>
+                <div class="sub-title">Statement of Account · No. R202503-DRAFT · 2026-03-31</div>
+
+                <div class="stmt-parties">
+                  <div><b>卖方：</b>某某钢铁有限公司</div>
+                  <div><b>买方：</b>某某建筑集团</div>
+                  <div><b>对账周期：</b>2026-03-01 ~ 2026-03-31</div>
+                </div>
+
+                <table class="bank-table">
+                  <thead><tr><th>日期</th><th>单号</th><th>摘要</th><th>应收</th><th>实收</th><th>余额</th></tr></thead>
+                  <tbody>
+                    <tr><td>03-01</td><td>-</td><td>期初余额</td><td>-</td><td>-</td><td class="amt-bal">¥20,500</td></tr>
+                    <tr v-for="r in tx.filter(t=>!t.filtered)" :key="r.no">
+                      <td>{{ r.date }}</td><td>{{ r.no }}</td><td>{{ r.memo }}</td>
+                      <td v-if="r.dr" class="amt-pos">+¥{{ r.dr.toLocaleString() }}</td><td v-else>-</td>
+                      <td v-if="r.cr" class="amt-neg">-¥{{ r.cr.toLocaleString() }}</td><td v-else>-</td>
+                      <td class="amt-bal">¥{{ r.extBal.toLocaleString() }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <div class="stmt-summary">
+                  <div class="item"><div class="lbl">期初余额</div><div class="val">¥20,500.00</div></div>
+                  <div class="item"><div class="lbl">本期应收</div><div class="val" style="color:#52c41a;">+¥105,300</div></div>
+                  <div class="item"><div class="lbl">本期实收</div><div class="val" style="color:#f5222d;">-¥50,000</div></div>
+                  <div class="item"><div class="lbl">期末应收余额</div><div class="val highlight">¥75,800.00</div></div>
+                </div>
+
+                <div class="stmt-footer">
+                  <span>如与贵司账目不符，请于收到后 <b style="color:#f5222d;">15</b> 天内反馈异议，逾期视同确认。</span>
+                  <span>盖章：某某钢铁 (电子章)</span>
+                </div>
+              </div>
+
+              <!-- Send options -->
+              <div>
+                <div class="card" style="margin:0 0 12px 0; padding:16px;">
+                  <h4 style="margin:0 0 12px 0; display:flex; align-items:center; gap:6px;">
+                    <el-icon color="#1890ff"><component :is="Icons.Promotion" /></el-icon>
+                    发送选项
+                  </h4>
+
+                  <div style="margin-bottom:16px;">
+                    <div style="color:#595959; font-size:13px; margin-bottom:6px;">通知渠道</div>
+                    <el-checkbox-group v-model="form.channels">
+                      <el-checkbox value="sms">
+                        <el-icon><component :is="Icons.Message" /></el-icon> 短信
+                      </el-checkbox>
+                      <el-checkbox value="wechat">
+                        <el-icon><component :is="Icons.ChatDotRound" /></el-icon> 微信
+                      </el-checkbox>
+                      <el-checkbox value="email">
+                        <el-icon><component :is="Icons.MessageBox" /></el-icon> 邮件
+                      </el-checkbox>
+                    </el-checkbox-group>
+                  </div>
+
+                  <div style="margin-bottom:16px; padding-top:12px; border-top:1px dashed #e8e8e8;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                      <span style="color:#595959; font-size:13px;">发送对账单时 AI 外呼跟单</span>
+                      <el-switch v-model="form.aiCall" active-color="#52c41a" />
+                    </div>
+                    <div style="color:#8c8c8c; font-size:12px; margin-top:6px; line-height:1.5;">
+                      <el-icon><component :is="Icons.InfoFilled" /></el-icon>
+                      根据客户配置将在发送后 <b>30 分钟</b> 由 AI 外呼跟单
+                    </div>
+                  </div>
+
+                  <div style="padding-top:12px; border-top:1px dashed #e8e8e8;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                      <span style="color:#595959; font-size:13px;">视同确认天数</span>
+                      <span><b style="color:#1890ff; font-size:16px;">15</b> 天</span>
+                    </div>
+                    <div style="color:#8c8c8c; font-size:12px; margin-top:4px;">客户「某某建筑」配置</div>
+                  </div>
+                </div>
+
+                <el-alert type="warning" show-icon :closable="false" style="margin-bottom:12px;">
+                  <template #title>
+                    <span style="font-size:12px;">发送后不可撤回；如需修改需作废后重新生成。</span>
+                  </template>
+                </el-alert>
+
+                <div style="display:flex; gap:8px;">
+                  <el-button style="flex:1;" :icon="Icons.EditPen">保存草稿</el-button>
+                  <el-button type="primary" style="flex:1;" :icon="Icons.Promotion" @click="submit">立即发送</el-button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom navigation -->
+          <div class="card">
+            <div class="step-actions" style="border-top:none; padding-top:0; margin-top:0;">
+              <el-button :icon="Icons.ArrowLeft" @click="prev" :disabled="activeStep===0">上一步</el-button>
+              <div style="color:#8c8c8c;">Step {{ activeStep+1 }} / 4</div>
+              <el-button v-if="activeStep<3" type="primary" @click="next">
+                下一步
+                <el-icon style="margin-left:4px;"><component :is="Icons.ArrowRight" /></el-icon>
+              </el-button>
+              <el-button v-else type="success" :icon="Icons.Promotion" @click="submit">立即发送</el-button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, ref, reactive } = Vue;
+    const Icons = ElementPlusIconsVue;
+
+    const app = createApp({
+      setup() {
+        const activeStep = ref(0);
+        const pulling = ref(false);
+        const pullProgress = ref(0);
+
+        const form = reactive({
+          customerId: 'C006',
+          periodStart: new Date('2026-03-01'),
+          periodEnd:   new Date('2026-03-31'),
+          source: 'ERP',
+          template: 'STD_BANK',
+          snapshot: true,
+          channels: ['sms','wechat','email'],
+          aiCall: true,
+        });
+
+        const customers = [
+          { id:'C001', name:'某某贸易',   type:'经销商', level:'B' },
+          { id:'C002', name:'某某制造',   type:'经销商', level:'B' },
+          { id:'C003', name:'某某科技',   type:'大型终端', level:'A' },
+          { id:'C004', name:'某某建材',   type:'加工厂', level:'C' },
+          { id:'C005', name:'某某物流',   type:'同行',   level:'C' },
+          { id:'C006', name:'某某建筑',   type:'经销商', level:'D' },
+          { id:'C007', name:'某某钢构',   type:'加工厂', level:'B' },
+          { id:'C008', name:'YY建设',    type:'大型终端', level:'A' },
+          { id:'C009', name:'ZZ贸易',    type:'经销商', level:'C' },
+          { id:'C010', name:'AA工程',    type:'大型终端', level:'B' },
+        ];
+
+        // extBal accumulates only non-filtered
+        // internal balance (bal) accumulates all
+        // Starting balance 20500; expected external end 75800; internal end 74600
+        const tx = ref([
+          { date:'03-03', no:'PO2026001', memo:'螺纹钢 HRB400E ¢12', dr:30000, cr:0,     bal:50500, extBal:50500, acct:'1122', filtered:false },
+          { date:'03-05', no:'PO2026002', memo:'盘螺 HPB300 ¢8',    dr:15000, cr:0,     bal:65500, extBal:65500, acct:'1122', filtered:false },
+          { date:'03-08', no:'HK-R01',    memo:'客户回扣 (港币科目)', dr:0,     cr:500,   bal:65000, extBal:65500, acct:'HK01', filtered:true  },
+          { date:'03-10', no:'PY2026001', memo:'收到回款(交行3388)', dr:0,     cr:50000, bal:15000, extBal:15500, acct:'1002', filtered:false },
+          { date:'03-15', no:'NB-R01',    memo:'内部调整 (宁波账套)', dr:0,     cr:200,   bal:14800, extBal:15500, acct:'NB01', filtered:true  },
+          { date:'03-20', no:'PO2026003', memo:'热轧板 Q235 5.5mm',  dr:50300, cr:0,     bal:65100, extBal:65800, acct:'1122', filtered:false },
+          { date:'03-25', no:'PO2026004', memo:'螺纹钢 HRB400E ¢16', dr:42800, cr:0,     bal:107900,extBal:108600, acct:'1122', filtered:false },
+          { date:'03-28', no:'PY2026002', memo:'收到承兑汇票',        dr:0,     cr:32800, bal:75100, extBal:75800, acct:'1002', filtered:false },
+          { date:'03-30', no:'NB998',     memo:'内部调账(排除项)',    dr:-500,  cr:0,     bal:74600, extBal:75800, acct:'NB998',filtered:true  },
+        ]);
+
+        const filteredItems = ref([
+          { acct:'HK01',  memo:'客户回扣 (港币科目)',   amount:-500 },
+          { acct:'NB01',  memo:'内部调整 (宁波账套)',   amount:-200 },
+        ]);
+
+        function levelTagType(l){ return {A:'danger', B:'warning', C:'', D:'info'}[l] || ''; }
+        function onCustomerChange(){ /* refresh recon config */ }
+
+        function next() {
+          if (activeStep.value === 0) {
+            activeStep.value = 1;
+            pulling.value = true; pullProgress.value = 0;
+            const t = setInterval(() => {
+              pullProgress.value += 20;
+              if (pullProgress.value >= 100) { clearInterval(t); pulling.value = false; }
+            }, 200);
+          } else if (activeStep.value < 3) {
+            activeStep.value++;
+          }
+        }
+        function prev(){ if (activeStep.value > 0) activeStep.value--; }
+        function submit(){
+          ElementPlus.ElMessageBox.confirm('确认发送对账单给「某某建筑」？发送后将同时通过短信/微信/邮件通知客户，并在 30 分钟后触发 AI 外呼跟单。','发送确认',{
+            confirmButtonText:'立即发送', cancelButtonText:'取消', type:'warning'
+          }).then(()=>{
+            ElementPlus.ElMessage.success('对账单已发送，正在跳转到列表页…');
+            setTimeout(()=>{ window.location.href='./statement-list.html'; }, 1000);
+          }).catch(()=>{});
+        }
+
+        function nav(page){ window.location.href='./'+page; }
+
+        return { Icons, activeStep, pulling, pullProgress, form, customers, tx, filteredItems, levelTagType, onCustomerChange, next, prev, submit, nav };
+      }
+    });
+    app.use(ElementPlus);
+    for (const [k, v] of Object.entries(ElementPlusIconsVue)) { app.component(k, v); }
+    app.mount('#app');
+  </script>
+</body>
+</html>

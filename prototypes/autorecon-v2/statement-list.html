@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>对账单列表 - 对账通v2原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; background: #f0f2f5; }
+    #app { height: 100%; }
+    .layout { display: flex; height: 100vh; overflow: hidden; }
+
+    /* Sidebar */
+    .sidebar { width: 220px; background: #001529; color: #fff; flex-shrink: 0; display: flex; flex-direction: column; }
+    .sidebar-logo { height: 64px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600; color: #fff; border-bottom: 1px solid #1f3448; letter-spacing: 2px; background: linear-gradient(90deg,#001529 0%, #002140 100%); }
+    .sidebar-logo .logo-badge { display: inline-block; width: 24px; height: 24px; border-radius: 4px; background: linear-gradient(135deg,#40a9ff,#1890ff); margin-right: 8px; text-align: center; line-height: 24px; font-size: 13px; font-weight: 700; }
+    .el-menu.sidebar-menu { border-right: none; background: transparent; flex: 1; overflow-y: auto; }
+    .sidebar-menu:not(.el-menu--collapse) { --el-menu-bg-color: transparent; --el-menu-text-color: rgba(255,255,255,0.75); --el-menu-hover-bg-color: #000c17; --el-menu-active-color: #fff; --el-menu-hover-text-color:#fff;}
+    .sidebar-menu .el-sub-menu__title { color: rgba(255,255,255,0.75) !important; }
+    .sidebar-menu .el-sub-menu__title:hover { background: #000c17 !important; color:#fff !important; }
+    .sidebar-menu .el-menu-item { color: rgba(255,255,255,0.75); }
+    .sidebar-menu .el-menu-item:hover { background: #000c17 !important; color:#fff !important; }
+    .sidebar-menu .el-menu-item.is-active { background: #1890ff !important; color: #fff !important; }
+    .sidebar-menu .el-sub-menu .el-menu { background: #000c17 !important; }
+    .sidebar-menu .el-sub-menu .el-menu-item { background: #000c17 !important; }
+    .sidebar-menu .el-sub-menu .el-menu-item.is-active { background: #1890ff !important; }
+
+    /* Main */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .header { height: 64px; background: #fff; border-bottom: 1px solid #eaeef3; display: flex; align-items: center; padding: 0 24px; justify-content: space-between; box-shadow: 0 1px 4px rgba(0,21,41,.06); }
+    .header .left { display: flex; align-items: center; gap: 16px; }
+    .header .right { display: flex; align-items: center; gap: 20px; }
+    .company-badge { display: flex; align-items: center; gap:8px; color:#333; font-weight:500; padding:6px 12px; background:#f5f7fa; border-radius:6px;}
+    .content { flex: 1; overflow-y: auto; padding: 20px 24px; }
+    .page-title { font-size: 20px; font-weight: 600; color: #262626; margin: 0 0 16px 0; display:flex; align-items:center; gap:8px;}
+
+    .card { background:#fff; border-radius:8px; box-shadow: 0 1px 3px rgba(0,0,0,.04); padding:20px; margin-bottom:16px; }
+    .action-bar { display:flex; gap:12px; align-items:center; }
+    .action-bar .spacer { flex:1; }
+    .deemed-tag { background: #f0f0f0 !important; color: #595959 !important; border: 1px dashed #b7b7b7 !important; font-style: italic; }
+    .amount-cell { font-family: "SF Mono", Consolas, Menlo, monospace; font-weight: 600; color:#262626; }
+    .status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle;}
+    .search-form .el-form-item { margin-bottom: 12px; }
+    .table-toolbar { display:flex; justify-content: space-between; align-items:center; margin-bottom:12px;}
+    .stat-strip { display:flex; gap:12px; margin-bottom:16px;}
+    .stat-card { flex:1; background:#fff; border-radius:8px; padding:16px 20px; box-shadow:0 1px 3px rgba(0,0,0,.04); display:flex; flex-direction:column; gap:6px; border-left:4px solid #1890ff;}
+    .stat-card.warning { border-left-color:#faad14; }
+    .stat-card.success { border-left-color:#52c41a; }
+    .stat-card.danger  { border-left-color:#f5222d; }
+    .stat-card.deemed  { border-left-color:#8c8c8c; }
+    .stat-label { color:#8c8c8c; font-size:13px; }
+    .stat-value { color:#262626; font-size:22px; font-weight:600; }
+    .stat-value .unit { font-size:13px; color:#8c8c8c; margin-left:4px; font-weight:normal;}
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="layout">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-logo"><span class="logo-badge">对</span>对账通 v2</div>
+        <el-menu class="sidebar-menu" default-active="statement-list" :default-openeds="['recon']">
+          <el-menu-item index="dashboard" @click="nav('dashboard.html')">
+            <el-icon><component :is="Icons.Odometer" /></el-icon>
+            <span>工作台</span>
+          </el-menu-item>
+          <el-sub-menu index="customer">
+            <template #title>
+              <el-icon><component :is="Icons.User" /></el-icon>
+              <span>客户中心</span>
+            </template>
+            <el-menu-item index="customer-ledger" @click="nav('customer-ledger.html')">客户往来账</el-menu-item>
+            <el-menu-item index="customer-types">客户类型</el-menu-item>
+            <el-menu-item index="customer-tags">客户标签</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="recon">
+            <template #title>
+              <el-icon><component :is="Icons.Document" /></el-icon>
+              <span>对账管理</span>
+            </template>
+            <el-menu-item index="statement-list" @click="nav('statement-list.html')">对账单列表</el-menu-item>
+            <el-menu-item index="statement-create" @click="nav('statement-create.html')">发起对账</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="collect">
+            <template #title>
+              <el-icon><component :is="Icons.Bell" /></el-icon>
+              <span>催收中心</span>
+            </template>
+            <el-menu-item index="collection-orders" @click="nav('collection-orders.html')">催收工单</el-menu-item>
+            <el-menu-item index="collection-profiles" @click="nav('collection-profiles.html')">催收策略</el-menu-item>
+            <el-menu-item index="call-tasks" @click="nav('call-tasks.html')">外呼任务</el-menu-item>
+            <el-menu-item index="call-records" @click="nav('call-records.html')">外呼记录</el-menu-item>
+          </el-sub-menu>
+          <el-menu-item index="messages">
+            <el-icon><component :is="Icons.ChatDotRound" /></el-icon>
+            <span>消息中心</span>
+          </el-menu-item>
+          <el-menu-item index="report">
+            <el-icon><component :is="Icons.DataAnalysis" /></el-icon>
+            <span>报表分析</span>
+          </el-menu-item>
+          <el-menu-item index="system">
+            <el-icon><component :is="Icons.Setting" /></el-icon>
+            <span>系统设置</span>
+          </el-menu-item>
+        </el-menu>
+      </aside>
+
+      <!-- Main -->
+      <div class="main">
+        <div class="header">
+          <div class="left">
+            <el-breadcrumb separator="/">
+              <el-breadcrumb-item>首页</el-breadcrumb-item>
+              <el-breadcrumb-item>对账管理</el-breadcrumb-item>
+              <el-breadcrumb-item>对账单列表</el-breadcrumb-item>
+            </el-breadcrumb>
+          </div>
+          <div class="right">
+            <div class="company-badge">
+              <el-icon><component :is="Icons.OfficeBuilding" /></el-icon>
+              <span>某某钢铁有限公司</span>
+            </div>
+            <el-badge :value="12" :max="99">
+              <el-icon size="20" color="#595959"><component :is="Icons.Bell" /></el-icon>
+            </el-badge>
+            <el-dropdown>
+              <span style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <el-avatar :size="32" style="background:#1890ff;">张</el-avatar>
+                <span>张财务</span>
+                <el-icon><component :is="Icons.ArrowDown" /></el-icon>
+              </span>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item>个人设置</el-dropdown-item>
+                  <el-dropdown-item>修改密码</el-dropdown-item>
+                  <el-dropdown-item divided>退出登录</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+        </div>
+
+        <div class="content">
+          <h2 class="page-title">
+            <el-icon><component :is="Icons.Document" /></el-icon>
+            对账单列表
+          </h2>
+
+          <!-- Stat strip -->
+          <div class="stat-strip">
+            <div class="stat-card"><span class="stat-label">本月对账单总数</span><span class="stat-value">128<span class="unit">份</span></span></div>
+            <div class="stat-card warning"><span class="stat-label">待确认</span><span class="stat-value" style="color:#faad14;">36<span class="unit">份</span></span></div>
+            <div class="stat-card success"><span class="stat-label">已确认</span><span class="stat-value" style="color:#52c41a;">72<span class="unit">份</span></span></div>
+            <div class="stat-card deemed"><span class="stat-label">视同确认</span><span class="stat-value" style="color:#595959;">14<span class="unit">份</span></span></div>
+            <div class="stat-card danger"><span class="stat-label">异议中</span><span class="stat-value" style="color:#f5222d;">6<span class="unit">份</span></span></div>
+          </div>
+
+          <!-- Search form -->
+          <div class="card">
+            <el-form :model="searchForm" inline class="search-form" label-width="80px">
+              <el-form-item label="对账单号"><el-input v-model="searchForm.no" placeholder="R202503..." clearable style="width:200px" /></el-form-item>
+              <el-form-item label="客户名称"><el-input v-model="searchForm.customer" placeholder="请输入客户名称" clearable style="width:200px" /></el-form-item>
+              <el-form-item label="客户类型">
+                <el-select v-model="searchForm.type" placeholder="全部" clearable style="width:160px">
+                  <el-option label="经销商" value="dealer" />
+                  <el-option label="大型终端" value="terminal" />
+                  <el-option label="同行" value="peer" />
+                  <el-option label="加工厂" value="factory" />
+                  <el-option label="贸易商" value="trader" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="客户等级">
+                <el-select v-model="searchForm.level" placeholder="全部" clearable style="width:120px">
+                  <el-option label="A" value="A" />
+                  <el-option label="B" value="B" />
+                  <el-option label="C" value="C" />
+                  <el-option label="D" value="D" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="状态">
+                <el-select v-model="searchForm.status" placeholder="全部" clearable style="width:140px">
+                  <el-option label="草稿" value="DRAFT" />
+                  <el-option label="已发送" value="SENT" />
+                  <el-option label="待确认" value="PENDING" />
+                  <el-option label="已确认" value="CONFIRMED" />
+                  <el-option label="视同确认" value="DEEMED_CONFIRMED" />
+                  <el-option label="异议中" value="DISPUTING" />
+                  <el-option label="已修订" value="REVISED" />
+                  <el-option label="已作废" value="VOIDED" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="对账周期">
+                <el-date-picker v-model="searchForm.range" type="daterange" start-placeholder="开始日期" end-placeholder="结束日期" style="width:280px" />
+              </el-form-item>
+              <el-form-item label="触发方式">
+                <el-select v-model="searchForm.trigger" placeholder="全部" clearable style="width:120px">
+                  <el-option label="自动" value="AUTO" />
+                  <el-option label="手动" value="MANUAL" />
+                </el-select>
+              </el-form-item>
+              <el-form-item>
+                <el-button type="primary" :icon="Icons.Search">查询</el-button>
+                <el-button :icon="Icons.Refresh">重置</el-button>
+              </el-form-item>
+            </el-form>
+          </div>
+
+          <!-- Table -->
+          <div class="card">
+            <div class="action-bar" style="margin-bottom:16px;">
+              <el-button type="primary" :icon="Icons.Plus" @click="goCreate">手动发起对账</el-button>
+              <el-button :icon="Icons.DocumentAdd">批量发起</el-button>
+              <el-button :icon="Icons.Download">导出</el-button>
+              <div class="spacer"></div>
+              <el-tooltip content="刷新数据" placement="top"><el-button :icon="Icons.Refresh" circle /></el-tooltip>
+              <el-tooltip content="列设置" placement="top"><el-button :icon="Icons.Setting" circle /></el-tooltip>
+            </div>
+
+            <el-table :data="tableData" stripe border style="width:100%" :header-cell-style="{background:'#fafafa',color:'#262626',fontWeight:600}">
+              <el-table-column type="selection" width="44" />
+              <el-table-column prop="no" label="对账单号" width="140">
+                <template #default="{row}">
+                  <el-link type="primary" @click="goDetail(row)">{{ row.no }}</el-link>
+                </template>
+              </el-table-column>
+              <el-table-column prop="customer" label="客户名称" min-width="130" />
+              <el-table-column label="类型/等级" width="140">
+                <template #default="{row}">
+                  <el-tag size="small" effect="plain">{{ row.type }}</el-tag>
+                  <el-tag size="small" :type="levelTagType(row.level)" style="margin-left:4px;">{{ row.level }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="period" label="对账周期" width="150" />
+              <el-table-column label="触发" width="70" align="center">
+                <template #default="{row}">
+                  <el-tag size="small" :type="row.trigger==='自动'?'':'warning'" effect="plain">{{ row.trigger }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="期末余额" width="130" align="right">
+                <template #default="{row}">
+                  <span class="amount-cell">{{ formatMoney(row.balance) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="状态" width="150">
+                <template #default="{row}">
+                  <el-tooltip
+                    v-if="row.status==='DEEMED_CONFIRMED'"
+                    effect="dark"
+                    content="视同确认: 客户未反馈达约定天数，法律上视为无异议，但系统标记与已确认区分"
+                    placement="top"
+                  >
+                    <el-tag class="deemed-tag" size="small">
+                      <span class="status-dot" style="background:#8c8c8c;"></span>
+                      视同确认
+                    </el-tag>
+                  </el-tooltip>
+                  <el-tag v-else :type="statusTagType(row.status)" size="small">
+                    <span class="status-dot" :style="'background:'+statusDotColor(row.status)"></span>
+                    {{ statusLabel(row.status) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="sentAt" label="发送时间" width="140" />
+              <el-table-column prop="confirmedAt" label="确认时间" width="140" />
+              <el-table-column label="操作" width="200" fixed="right">
+                <template #default="{row}">
+                  <el-link type="primary" @click="goDetail(row)">查看</el-link>
+                  <template v-if="row.status==='PENDING' || row.status==='SENT'">
+                    <el-divider direction="vertical" />
+                    <el-link type="warning">催促</el-link>
+                  </template>
+                  <template v-if="row.status==='CONFIRMED'">
+                    <el-divider direction="vertical" />
+                    <el-link type="success">下载PDF</el-link>
+                  </template>
+                  <template v-if="row.status==='DISPUTING'">
+                    <el-divider direction="vertical" />
+                    <el-link type="danger">处理异议</el-link>
+                  </template>
+                  <template v-if="row.status==='DEEMED_CONFIRMED'">
+                    <el-divider direction="vertical" />
+                    <el-link type="primary">催促确认</el-link>
+                  </template>
+                  <template v-if="row.status==='DRAFT'">
+                    <el-divider direction="vertical" />
+                    <el-link type="primary">编辑</el-link>
+                    <el-divider direction="vertical" />
+                    <el-link type="success">发送</el-link>
+                  </template>
+                </template>
+              </el-table-column>
+            </el-table>
+
+            <div style="margin-top:16px; display:flex; justify-content:flex-end;">
+              <el-pagination
+                background
+                layout="total, sizes, prev, pager, next, jumper"
+                :total="128"
+                :page-sizes="[10,20,50,100]"
+                :default-page-size="10"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, ref, reactive } = Vue;
+    const Icons = ElementPlusIconsVue;
+
+    const app = createApp({
+      setup() {
+        const searchForm = reactive({ no:'', customer:'', type:'', level:'', status:'', range:null, trigger:'' });
+
+        const tableData = ref([
+          { no:'R202503001', customer:'某某贸易',  type:'经销商', level:'B', period:'03-01~03-31', trigger:'自动', balance:75800,  status:'PENDING',          sentAt:'2026-03-17 10:30', confirmedAt:'-' },
+          { no:'R202503002', customer:'某某制造',  type:'经销商', level:'B', period:'03-01~03-31', trigger:'自动', balance:89500,  status:'CONFIRMED',        sentAt:'2026-03-14 15:00', confirmedAt:'2026-03-15 09:20' },
+          { no:'R202503003', customer:'某某科技',  type:'大型终端', level:'A', period:'03-01~03-31', trigger:'自动', balance:156300, status:'DISPUTING',        sentAt:'2026-03-16 09:00', confirmedAt:'-' },
+          { no:'R202503004', customer:'某某建材',  type:'加工厂', level:'C', period:'03-01~03-31', trigger:'自动', balance:67200,  status:'CONFIRMED',        sentAt:'2026-03-13 10:00', confirmedAt:'2026-03-14 14:20' },
+          { no:'R202503005', customer:'某某物流',  type:'同行',   level:'C', period:'03-01~03-31', trigger:'手动', balance:0,      status:'DONE',             sentAt:'2026-03-10 09:00', confirmedAt:'2026-03-11 10:30' },
+          { no:'R202503006', customer:'某某建筑',  type:'经销商', level:'D', period:'03-01~03-31', trigger:'自动', balance:98600,  status:'DEEMED_CONFIRMED', sentAt:'2026-03-08 10:00', confirmedAt:'2026-03-15 (视同)' },
+          { no:'R202503007', customer:'某某钢构',  type:'加工厂', level:'B', period:'03-01~03-05', trigger:'自动', balance:45800,  status:'SENT',             sentAt:'2026-03-06 10:00', confirmedAt:'-' },
+          { no:'R202503008', customer:'YY建设',   type:'大型终端', level:'A', period:'03-01~03-31', trigger:'自动', balance:285600, status:'CONFIRMED',        sentAt:'2026-03-05 15:00', confirmedAt:'2026-03-06 11:00' },
+          { no:'R202503009', customer:'ZZ贸易',   type:'经销商', level:'C', period:'03-01~03-25', trigger:'自动', balance:178400, status:'REVISED',          sentAt:'2026-03-26 09:00', confirmedAt:'-' },
+          { no:'R202503010', customer:'AA工程',   type:'大型终端', level:'B', period:'03-01~03-31', trigger:'手动', balance:125000, status:'DRAFT',            sentAt:'-',                confirmedAt:'-' }
+        ]);
+
+        function formatMoney(v){ return '¥' + v.toLocaleString('zh-CN', {minimumFractionDigits:0, maximumFractionDigits:2}); }
+        function levelTagType(l){ return {A:'danger', B:'warning', C:'', D:'info'}[l] || ''; }
+        function statusLabel(s){
+          return { DRAFT:'草稿', SENT:'已发送', PENDING:'待确认', CONFIRMED:'已确认', DEEMED_CONFIRMED:'视同确认', DISPUTING:'异议中', REVISED:'已修订', VOIDED:'已作废', DONE:'已完成' }[s] || s;
+        }
+        function statusTagType(s){
+          return { DRAFT:'info', SENT:'', PENDING:'warning', CONFIRMED:'success', DONE:'success', DISPUTING:'danger', REVISED:'primary', VOIDED:'info' }[s] || '';
+        }
+        function statusDotColor(s){
+          return { DRAFT:'#8c8c8c', SENT:'#409eff', PENDING:'#faad14', CONFIRMED:'#52c41a', DONE:'#52c41a', DISPUTING:'#f5222d', REVISED:'#1890ff', VOIDED:'#bfbfbf' }[s] || '#409eff';
+        }
+        function goCreate(){ window.location.href='./statement-create.html'; }
+        function goDetail(row){ window.location.href='./statement-detail.html?no='+row.no; }
+        function nav(page){ window.location.href='./'+page; }
+
+        return { searchForm, tableData, formatMoney, levelTagType, statusLabel, statusTagType, statusDotColor, goCreate, goDetail, nav, Icons };
+      }
+    });
+    app.use(ElementPlus);
+    for (const [k, v] of Object.entries(ElementPlusIconsVue)) { app.component(k, v); }
+    app.mount('#app');
+  </script>
+</body>
+</html>
