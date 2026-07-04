@@ -48,6 +48,9 @@
     /* table adjustments */
     .balance-cell { font-weight: 600; color: #303133; font-variant-numeric: tabular-nums; }
     .balance-cell.warn { color: #e6a23c; }
+    .recon-date-cell { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: #ecf5ff; border-radius: 3px; font-variant-numeric: tabular-nums; color: #409eff; font-weight: 500; font-size: 12px; }
+    .recon-date-cell.none { background: #f4f4f5; color: #909399; font-weight: normal; }
+    .recon-date-cell .dot { font-size: 8px; }
     .balance-cell.danger { color: #f56c6c; }
     .balance-cell.success { color: #67c23a; }
     .balance-cell.zero { color: #909399; }
@@ -260,7 +263,7 @@
                 <el-tag :type="levelType(row.level)" size="small" effect="dark" style="width:26px; text-align:center;">{{ row.level }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="标签" min-width="180">
+            <el-table-column label="标签" min-width="140">
               <template #default="{row}">
                 <div class="tag-list">
                   <template v-for="t in row.tags" :key="t">
@@ -270,12 +273,21 @@
                 </div>
               </template>
             </el-table-column>
-            <el-table-column label="应收余额" width="130" align="right">
+            <el-table-column label="应收余额" width="120" align="right">
               <template #default="{row}">
                 <span class="balance-cell" :class="row.balance===0?'zero':''">¥{{ row.balance.toLocaleString('zh-CN', {minimumFractionDigits:0}) }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="lastReconDate" label="最近对账日" width="110" align="center" />
+            <el-table-column label="最近对账日" width="120" align="center">
+              <template #default="{row}">
+                <span v-if="row.lastReconDate && row.lastReconDate !== '-'" class="recon-date-cell">
+                  <span class="dot">●</span>{{ row.lastReconDate }}
+                </span>
+                <span v-else class="recon-date-cell none">
+                  <span class="dot">○</span>未对账
+                </span>
+              </template>
+            </el-table-column>
             <el-table-column label="对账状态" width="120" align="center">
               <template #default="{row}">
                 <el-tag :type="statusTagType(row.status)" size="small" :effect="row.status==='none'?'plain':'light'">
