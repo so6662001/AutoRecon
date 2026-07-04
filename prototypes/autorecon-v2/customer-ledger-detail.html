@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>客户往来明细 - 对账通v2原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; background: #f0f2f5; color: #303133; }
+    #app { height: 100%; }
+    .layout { display: flex; height: 100vh; overflow: hidden; }
+
+    /* ============ SIDEBAR (shared) ============ */
+    .sidebar { width: 220px; background: #001529; color: #fff; flex-shrink: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    .sidebar .logo { height: 60px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; letter-spacing: 1px; color: #fff; border-bottom: 1px solid #0a2540; background: linear-gradient(135deg, #002140, #001529); }
+    .sidebar .logo .v-badge { font-size: 11px; background: #409eff; color: #fff; border-radius: 3px; padding: 1px 6px; margin-left: 6px; font-weight: 500; }
+    .sidebar .menu-wrap { flex: 1; overflow-y: auto; overflow-x: hidden; }
+    .sidebar .el-menu { border-right: none; background: transparent; }
+    .sidebar .el-menu--dark { --el-menu-bg-color: transparent; --el-menu-text-color: #c9d1d9; --el-menu-hover-bg-color: #0a2540; --el-menu-active-color: #fff; }
+    .sidebar .el-sub-menu__title:hover, .sidebar .el-menu-item:hover { background-color: #0a2540 !important; }
+    .sidebar .el-menu-item.is-active { background: linear-gradient(90deg, #409eff, #1976d2) !important; color: #fff !important; }
+    .sidebar .el-menu-item.is-active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: #fff; }
+    .sidebar-footer { padding: 12px 16px; border-top: 1px solid #0a2540; font-size: 12px; color: #7a8ca0; text-align: center; }
+
+    /* ============ MAIN ============ */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .header { height: 60px; background: #fff; border-bottom: 1px solid #ebeef5; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04); }
+    .header .breadcrumb-wrap { display: flex; align-items: center; gap: 16px; }
+    .header .enterprise { display: flex; align-items: center; gap: 8px; padding: 4px 12px; background: linear-gradient(135deg, #ecf5ff, #e6f7ff); border-radius: 16px; font-size: 13px; color: #1976d2; font-weight: 500; }
+    .header .actions { display: flex; align-items: center; gap: 20px; }
+    .header .icon-btn { position: relative; cursor: pointer; color: #606266; font-size: 18px; }
+    .header .icon-btn:hover { color: #409eff; }
+    .header .user { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .header .user .name { font-size: 14px; color: #303133; }
+
+    /* ============ CONTENT ============ */
+    .content { flex: 1; overflow-y: auto; padding: 20px; }
+    .detail-header { background: #fff; border-radius: 6px; padding: 16px 20px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04); margin-bottom: 16px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+    .detail-header .left { display:flex; align-items:center; gap:12px; }
+    .detail-header .cust-title { font-size: 20px; font-weight: 600; color:#303133; }
+    .detail-header .sub { color:#909399; font-size:13px; }
+    .info-card { background:#fff; border-radius: 6px; padding: 16px 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04); }
+    .info-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:10px 24px; }
+    .info-item { display:flex; align-items:center; gap:10px; font-size:14px; }
+    .info-item .label { color:#909399; min-width:70px; }
+    .info-item .value { color:#303133; font-weight:500; }
+
+    /* stat cards */
+    .stat-grid { display:grid; grid-template-columns: repeat(5,1fr); gap:14px; margin-bottom: 16px; }
+    .stat-card { background:#fff; border-radius:8px; padding:18px 20px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04); position:relative; overflow:hidden; }
+    .stat-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; }
+    .stat-card.blue::before { background:#409eff; }
+    .stat-card.gray::before { background:#909399; }
+    .stat-card.green::before { background:#67c23a; }
+    .stat-card.orange::before { background:#e6a23c; }
+    .stat-card.red::before { background:#f56c6c; }
+    .stat-card .title { font-size:13px; color:#909399; margin-bottom:8px; display:flex; align-items:center; gap:6px; }
+    .stat-card .value { font-size:22px; font-weight:700; color:#303133; font-variant-numeric: tabular-nums; }
+    .stat-card.blue .value { color:#409eff; }
+    .stat-card.gray .value { color:#606266; }
+    .stat-card.green .value { color:#67c23a; }
+    .stat-card.orange .value { color:#e6a23c; }
+    .stat-card.red .value { color:#f56c6c; }
+    .stat-card .sub { font-size:12px; color:#c0c4cc; margin-top:4px; }
+
+    /* tabs card */
+    .tabs-card { background:#fff; border-radius:6px; padding: 4px 20px 20px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04); }
+
+    /* bank statement table */
+    .bank-table .el-table__row.filtered-row { background: #fef0f0 !important; }
+    .bank-table .el-table__row.filtered-row:hover > td { background: #fde2e2 !important; }
+    .bank-table .el-table__row.opening-row { background: #f5f7fa !important; font-weight: 500; }
+    .bank-table .el-table__row.opening-row:hover > td { background: #ebeef5 !important; }
+    .money-in { color:#67c23a; font-weight:600; font-variant-numeric: tabular-nums; }
+    .money-out { color:#f56c6c; font-weight:600; font-variant-numeric: tabular-nums; }
+    .money-adjust { color:#e6a23c; font-weight:600; font-variant-numeric: tabular-nums; }
+    .balance-ext { color:#409eff; font-weight:700; font-variant-numeric: tabular-nums; }
+    .balance-int { color:#606266; font-weight:600; font-variant-numeric: tabular-nums; }
+    .filter-badge { display:inline-flex; align-items:center; gap:2px; color:#f56c6c; font-size:12px; }
+    .doc-tag { font-family: monospace; }
+
+    .summary-bar { margin-top:12px; padding: 12px 16px; background: linear-gradient(90deg, #f5f7fa, #ecf5ff); border-radius:4px; display:flex; justify-content:space-between; align-items:center; font-size:13px; color:#606266; }
+    .summary-bar .highlight { color:#f56c6c; font-weight:600; }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-thumb { background: #c1c4cc; border-radius: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    .sidebar ::-webkit-scrollbar-thumb { background: #1f3a5f; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="layout">
+    <!-- ===== SIDEBAR (shared block) ===== -->
+    <aside class="sidebar">
+      <div class="logo">对账通 <span class="v-badge">v2</span></div>
+      <div class="menu-wrap">
+        <el-menu :default-active="activeMenu" :default-openeds="['customer','recon','collection','report','system']" background-color="transparent" text-color="#c9d1d9" active-text-color="#ffffff" mode="vertical">
+          <el-menu-item index="dashboard" @click="go('dashboard.html')">
+            <el-icon><Odometer /></el-icon>
+            <template #title>工作台</template>
+          </el-menu-item>
+          <el-sub-menu index="customer">
+            <template #title>
+              <el-icon><UserFilled /></el-icon>
+              <span>客户中心</span>
+            </template>
+            <el-menu-item index="customer-ledger" @click="go('customer-ledger.html')">客户往来账</el-menu-item>
+            <el-menu-item index="customer-types" @click="go('customer-types.html')">客户类型</el-menu-item>
+            <el-menu-item index="customer-tags" @click="go('customer-tags.html')">客户标签</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="recon">
+            <template #title>
+              <el-icon><Document /></el-icon>
+              <span>对账管理</span>
+            </template>
+            <el-menu-item index="statement-list" @click="go('statement-list.html')">对账单列表</el-menu-item>
+            <el-menu-item index="statement-create" @click="go('statement-create.html')">发起对账</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="collection">
+            <template #title>
+              <el-icon><Warning /></el-icon>
+              <span>催收中心</span>
+            </template>
+            <el-menu-item index="collection-orders" @click="go('collection-orders.html')">催收工单</el-menu-item>
+            <el-menu-item index="collection-profiles" @click="go('collection-profiles.html')">催收策略</el-menu-item>
+            <el-menu-item index="call-tasks" @click="go('call-tasks.html')">外呼任务</el-menu-item>
+            <el-menu-item index="call-records" @click="go('call-records.html')">外呼记录</el-menu-item>
+          </el-sub-menu>
+          <el-menu-item index="messages" @click="go('messages.html')">
+            <el-icon><ChatDotRound /></el-icon>
+            <template #title>
+              <span style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+                消息中心
+                <el-badge value="12" class="msg-badge" style="margin-right:8px;" />
+              </span>
+            </template>
+          </el-menu-item>
+          <el-sub-menu index="report">
+            <template #title>
+              <el-icon><DataAnalysis /></el-icon>
+              <span>报表分析</span>
+            </template>
+            <el-menu-item index="receivable-report" @click="go('receivable-report.html')">应收报表</el-menu-item>
+            <el-menu-item index="collection-report" @click="go('collection-report.html')">催收报表</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="system">
+            <template #title>
+              <el-icon><Setting /></el-icon>
+              <span>系统设置</span>
+            </template>
+            <el-menu-item index="subjects-filter" @click="go('subjects-filter.html')">科目过滤</el-menu-item>
+            <el-menu-item index="call-scripts" @click="go('call-scripts.html')">AI话术管理</el-menu-item>
+            <el-menu-item index="aliyun-config" @click="go('aliyun-config.html')">阿里云配置</el-menu-item>
+            <el-menu-item index="holiday-calendar" @click="go('holiday-calendar.html')">节假日日历</el-menu-item>
+          </el-sub-menu>
+        </el-menu>
+      </div>
+      <div class="sidebar-footer">© 2026 AutoRecon v2.1</div>
+    </aside>
+
+    <!-- ===== MAIN ===== -->
+    <div class="main">
+      <header class="header">
+        <div class="breadcrumb-wrap">
+          <el-breadcrumb separator="/">
+            <el-breadcrumb-item>首页</el-breadcrumb-item>
+            <el-breadcrumb-item>客户中心</el-breadcrumb-item>
+            <el-breadcrumb-item :to="{path:'customer-ledger.html'}">客户往来账</el-breadcrumb-item>
+            <el-breadcrumb-item>往来明细</el-breadcrumb-item>
+          </el-breadcrumb>
+        </div>
+        <div class="actions">
+          <div class="enterprise">
+            <el-icon><OfficeBuilding /></el-icon>
+            <span>某某钢铁有限公司</span>
+          </div>
+          <div class="icon-btn">
+            <el-badge :value="12" :max="99">
+              <el-icon style="font-size:20px;"><Bell /></el-icon>
+            </el-badge>
+          </div>
+          <el-dropdown>
+            <div class="user">
+              <el-avatar :size="32" style="background:#409eff;">王</el-avatar>
+              <span class="name">王管理员</span>
+              <el-icon><ArrowDown /></el-icon>
+            </div>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item>个人设置</el-dropdown-item>
+                <el-dropdown-item>修改密码</el-dropdown-item>
+                <el-dropdown-item divided>退出登录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+      </header>
+
+      <main class="content">
+        <!-- Detail header -->
+        <div class="detail-header">
+          <div class="left">
+            <el-button :icon="ArrowLeft" @click="goBack">返回</el-button>
+            <span class="cust-title">某某贸易有限公司</span>
+            <span class="sub">· 往来明细</span>
+            <el-tag type="success" size="small" effect="light">C202503001</el-tag>
+          </div>
+          <div class="right">
+            <el-button :icon="Refresh">同步ERP</el-button>
+            <el-button :icon="Download">导出</el-button>
+            <el-button type="primary" :icon="Promotion" @click="reconDlg=true">发起本期对账</el-button>
+          </div>
+        </div>
+
+        <!-- Info card -->
+        <div class="info-card">
+          <div class="info-grid">
+            <div class="info-item"><span class="label">客户类型:</span><span class="value">经销商</span></div>
+            <div class="info-item"><span class="label">等级:</span><el-tag type="" effect="dark" size="small">B</el-tag></div>
+            <div class="info-item">
+              <span class="label">标签:</span>
+              <el-tag color="#f0c040" effect="dark" size="small" style="border:none;color:#fff;">VIP</el-tag>
+              <el-tag color="#409eff" effect="dark" size="small" style="border:none;color:#fff;margin-left:4px;">月结</el-tag>
+            </div>
+            <div class="info-item"><span class="label">负责销售:</span><span class="value">张三 (13800001111)</span></div>
+            <div class="info-item"><span class="label">对账模式:</span><span class="value">滚动周期 (每 5 天)</span></div>
+            <div class="info-item"><span class="label">下次对账日:</span><span class="value" style="color:#409eff;">2026-07-08</span></div>
+          </div>
+        </div>
+
+        <!-- Stat cards -->
+        <div class="stat-grid">
+          <div class="stat-card blue">
+            <div class="title">应收余额 (外部)</div>
+            <div class="value">¥75,800.00</div>
+            <div class="sub">发送给客户对账</div>
+          </div>
+          <div class="stat-card gray">
+            <div class="title">
+              应收余额 (内部)
+              <el-tooltip content="含 ¥1,200 元过滤项（HK/NB调整）" placement="top">
+                <el-icon style="cursor:pointer;color:#909399;"><Lock /></el-icon>
+              </el-tooltip>
+            </div>
+            <div class="value">¥74,600.00</div>
+            <div class="sub">财务内部真实余额</div>
+          </div>
+          <div class="stat-card green">
+            <div class="title">本月应收</div>
+            <div class="value">+¥125,800</div>
+            <div class="sub">4 笔销售单</div>
+          </div>
+          <div class="stat-card orange">
+            <div class="title">本月实收</div>
+            <div class="value">+¥50,000</div>
+            <div class="sub">2 笔收款</div>
+          </div>
+          <div class="stat-card red">
+            <div class="title">逾期金额</div>
+            <div class="value">¥0</div>
+            <div class="sub">暂无逾期</div>
+          </div>
+        </div>
+
+        <!-- Info alert -->
+        <el-alert
+          type="info"
+          show-icon
+          :closable="false"
+          style="margin-bottom:16px;"
+        >
+          <template #title>
+            <span>本客户配置了科目过滤：<b style="color:#e6a23c;">HK*</b> (回扣), <b style="color:#e6a23c;">NB*</b> (内部调整)。外部余额已排除 <b style="color:#f56c6c;">¥1,200</b> 的过滤金额。 <el-link type="primary" :underline="false" @click="goConfig">修改配置 →</el-link></span>
+          </template>
+        </el-alert>
+
+        <!-- Tabs -->
+        <div class="tabs-card">
+          <el-tabs v-model="activeTab" type="border-card" class="detail-tabs">
+
+            <!-- ===== Tab 1: 往来流水 ===== -->
+            <el-tab-pane name="flow">
+              <template #label>
+                <el-icon><Tickets /></el-icon>
+                <span style="margin-left:4px;">往来流水</span>
+              </template>
+
+              <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px; flex-wrap:wrap;">
+                <el-date-picker v-model="dateRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" size="default" style="width:280px;" />
+                <el-select v-model="docType" placeholder="全部单据类型" clearable style="width:160px;">
+                  <el-option label="销售单" value="sale" />
+                  <el-option label="收款单" value="pay" />
+                  <el-option label="调整单" value="adjust" />
+                </el-select>
+                <el-select v-model="subjectF" placeholder="全部科目" clearable style="width:160px;">
+                  <el-option label="销售收入" value="revenue" />
+                  <el-option label="应收账款" value="ar" />
+                  <el-option label="HK-回扣" value="hk" />
+                  <el-option label="NB-内部" value="nb" />
+                </el-select>
+                <div style="display:flex; align-items:center; gap:6px; margin-left:8px;">
+                  <span style="font-size:13px; color:#606266;">显示过滤项:</span>
+                  <el-switch v-model="showFiltered" active-color="#f56c6c" />
+                </div>
+                <div style="flex:1"></div>
+                <el-button :icon="Refresh" size="default">刷新</el-button>
+              </div>
+
+              <el-table :data="filteredFlowRows" style="width: 100%" class="bank-table" :row-class-name="rowClassName" size="default" :header-cell-style="{background:'#fafafa',color:'#606266',fontWeight:600}">
+                <el-table-column prop="date" label="日期" width="90" fixed="left" />
+                <el-table-column prop="docNo" label="单号" width="90" fixed="left">
+                  <template #default="{row}"><span class="doc-tag">{{ row.docNo }}</span></template>
+                </el-table-column>
+                <el-table-column label="单据类型" width="110">
+                  <template #default="{row}">
+                    <el-tag v-if="row.docType==='sale'" type="primary" size="small" effect="light">销售单</el-tag>
+                    <el-tag v-else-if="row.docType==='pay'" type="success" size="small" effect="light">收款单</el-tag>
+                    <el-tag v-else-if="row.docType==='adjust'" type="warning" size="small" effect="light">调整单</el-tag>
+                    <span v-else style="color:#909399;">-</span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="memo" label="摘要" min-width="150" />
+                <el-table-column label="结算数量" width="90" align="right">
+                  <template #default="{row}">
+                    <span v-if="row.qty">{{ row.qty }}</span>
+                    <span v-else style="color:#c0c4cc;">-</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="本期应收" width="110" align="right">
+                  <template #default="{row}">
+                    <span v-if="row.debit > 0" class="money-out">+¥{{ fmt(row.debit) }}</span>
+                    <span v-else-if="row.debit < 0" class="money-adjust">-¥{{ fmt(Math.abs(row.debit)) }}</span>
+                    <span v-else style="color:#c0c4cc;">-</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="本期实收" width="110" align="right">
+                  <template #default="{row}">
+                    <span v-if="row.credit > 0" class="money-in">+¥{{ fmt(row.credit) }}</span>
+                    <span v-else style="color:#c0c4cc;">-</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="应收余额 (外部)" width="140" align="right">
+                  <template #default="{row}">
+                    <span class="balance-ext">¥{{ fmt(row.balanceExt) }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="内部余额" width="120" align="right">
+                  <template #default="{row}">
+                    <span class="balance-int">¥{{ fmt(row.balanceInt) }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="科目" width="120">
+                  <template #default="{row}">
+                    <span v-if="row.subject" style="font-size:13px; color:#606266;">{{ row.subject }}</span>
+                    <span v-else style="color:#c0c4cc;">-</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="状态" width="100" align="center">
+                  <template #default="{row}">
+                    <el-tag v-if="row.filtered" type="danger" size="small" effect="dark">
+                      <el-icon style="vertical-align:middle;"><Lock /></el-icon>
+                      过滤
+                    </el-tag>
+                    <span v-else style="color:#c0c4cc;">-</span>
+                  </template>
+                </el-table-column>
+              </el-table>
+
+              <div class="summary-bar">
+                <span>共 <b>{{ flowRows.length }}</b> 条流水，其中 <b class="highlight">2</b> 条被过滤 | 差异累计 <b class="highlight">¥1,200</b></span>
+                <span>期末外部余额 <b style="color:#409eff;">¥75,800</b> · 期末内部余额 <b>¥74,600</b></span>
+              </div>
+            </el-tab-pane>
+
+            <!-- ===== Tab 2: 应收明细 ===== -->
+            <el-tab-pane name="ar">
+              <template #label>
+                <el-icon><Money /></el-icon>
+                <span style="margin-left:4px;">应收明细 (ERP)</span>
+              </template>
+
+              <el-alert type="warning" show-icon :closable="false" style="margin-bottom:12px;">
+                <template #title>
+                  数据来源 ERP · 应收明细支持"按未付部分催收"。灰色单据为已结清，橙色为部分未付，红色为逾期未付。
+                </template>
+              </el-alert>
+
+              <el-table :data="arRows" style="width:100%" size="default" :header-cell-style="{background:'#fafafa',color:'#606266',fontWeight:600}">
+                <el-table-column prop="sourceNo" label="源单号" width="100"><template #default="{row}"><span class="doc-tag">{{ row.sourceNo }}</span></template></el-table-column>
+                <el-table-column prop="docDate" label="单据日期" width="110" />
+                <el-table-column prop="memo" label="摘要" min-width="160" />
+                <el-table-column label="原始金额" width="120" align="right"><template #default="{row}">¥{{ fmt(row.origAmount) }}</template></el-table-column>
+                <el-table-column label="已付 (ERP)" width="120" align="right"><template #default="{row}"><span class="money-in">¥{{ fmt(row.paid) }}</span></template></el-table-column>
+                <el-table-column label="未付金额" width="120" align="right">
+                  <template #default="{row}">
+                    <span v-if="row.unpaid > 0" :class="row.overdue?'money-out':'money-adjust'">¥{{ fmt(row.unpaid) }}</span>
+                    <span v-else style="color:#67c23a;">已结清</span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="dueDate" label="到期日" width="110" />
+                <el-table-column label="逾期" width="80" align="center">
+                  <template #default="{row}">
+                    <span v-if="row.overdue > 0" style="color:#f56c6c; font-weight:600;">{{ row.overdue }}天</span>
+                    <span v-else style="color:#c0c4cc;">-</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="状态" width="110">
+                  <template #default="{row}">
+                    <el-tag v-if="row.unpaid===0" type="success" size="small">已结清</el-tag>
+                    <el-tag v-else-if="row.overdue > 0" type="danger" size="small">逾期未付</el-tag>
+                    <el-tag v-else-if="row.paid > 0" type="warning" size="small">部分未付</el-tag>
+                    <el-tag v-else type="info" size="small">未付</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="150" fixed="right">
+                  <template #default="{row}">
+                    <el-button v-if="row.unpaid > 0" link type="danger" size="small">催收此单</el-button>
+                    <el-button link type="primary" size="small">明细</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </el-tab-pane>
+
+            <!-- ===== Tab 3: 历史对账单 ===== -->
+            <el-tab-pane name="history">
+              <template #label>
+                <el-icon><Document /></el-icon>
+                <span style="margin-left:4px;">历史对账单</span>
+              </template>
+
+              <el-table :data="historyRows" style="width:100%" :header-cell-style="{background:'#fafafa',color:'#606266',fontWeight:600}">
+                <el-table-column prop="no" label="对账单号" width="180"><template #default="{row}"><span class="doc-tag">{{ row.no }}</span></template></el-table-column>
+                <el-table-column prop="period" label="周期" min-width="200" />
+                <el-table-column label="期末余额" width="140" align="right"><template #default="{row}"><span class="balance-ext">¥{{ fmt(row.balance) }}</span></template></el-table-column>
+                <el-table-column prop="sentAt" label="发送时间" width="160" />
+                <el-table-column label="状态" width="120" align="center">
+                  <template #default="{row}">
+                    <el-tag :type="row.status==='已确认'?'success':(row.status==='视同确认'?'info':(row.status==='异议中'?'danger':'warning'))" size="small">{{ row.status }}</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="200">
+                  <template #default>
+                    <el-button link type="primary" size="small">查看</el-button>
+                    <el-button link type="primary" size="small">下载PDF</el-button>
+                    <el-button link type="primary" size="small">重新发送</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </el-tab-pane>
+
+            <!-- ===== Tab 4: 余额快照 ===== -->
+            <el-tab-pane name="snapshot">
+              <template #label>
+                <el-icon><Clock /></el-icon>
+                <span style="margin-left:4px;">余额快照</span>
+              </template>
+
+              <el-alert type="info" show-icon :closable="false" style="margin-bottom:12px;">
+                <template #title>
+                  余额快照是审计留痕。每次对账 (RECON)、过滤规则变更 (FILTER_CHANGE) 或手动重算 (MANUAL) 都会生成一条记录。
+                </template>
+              </el-alert>
+
+              <el-table :data="snapshotRows" style="width:100%" :header-cell-style="{background:'#fafafa',color:'#606266',fontWeight:600}">
+                <el-table-column prop="date" label="快照日期" width="160" />
+                <el-table-column label="类型" width="150">
+                  <template #default="{row}">
+                    <el-tag v-if="row.type==='RECON'" type="success" size="small">RECON (对账时)</el-tag>
+                    <el-tag v-else-if="row.type==='FILTER_CHANGE'" type="warning" size="small">FILTER_CHANGE</el-tag>
+                    <el-tag v-else type="info" size="small">MANUAL (手动)</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="内部余额" width="140" align="right"><template #default="{row}"><span class="balance-int">¥{{ fmt(row.internal) }}</span></template></el-table-column>
+                <el-table-column label="外部余额" width="140" align="right"><template #default="{row}"><span class="balance-ext">¥{{ fmt(row.external) }}</span></template></el-table-column>
+                <el-table-column label="差异" width="120" align="right">
+                  <template #default="{row}">
+                    <span :style="{color: row.diff > 0 ? '#f56c6c' : (row.diff < 0 ? '#67c23a' : '#909399'), fontWeight:600}">
+                      {{ row.diff > 0 ? '+' : '' }}¥{{ fmt(row.diff) }}
+                    </span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="remark" label="备注" min-width="200" />
+              </el-table>
+            </el-tab-pane>
+          </el-tabs>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <el-dialog v-model="reconDlg" title="发起本期对账" width="480px">
+    <el-form label-width="100px">
+      <el-form-item label="对账周期">
+        <el-date-picker v-model="reconPeriod" type="daterange" start-placeholder="开始日期" end-placeholder="结束日期" style="width:100%;" />
+      </el-form-item>
+      <el-form-item label="期末余额"><b style="color:#409eff;font-size:16px;">¥75,800.00</b></el-form-item>
+      <el-form-item label="发送方式">
+        <el-checkbox-group v-model="sendVia">
+          <el-checkbox label="email">邮件</el-checkbox>
+          <el-checkbox label="wechat">企业微信</el-checkbox>
+          <el-checkbox label="sms">短信</el-checkbox>
+        </el-checkbox-group>
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="reconDlg=false">取消</el-button>
+      <el-button type="primary" @click="reconDlg=false">立即发起</el-button>
+    </template>
+  </el-dialog>
+</div>
+
+<script>
+const { createApp, ref, reactive, computed } = Vue;
+const app = createApp({
+  setup() {
+    const activeMenu = ref('customer-ledger');
+    const activeTab = ref('flow');
+    const dateRange = ref([]);
+    const docType = ref('');
+    const subjectF = ref('');
+    const showFiltered = ref(true);
+    const reconDlg = ref(false);
+    const reconPeriod = ref([]);
+    const sendVia = ref(['email','wechat']);
+
+    const flowRows = ref([
+      { date: '03-01', docNo: '期初',  docType: '',       memo: '上期结转',   qty: '',     debit: 0,     credit: 0,    balanceExt: 20500, balanceInt: 20000, subject: '',       filtered: false, opening: true },
+      { date: '03-01', docNo: 'S001',  docType: 'sale',   memo: '螺纹钢销售', qty: '100件', debit: 10000, credit: 0,    balanceExt: 30500, balanceInt: 30000, subject: '销售收入', filtered: false },
+      { date: '03-05', docNo: 'HK01',  docType: 'adjust', memo: '客户回扣',   qty: '',     debit: -500,  credit: 0,    balanceExt: 30500, balanceInt: 29500, subject: 'HK-回扣',  filtered: true  },
+      { date: '03-10', docNo: 'R001',  docType: 'pay',    memo: '银行收款',   qty: '',     debit: 0,     credit: 8000, balanceExt: 22500, balanceInt: 21500, subject: '应收账款', filtered: false },
+      { date: '03-15', docNo: 'NB01',  docType: 'adjust', memo: '内部调整',   qty: '',     debit: -200,  credit: 0,    balanceExt: 22500, balanceInt: 21300, subject: 'NB-内部',  filtered: true  },
+      { date: '03-20', docNo: 'S002',  docType: 'sale',   memo: '盘螺销售',   qty: '50件',  debit: 15000, credit: 0,    balanceExt: 37500, balanceInt: 36300, subject: '销售收入', filtered: false },
+      { date: '03-25', docNo: 'S003',  docType: 'sale',   memo: '热轧板销售', qty: '200件', debit: 30000, credit: 0,    balanceExt: 67500, balanceInt: 66300, subject: '销售收入', filtered: false },
+      { date: '03-28', docNo: 'R002',  docType: 'pay',    memo: '银行收款',   qty: '',     debit: 0,     credit: 42000,balanceExt: 25500, balanceInt: 24300, subject: '应收账款', filtered: false },
+      { date: '03-31', docNo: 'S004',  docType: 'sale',   memo: '螺纹钢销售', qty: '500件', debit: 50300, credit: 0,    balanceExt: 75800, balanceInt: 74600, subject: '销售收入', filtered: false }
+    ]);
+
+    const filteredFlowRows = computed(() => {
+      if (showFiltered.value) return flowRows.value;
+      return flowRows.value.filter(r => !r.filtered);
+    });
+
+    const arRows = ref([
+      { sourceNo: 'S001',  docDate: '2026-03-01', memo: '螺纹钢销售 100件', origAmount: 10000, paid: 10000, unpaid: 0,     dueDate: '2026-04-01', overdue: 0 },
+      { sourceNo: 'S002',  docDate: '2026-03-20', memo: '盘螺销售 50件',    origAmount: 15000, paid: 0,     unpaid: 15000, dueDate: '2026-04-20', overdue: 0 },
+      { sourceNo: 'S003',  docDate: '2026-03-25', memo: '热轧板销售 200件', origAmount: 30000, paid: 0,     unpaid: 30000, dueDate: '2026-04-25', overdue: 0 },
+      { sourceNo: 'S004',  docDate: '2026-03-31', memo: '螺纹钢销售 500件', origAmount: 50300, paid: 20000, unpaid: 30300, dueDate: '2026-05-01', overdue: 0 },
+      { sourceNo: 'S998',  docDate: '2026-02-10', memo: '型钢销售 30件',    origAmount: 8500,  paid: 8500,  unpaid: 0,     dueDate: '2026-03-10', overdue: 0 },
+      { sourceNo: 'S999',  docDate: '2026-02-15', memo: '角钢销售 20件',    origAmount: 3200,  paid: 2700,  unpaid: 500,   dueDate: '2026-03-15', overdue: 45 }
+    ]);
+
+    const historyRows = ref([
+      { no: 'RC202603170001', period: '2026-03-11 ~ 2026-03-17 (滚动)', balance: 75800, sentAt: '2026-03-17 09:30', status: '待确认' },
+      { no: 'RC202603120001', period: '2026-03-05 ~ 2026-03-12 (滚动)', balance: 22500, sentAt: '2026-03-12 09:31', status: '已确认' },
+      { no: 'RC202603070001', period: '2026-02-28 ~ 2026-03-07 (滚动)', balance: 25500, sentAt: '2026-03-07 09:29', status: '视同确认' },
+      { no: 'RC202603020001', period: '2026-02-23 ~ 2026-03-02 (滚动)', balance: 20500, sentAt: '2026-03-02 09:30', status: '已确认' }
+    ]);
+
+    const snapshotRows = ref([
+      { date: '2026-03-31 23:59', type: 'MANUAL',         internal: 74600, external: 75800, diff: 1200, remark: '月末手动重算' },
+      { date: '2026-03-17 09:30', type: 'RECON',          internal: 74600, external: 75800, diff: 1200, remark: '对账单RC202603170001生成' },
+      { date: '2026-03-15 14:20', type: 'FILTER_CHANGE',  internal: 21500, external: 22500, diff: 1000, remark: '新增过滤规则 NB*' },
+      { date: '2026-03-12 09:31', type: 'RECON',          internal: 21500, external: 22500, diff: 1000, remark: '对账单RC202603120001生成' },
+      { date: '2026-03-07 09:29', type: 'RECON',          internal: 24800, external: 25500, diff: 700,  remark: '对账单RC202603070001生成' },
+      { date: '2026-03-01 00:00', type: 'MANUAL',         internal: 20000, external: 20500, diff: 500,  remark: '期初余额录入' }
+    ]);
+
+    const rowClassName = ({ row }) => {
+      if (row.opening) return 'opening-row';
+      if (row.filtered) return 'filtered-row';
+      return '';
+    };
+
+    const fmt = (n) => n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const goBack = () => { window.location.href = 'customer-ledger.html'; };
+    const goConfig = () => { window.location.href = 'customer-config.html'; };
+    const go = (url) => { window.location.href = url; };
+
+    return { activeMenu, activeTab, dateRange, docType, subjectF, showFiltered, reconDlg, reconPeriod, sendVia,
+      flowRows, filteredFlowRows, arRows, historyRows, snapshotRows, rowClassName, fmt, goBack, goConfig, go,
+      ArrowLeft: ElementPlusIconsVue.ArrowLeft, Refresh: ElementPlusIconsVue.Refresh, Download: ElementPlusIconsVue.Download,
+      Promotion: ElementPlusIconsVue.Promotion, Lock: ElementPlusIconsVue.Lock };
+  }
+});
+app.use(ElementPlus);
+for (const key in ElementPlusIconsVue) { app.component(key, ElementPlusIconsVue[key]); }
+app.mount('#app');
+</script>
+</body>
+</html>
