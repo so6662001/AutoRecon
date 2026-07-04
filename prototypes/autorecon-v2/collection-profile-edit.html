@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>编辑催收策略 - 对账通v2原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body, #app { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f0f2f5;
+      color: #303133;
+    }
+    .layout { display: flex; height: 100vh; overflow: hidden; }
+    .sidebar { width: 220px; background: #001529; color: #fff; display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; }
+    .logo { height: 60px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px; font-weight: 600; letter-spacing: 2px; background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .logo .badge { margin-left: 6px; padding: 1px 6px; background: #409eff; border-radius: 3px; font-size: 11px; letter-spacing: 0; }
+    .sidebar .el-menu { background: transparent; border-right: none; flex: 1; overflow-y: auto; }
+    .sidebar .el-menu::-webkit-scrollbar { width: 4px; }
+    .sidebar .el-menu::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
+    .sidebar .el-sub-menu__title, .sidebar .el-menu-item { color: rgba(255,255,255,0.75) !important; height: 44px; line-height: 44px; }
+    .sidebar .el-menu-item:hover, .sidebar .el-sub-menu__title:hover { background: rgba(255,255,255,0.05) !important; color: #fff !important; }
+    .sidebar .el-menu-item.is-active { background: #409eff !important; color: #fff !important; }
+    .sidebar .el-sub-menu .el-menu-item { background: #000c17 !important; padding-left: 48px !important; }
+    .sidebar .el-sub-menu .el-menu-item.is-active { background: #409eff !important; }
+
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .header { height: 60px; background: #fff; border-bottom: 1px solid #e4e7ed; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+    .header .breadcrumb { font-size: 14px; }
+    .header .right { display: flex; align-items: center; gap: 20px; }
+    .header .company { padding: 4px 12px; background: #f0f5ff; color: #2f54eb; border-radius: 4px; font-size: 13px; border: 1px solid #d6e4ff; }
+    .user-drop { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+
+    .content { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 80px; }
+
+    .page-header {
+      background: #fff;
+      border-radius: 6px;
+      padding: 16px 20px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .page-header .title-block { display: flex; align-items: center; gap: 12px; }
+    .page-header .title { font-size: 18px; font-weight: 600; color: #1f2d3d; }
+    .page-header .strategy-name { color: #409eff; font-size: 15px; margin-left: 4px; }
+
+    .form-collapse { background: transparent; border: none; }
+    :deep(.el-collapse-item__header) {
+      background: #fff !important;
+      padding: 0 20px;
+      border-radius: 6px 6px 0 0;
+      font-size: 15px;
+      font-weight: 600;
+      color: #1f2d3d;
+      height: 52px;
+    }
+    :deep(.el-collapse-item__wrap) {
+      background: #fff !important;
+      border-bottom: none !important;
+      border-radius: 0 0 6px 6px;
+    }
+    :deep(.el-collapse-item__content) {
+      padding: 20px 24px 24px;
+    }
+    :deep(.el-collapse-item) {
+      background: #fff;
+      margin-bottom: 12px;
+      border-radius: 6px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      overflow: hidden;
+    }
+
+    .section-badge {
+      display: inline-block;
+      padding: 1px 8px;
+      background: #ecf5ff;
+      color: #409eff;
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: normal;
+      margin-left: 8px;
+    }
+    .section-badge.core { background: #fef0e6; color: #f56c22; }
+    .section-badge.new { background: #f0f9eb; color: #67c23a; }
+
+    .stage-section {
+      background: #fafbfc;
+      border-radius: 6px;
+      padding: 20px;
+      border-left: 3px solid #409eff;
+    }
+    .stage-section.s1 { border-left-color: #e6a23c; }
+    .stage-section.s2 { border-left-color: #f56c22; }
+    .stage-section.s3 { border-left-color: #f56c6c; }
+
+    .field-hint {
+      font-size: 12px;
+      color: #909399;
+      margin-top: 4px;
+    }
+    .radio-card-group { display: flex; gap: 12px; }
+    .radio-card {
+      flex: 1;
+      padding: 14px 16px;
+      border: 1px solid #dcdfe6;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .radio-card.active {
+      border-color: #409eff;
+      background: #ecf5ff;
+    }
+    .radio-card .rc-title { font-size: 14px; font-weight: 500; color: #1f2d3d; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+    .radio-card .rc-desc { font-size: 12px; color: #909399; }
+
+    .bottom-bar {
+      position: fixed;
+      bottom: 0;
+      left: 220px;
+      right: 0;
+      background: #fff;
+      padding: 12px 24px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      border-top: 1px solid #e4e7ed;
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.04);
+      z-index: 100;
+    }
+
+    .intent-row td { padding: 8px 12px; }
+
+    .warn-tip {
+      background: #fdf6ec;
+      border-left: 3px solid #e6a23c;
+      padding: 10px 14px;
+      border-radius: 4px;
+      color: #b88230;
+      font-size: 13px;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="logo">对账通 <span class="badge">v2</span></div>
+        <el-menu default-active="collection-profiles" :default-openeds="['customer','recon','collect','report','system']" background-color="#001529" text-color="#b6c2d1" active-text-color="#fff">
+          <el-menu-item index="dashboard" @click="go('dashboard.html')">
+            <el-icon><component :is="ElementPlusIconsVue.Odometer" /></el-icon>
+            <template #title>工作台</template>
+          </el-menu-item>
+          <el-sub-menu index="customer">
+            <template #title><el-icon><component :is="ElementPlusIconsVue.UserFilled" /></el-icon><span>客户中心</span></template>
+            <el-menu-item index="customer-ledger" @click="go('customer-ledger.html')">客户往来账</el-menu-item>
+            <el-menu-item index="customer-types" @click="go('customer-types.html')">客户类型</el-menu-item>
+            <el-menu-item index="customer-tags">客户标签</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="recon">
+            <template #title><el-icon><component :is="ElementPlusIconsVue.List" /></el-icon><span>对账管理</span></template>
+            <el-menu-item index="statement-list" @click="go('statement-list.html')">对账单列表</el-menu-item>
+            <el-menu-item index="statement-create" @click="go('statement-create.html')">发起对账</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="collect">
+            <template #title><el-icon><component :is="ElementPlusIconsVue.Phone" /></el-icon><span>催收中心</span></template>
+            <el-menu-item index="collection-orders" @click="go('collection-orders.html')">催收工单</el-menu-item>
+            <el-menu-item index="collection-profiles" @click="go('collection-profiles.html')">催收策略</el-menu-item>
+            <el-menu-item index="call-tasks" @click="go('call-tasks.html')">外呼任务</el-menu-item>
+            <el-menu-item index="call-records" @click="go('call-records.html')">外呼记录</el-menu-item>
+          </el-sub-menu>
+          <el-menu-item index="messages" @click="go('messages.html')">
+            <el-icon><component :is="ElementPlusIconsVue.Bell" /></el-icon>
+            <template #title>消息中心</template>
+          </el-menu-item>
+          <el-sub-menu index="report">
+            <template #title><el-icon><component :is="ElementPlusIconsVue.DataAnalysis" /></el-icon><span>报表分析</span></template>
+            <el-menu-item index="receivable-report">应收报表</el-menu-item>
+            <el-menu-item index="collection-report">催收报表</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="system">
+            <template #title><el-icon><component :is="ElementPlusIconsVue.Setting" /></el-icon><span>系统设置</span></template>
+            <el-menu-item index="subjects-filter">科目过滤</el-menu-item>
+            <el-menu-item index="call-scripts" @click="go('call-scripts.html')">AI话术管理</el-menu-item>
+            <el-menu-item index="aliyun-config" @click="go('aliyun-config.html')">阿里云配置</el-menu-item>
+            <el-menu-item index="holiday-calendar">节假日日历</el-menu-item>
+            <el-menu-item index="tpl">对账单模板</el-menu-item>
+            <el-menu-item index="erp">ERP配置</el-menu-item>
+            <el-menu-item index="user">用户管理</el-menu-item>
+            <el-menu-item index="enterprise">企业设置</el-menu-item>
+          </el-sub-menu>
+        </el-menu>
+      </aside>
+
+      <div class="main">
+        <div class="header">
+          <el-breadcrumb class="breadcrumb" separator="/">
+            <el-breadcrumb-item>催收中心</el-breadcrumb-item>
+            <el-breadcrumb-item :to="{ path: 'collection-profiles.html' }">催收策略</el-breadcrumb-item>
+            <el-breadcrumb-item>编辑策略</el-breadcrumb-item>
+          </el-breadcrumb>
+          <div class="right">
+            <div class="company">
+              <el-icon style="vertical-align: middle;"><component :is="ElementPlusIconsVue.OfficeBuilding" /></el-icon>
+              某某钢铁有限公司
+            </div>
+            <el-badge :value="12" :max="99"><el-icon style="font-size: 18px; color: #606266; cursor: pointer;"><component :is="ElementPlusIconsVue.Bell" /></el-icon></el-badge>
+            <el-dropdown>
+              <div class="user-drop"><el-avatar :size="30">王</el-avatar><span>王管理员</span><el-icon><component :is="ElementPlusIconsVue.CaretBottom" /></el-icon></div>
+              <template #dropdown><el-dropdown-menu><el-dropdown-item>个人中心</el-dropdown-item><el-dropdown-item>切换企业</el-dropdown-item><el-dropdown-item divided>退出登录</el-dropdown-item></el-dropdown-menu></template>
+            </el-dropdown>
+          </div>
+        </div>
+
+        <div class="content">
+          <div class="page-header">
+            <div class="title-block">
+              <el-button link @click="goBack">
+                <el-icon><component :is="ElementPlusIconsVue.ArrowLeft" /></el-icon>返回
+              </el-button>
+              <div class="title">
+                编辑策略
+                <span class="strategy-name">"普通经销商策略"</span>
+                <el-tag type="success" size="small" style="margin-left: 8px;">已启用</el-tag>
+                <el-tag type="warning" size="small" effect="light" style="margin-left: 4px;">⭐ 默认策略</el-tag>
+              </div>
+            </div>
+            <div>
+              <el-tag size="small">适用客户：25 家</el-tag>
+              <el-tag size="small" type="info" style="margin-left: 8px;">最后修改：2026-02-28 14:30</el-tag>
+            </div>
+          </div>
+
+          <el-collapse v-model="activeSections" class="form-collapse">
+            <!-- Section 1: 基础信息 -->
+            <el-collapse-item name="1">
+              <template #title>
+                <span>① 基础信息</span>
+              </template>
+              <el-form :model="form" label-width="140px" label-position="right">
+                <el-row :gutter="20">
+                  <el-col :span="12">
+                    <el-form-item label="策略名称" required>
+                      <el-input v-model="form.name" placeholder="请输入策略名称" />
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="12">
+                    <el-form-item label="启用状态">
+                      <el-switch v-model="form.enabled" active-text="启用" inactive-text="停用" />
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+                <el-form-item label="策略类型" required>
+                  <el-radio-group v-model="form.strategyType">
+                    <el-radio value="default">企业默认</el-radio>
+                    <el-radio value="type-level">按类型+等级</el-radio>
+                    <el-radio value="tag">按标签</el-radio>
+                    <el-radio value="single">客户独立</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <template v-if="form.strategyType === 'type-level'">
+                  <el-row :gutter="20">
+                    <el-col :span="12">
+                      <el-form-item label="匹配客户类型" required>
+                        <el-select v-model="form.custType" style="width: 100%;">
+                          <el-option label="大型终端" value="da" />
+                          <el-option label="经销商" value="jing" />
+                          <el-option label="加工厂" value="jia" />
+                          <el-option label="同行" value="tong" />
+                          <el-option label="* 全部类型" value="*" />
+                        </el-select>
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                      <el-form-item label="匹配等级" required>
+                        <el-select v-model="form.level" style="width: 100%;">
+                          <el-option label="A" value="A" />
+                          <el-option label="B" value="B" />
+                          <el-option label="C" value="C" />
+                          <el-option label="D" value="D" />
+                          <el-option label="* 全部等级" value="*" />
+                        </el-select>
+                      </el-form-item>
+                    </el-col>
+                  </el-row>
+                </template>
+                <template v-if="form.strategyType === 'tag'">
+                  <el-form-item label="匹配标签" required>
+                    <el-select v-model="form.tags" multiple style="width: 100%;">
+                      <el-option label="高风险" value="high-risk" />
+                      <el-option label="免催" value="no-collect" />
+                      <el-option label="VIP" value="vip" />
+                      <el-option label="新客户" value="new" />
+                    </el-select>
+                  </el-form-item>
+                </template>
+                <el-form-item label="设为默认">
+                  <el-switch v-model="form.isDefault" />
+                  <span class="field-hint" style="margin-left: 12px;">默认策略在未匹配任何策略时生效</span>
+                </el-form-item>
+                <el-alert type="info" :closable="false" show-icon>
+                  <template #title>
+                    <b>优先级说明：</b>客户独立 &gt; 按标签 &gt; 按类型+等级 &gt; 企业默认。当客户命中多个策略时，按优先级选择最匹配的一条生效。
+                  </template>
+                </el-alert>
+              </el-form>
+            </el-collapse-item>
+
+            <!-- Section 2: 催收模式 -->
+            <el-collapse-item name="2">
+              <template #title>
+                <span>② 催收模式 <span class="section-badge core">核心</span></span>
+              </template>
+              <el-form :model="form" label-width="140px" label-position="right">
+                <el-form-item label="催收总开关">
+                  <el-switch v-model="form.mainSwitch" active-text="启用催收" inactive-text="关闭催收" />
+                  <span class="field-hint" style="margin-left: 12px;">关闭后该策略下的客户不会进入任何催收流程</span>
+                </el-form-item>
+
+                <el-form-item label="催收模式" required>
+                  <div class="radio-card-group" style="width: 100%;">
+                    <div class="radio-card" :class="{active: form.collectMode === 'full'}" @click="form.collectMode = 'full'">
+                      <div class="rc-title">
+                        <el-radio v-model="form.collectMode" value="full" size="large" />
+                        整单催收
+                      </div>
+                      <div class="rc-desc">对账单余额整体催收，不区分明细付款状态，适合月结/整单结算客户</div>
+                    </div>
+                    <div class="radio-card" :class="{active: form.collectMode === 'partial'}" @click="form.collectMode = 'partial'">
+                      <div class="rc-title">
+                        <el-radio v-model="form.collectMode" value="partial" size="large" />
+                        按未付部分催收
+                      </div>
+                      <div class="rc-desc">从ERP同步付款状态，仅催未付部分。适合部分付款、分期回款客户</div>
+                    </div>
+                  </div>
+                </el-form-item>
+
+                <el-divider content-position="left">特殊配置</el-divider>
+
+                <el-row :gutter="20">
+                  <el-col :span="12">
+                    <el-form-item label="单客户单日最多外呼">
+                      <el-input-number v-model="form.maxCallPerDay" :min="1" :max="10" style="width: 100%;" />
+                      <div class="field-hint">保护客户体验，避免过度打扰</div>
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="12">
+                    <el-form-item label="节假日跳过">
+                      <el-switch v-model="form.skipHoliday" active-text="启用" inactive-text="不启用" />
+                      <div class="field-hint">法定节假日不触发任何催收动作</div>
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+                <el-form-item label="免打扰时段">
+                  <el-time-picker
+                    v-model="form.dndTime"
+                    is-range
+                    range-separator="至"
+                    start-placeholder="开始时间"
+                    end-placeholder="结束时间"
+                    format="HH:mm"
+                    style="width: 320px;"
+                  />
+                  <span class="field-hint" style="margin-left: 12px;">该时段内不发送短信、微信及外呼</span>
+                </el-form-item>
+              </el-form>
+            </el-collapse-item>
+
+            <!-- Section 3: 发送对账单时AI外呼跟单 -->
+            <el-collapse-item name="3">
+              <template #title>
+                <span>③ 发送对账单时 AI外呼跟单 <span class="section-badge new">v2 新功能</span></span>
+              </template>
+              <el-form :model="form" label-width="140px" label-position="right">
+                <el-form-item label="启用即时外呼">
+                  <el-switch v-model="form.statementCall.enabled" active-text="启用" inactive-text="不启用" />
+                  <span class="field-hint" style="margin-left: 12px;">对账单发送后自动 AI 外呼通知客户，确保客户及时收悉</span>
+                </el-form-item>
+                <template v-if="form.statementCall.enabled">
+                  <el-row :gutter="20">
+                    <el-col :span="12">
+                      <el-form-item label="延迟时长">
+                        <el-input-number v-model="form.statementCall.delay" :min="5" :max="1440" style="width: 200px;" />
+                        <span style="margin-left: 8px; color: #606266;">分钟</span>
+                        <div class="field-hint">发送对账单后延迟外呼，避免客户尚未打开信息</div>
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                      <el-form-item label="话术模板">
+                        <el-select v-model="form.statementCall.template" style="width: 100%;">
+                          <el-option label="对账通知-友好版 (STATEMENT_NOTIFY)" value="STATEMENT_NOTIFY" />
+                          <el-option label="对账通知-正式版 (STATEMENT_FORMAL)" value="STATEMENT_FORMAL" />
+                          <el-option label="对账通知-简短版 (STATEMENT_SHORT)" value="STATEMENT_SHORT" />
+                        </el-select>
+                        <div class="field-hint">
+                          <el-link type="primary" :underline="false" size="small">查看模板内容</el-link> ·
+                          <el-link type="primary" :underline="false" size="small">话术管理</el-link>
+                        </div>
+                      </el-form-item>
+                    </el-col>
+                  </el-row>
+                  <el-form-item label="外呼时段">
+                    <el-time-picker
+                      v-model="form.statementCall.workTime"
+                      is-range
+                      range-separator="至"
+                      start-placeholder="开始时间"
+                      end-placeholder="结束时间"
+                      format="HH:mm"
+                      style="width: 320px;"
+                    />
+                  </el-form-item>
+                  <el-alert type="warning" :closable="false" show-icon>
+                    <template #title>
+                      对账单发送后 <b>延迟 {{ form.statementCall.delay }} 分钟</b>外呼；若外呼触发时在免打扰时段或非外呼时段，则自动顺延到下一有效时段。若客户已回复"已收到"则跳过。
+                    </template>
+                  </el-alert>
+                </template>
+              </el-form>
+            </el-collapse-item>
+
+            <!-- Section 4: 阶段1 通知提醒 -->
+            <el-collapse-item name="4">
+              <template #title>
+                <span>④ 阶段1：通知提醒 <span class="section-badge">SMS / 微信 / 邮件</span></span>
+              </template>
+              <div class="stage-section s1">
+                <el-form :model="form" label-width="140px" label-position="right">
+                  <el-row :gutter="20">
+                    <el-col :span="8">
+                      <el-form-item label="起始逾期天数">
+                        <el-input-number v-model="form.stage1.startDays" :min="0" :max="365" style="width: 100%;" />
+                        <span style="margin-left: 4px;">天</span>
+                        <div class="field-hint">逾期达到该天数后进入阶段1</div>
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                      <el-form-item label="提醒间隔">
+                        <el-input-number v-model="form.stage1.interval" :min="1" :max="30" style="width: 100%;" />
+                        <span style="margin-left: 4px;">天</span>
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                      <el-form-item label="最多次数">
+                        <el-input-number v-model="form.stage1.maxTimes" :min="1" :max="10" style="width: 100%;" />
+                        <span style="margin-left: 4px;">次</span>
+                      </el-form-item>
+                    </el-col>
+                  </el-row>
+                  <el-form-item label="通知渠道" required>
+                    <el-checkbox-group v-model="form.stage1.channels">
+                      <el-checkbox value="sms" border>
+                        <el-icon><component :is="ElementPlusIconsVue.ChatDotSquare" /></el-icon> 短信
+                      </el-checkbox>
+                      <el-checkbox value="wechat" border>
+                        <el-icon><component :is="ElementPlusIconsVue.ChatDotRound" /></el-icon> 微信
+                      </el-checkbox>
+                      <el-checkbox value="email" border>
+                        <el-icon><component :is="ElementPlusIconsVue.Message" /></el-icon> 邮件
+                      </el-checkbox>
+                      <el-checkbox value="app" border>
+                        <el-icon><component :is="ElementPlusIconsVue.Bell" /></el-icon> APP推送
+                      </el-checkbox>
+                    </el-checkbox-group>
+                  </el-form-item>
+                  <el-form-item label="免打扰时段">
+                    <el-time-picker
+                      v-model="form.stage1.dndTime"
+                      is-range
+                      range-separator="至"
+                      start-placeholder="开始"
+                      end-placeholder="结束"
+                      format="HH:mm"
+                      style="width: 320px;"
+                    />
+                  </el-form-item>
+                  <el-form-item label="通知模板">
+                    <el-select v-model="form.stage1.template" style="width: 400px;">
+                      <el-option label="逾期通知-友好版" value="OVERDUE_FRIENDLY" />
+                      <el-option label="逾期通知-正式版" value="OVERDUE_FORMAL" />
+                      <el-option label="逾期通知-紧急版" value="OVERDUE_URGENT" />
+                    </el-select>
+                    <el-button link type="primary" style="margin-left: 8px;">预览</el-button>
+                  </el-form-item>
+                  <div class="warn-tip">
+                    <el-icon><component :is="ElementPlusIconsVue.InfoFilled" /></el-icon>
+                    执行示例：逾期第 <b>{{ form.stage1.startDays }}</b> 天发送第1次，之后每 <b>{{ form.stage1.interval }}</b> 天发送1次，最多 <b>{{ form.stage1.maxTimes }}</b> 次。达上限后自动升级到阶段2。
+                  </div>
+                </el-form>
+              </div>
+            </el-collapse-item>
+
+            <!-- Section 5: 阶段2 AI外呼 -->
+            <el-collapse-item name="5">
+              <template #title>
+                <span>⑤ 阶段2：AI外呼 <span class="section-badge core">核心</span></span>
+              </template>
+              <div class="stage-section s2">
+                <el-form :model="form" label-width="140px" label-position="right">
+                  <el-form-item label="启用AI外呼">
+                    <el-switch v-model="form.stage2.enabled" active-text="启用" inactive-text="跳过阶段2" />
+                    <span class="field-hint" style="margin-left: 12px;">若关闭，阶段1达上限后直接进入阶段3</span>
+                  </el-form-item>
+                  <template v-if="form.stage2.enabled">
+                    <el-row :gutter="20">
+                      <el-col :span="8">
+                        <el-form-item label="起始逾期天数">
+                          <el-input-number v-model="form.stage2.startDays" :min="0" :max="365" style="width: 100%;" />
+                          <span style="margin-left: 4px;">天</span>
+                        </el-form-item>
+                      </el-col>
+                      <el-col :span="8">
+                        <el-form-item label="外呼间隔">
+                          <el-input-number v-model="form.stage2.interval" :min="1" :max="30" style="width: 100%;" />
+                          <span style="margin-left: 4px;">天</span>
+                        </el-form-item>
+                      </el-col>
+                      <el-col :span="8">
+                        <el-form-item label="最多外呼次数">
+                          <el-input-number v-model="form.stage2.maxTimes" :min="1" :max="10" style="width: 100%;" />
+                          <span style="margin-left: 4px;">次</span>
+                        </el-form-item>
+                      </el-col>
+                    </el-row>
+                    <el-form-item label="话术风格">
+                      <el-radio-group v-model="form.stage2.tone">
+                        <el-radio-button value="friendly">
+                          <el-icon><component :is="ElementPlusIconsVue.Sunny" /></el-icon> 友好
+                        </el-radio-button>
+                        <el-radio-button value="formal">
+                          <el-icon><component :is="ElementPlusIconsVue.Suitcase" /></el-icon> 正式
+                        </el-radio-button>
+                        <el-radio-button value="urgent">
+                          <el-icon><component :is="ElementPlusIconsVue.WarningFilled" /></el-icon> 紧急
+                        </el-radio-button>
+                      </el-radio-group>
+                    </el-form-item>
+                    <el-form-item label="话术模板">
+                      <el-select v-model="form.stage2.template" style="width: 400px;">
+                        <el-option label="标准催收-友好版 (COLLECT_FRIENDLY)" value="COLLECT_FRIENDLY" />
+                        <el-option label="标准催收-正式版 (COLLECT_FORMAL)" value="COLLECT_FORMAL" />
+                        <el-option label="标准催收-紧急版 (COLLECT_URGENT)" value="COLLECT_URGENT" />
+                      </el-select>
+                      <el-button link type="primary" style="margin-left: 8px;">预览话术</el-button>
+                      <el-button link type="primary">试听样例</el-button>
+                    </el-form-item>
+                    <el-form-item label="外呼时段">
+                      <el-time-picker
+                        v-model="form.stage2.workTime"
+                        is-range
+                        range-separator="至"
+                        start-placeholder="开始"
+                        end-placeholder="结束"
+                        format="HH:mm"
+                        style="width: 320px;"
+                      />
+                    </el-form-item>
+                    <el-form-item label="未接听重试">
+                      <el-input-number v-model="form.stage2.retryTimes" :min="0" :max="5" style="width: 150px;" />
+                      <span style="margin: 0 8px;">次，间隔</span>
+                      <el-input-number v-model="form.stage2.retryInterval" :min="10" :max="240" style="width: 150px;" />
+                      <span style="margin-left: 8px;">分钟</span>
+                    </el-form-item>
+
+                    <el-divider content-position="left">意图分支处理</el-divider>
+                    <el-alert type="info" :closable="false" show-icon style="margin-bottom: 12px;">
+                      <template #title>
+                        AI 会根据客户回答自动识别意图，并触发对应后续动作。详细配置可在 <el-link type="primary" :underline="false">话术管理 → 意图配置</el-link> 中调整。
+                      </template>
+                    </el-alert>
+                    <el-table :data="intentTable" border stripe style="width: 100%;">
+                      <el-table-column label="识别意图" width="140">
+                        <template #default="{ row }">
+                          <el-tag :type="row.tagType" size="small">{{ row.intent }}</el-tag>
+                        </template>
+                      </el-table-column>
+                      <el-table-column label="后续动作" prop="action" min-width="360" />
+                      <el-table-column label="是否升级" width="120" align="center">
+                        <template #default="{ row }">
+                          <el-tag :type="row.upgrade ? 'danger' : 'info'" size="small" effect="light">{{ row.upgrade ? '升级至阶段3' : '继续当前阶段' }}</el-tag>
+                        </template>
+                      </el-table-column>
+                      <el-table-column label="操作" width="80" align="center">
+                        <template #default>
+                          <el-link type="primary" size="small">配置</el-link>
+                        </template>
+                      </el-table-column>
+                    </el-table>
+                  </template>
+                </el-form>
+              </div>
+            </el-collapse-item>
+
+            <!-- Section 6: 阶段3 人工跟进 -->
+            <el-collapse-item name="6">
+              <template #title>
+                <span>⑥ 阶段3：人工跟进 <span class="section-badge">转销售/催收员</span></span>
+              </template>
+              <div class="stage-section s3">
+                <el-form :model="form" label-width="140px" label-position="right">
+                  <el-row :gutter="20">
+                    <el-col :span="12">
+                      <el-form-item label="起始逾期天数">
+                        <el-input-number v-model="form.stage3.startDays" :min="0" :max="365" style="width: 100%;" />
+                        <span style="margin-left: 4px;">天</span>
+                        <div class="field-hint">达到该天数或阶段2用尽后自动转人工</div>
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                      <el-form-item label="紧急程度">
+                        <el-radio-group v-model="form.stage3.urgency">
+                          <el-radio-button value="normal">普通</el-radio-button>
+                          <el-radio-button value="high">高</el-radio-button>
+                          <el-radio-button value="urgent">紧急</el-radio-button>
+                        </el-radio-group>
+                      </el-form-item>
+                    </el-col>
+                  </el-row>
+                  <el-form-item label="分配方式" required>
+                    <el-radio-group v-model="form.stage3.assign">
+                      <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <el-radio value="auto"><b>自动分配给负责销售</b> - 根据客户绑定的销售负责人自动分配（推荐）</el-radio>
+                        <el-radio value="team"><b>分配到催收组</b> - 按催收组的分单规则统一分配</el-radio>
+                        <el-radio value="manual"><b>手动分配</b> - 由管理员在工单列表中手动指派</el-radio>
+                      </div>
+                    </el-radio-group>
+                  </el-form-item>
+                  <el-form-item label="通知方式">
+                    <el-checkbox-group v-model="form.stage3.notify">
+                      <el-checkbox value="site" border>站内消息</el-checkbox>
+                      <el-checkbox value="sms" border>短信</el-checkbox>
+                      <el-checkbox value="wechat" border>企业微信</el-checkbox>
+                      <el-checkbox value="email" border>邮件</el-checkbox>
+                    </el-checkbox-group>
+                    <div class="field-hint">通知目标：负责销售/催收员</div>
+                  </el-form-item>
+                  <el-form-item label="SLA提醒">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span>若</span>
+                      <el-input-number v-model="form.stage3.slaDays" :min="1" :max="30" style="width: 120px;" />
+                      <span>天内无跟进记录，</span>
+                      <el-select v-model="form.stage3.slaAction" style="width: 200px;">
+                        <el-option label="升级提醒给管理员" value="admin" />
+                        <el-option label="重新分配销售" value="reassign" />
+                        <el-option label="退回催收组" value="team" />
+                      </el-select>
+                    </div>
+                  </el-form-item>
+                  <el-form-item label="逾期回款减免">
+                    <el-switch v-model="form.stage3.discount" />
+                    <span class="field-hint" style="margin-left: 12px;">开启后销售可在跟进时申请客户滞纳金减免（需财务审批）</span>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </el-collapse-item>
+
+            <!-- Section 7: 适用客户预览 -->
+            <el-collapse-item name="7">
+              <template #title>
+                <span>⑦ 适用客户预览 <span class="section-badge">共 25 家</span></span>
+              </template>
+              <el-alert type="success" :closable="false" show-icon style="margin-bottom: 12px;">
+                <template #title>
+                  当前策略匹配到 <b>25</b> 家客户，此处仅展示前 8 家。可在 <el-link type="primary" :underline="false">客户中心</el-link> 查看完整列表。
+                </template>
+              </el-alert>
+              <el-table :data="previewCustomers" stripe border style="width: 100%;">
+                <el-table-column label="客户编码" prop="code" width="130" />
+                <el-table-column label="客户名称" prop="name" min-width="180" />
+                <el-table-column label="类型/等级" width="140">
+                  <template #default="{ row }">
+                    {{ row.type }} / <el-tag :type="levelType(row.level)" size="small" effect="light">{{ row.level }}</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="销售负责人" prop="sales" width="110" />
+                <el-table-column label="当前应收" width="130" align="right">
+                  <template #default="{ row }">¥{{ row.receivable.toLocaleString() }}</template>
+                </el-table-column>
+                <el-table-column label="进行中工单" width="110" align="center">
+                  <template #default="{ row }">
+                    <el-tag v-if="row.orders > 0" type="warning" size="small">{{ row.orders }}</el-tag>
+                    <span v-else style="color: #c0c4cc;">-</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="策略生效来源" width="140" align="center">
+                  <template #default="{ row }">
+                    <el-tag :type="row.source === '独立' ? 'danger' : 'info'" size="small" effect="light">{{ row.source }}</el-tag>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </el-collapse-item>
+          </el-collapse>
+        </div>
+
+        <div class="bottom-bar">
+          <el-button @click="goBack">取消</el-button>
+          <el-button type="warning" :icon="ElementPlusIconsVue.View">保存并预览影响</el-button>
+          <el-button type="primary" :icon="ElementPlusIconsVue.Check">保存</el-button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, ref, reactive } = Vue;
+    const app = createApp({
+      setup() {
+        const activeSections = ref(['1','2','3','4','5','6','7']);
+        const dnd = [new Date(2000, 0, 1, 22, 0), new Date(2000, 0, 2, 8, 0)];
+        const work = [new Date(2000, 0, 1, 9, 0), new Date(2000, 0, 1, 18, 0)];
+
+        const form = reactive({
+          name: '普通经销商策略',
+          enabled: true,
+          strategyType: 'type-level',
+          custType: 'jing',
+          level: 'C',
+          tags: [],
+          isDefault: true,
+          mainSwitch: true,
+          collectMode: 'partial',
+          maxCallPerDay: 1,
+          skipHoliday: true,
+          dndTime: dnd,
+          statementCall: {
+            enabled: true,
+            delay: 30,
+            template: 'STATEMENT_NOTIFY',
+            workTime: work
+          },
+          stage1: {
+            startDays: 3,
+            interval: 3,
+            maxTimes: 3,
+            channels: ['sms', 'wechat'],
+            dndTime: dnd,
+            template: 'OVERDUE_FRIENDLY'
+          },
+          stage2: {
+            enabled: true,
+            startDays: 30,
+            interval: 7,
+            maxTimes: 2,
+            tone: 'friendly',
+            template: 'COLLECT_FRIENDLY',
+            workTime: work,
+            retryTimes: 3,
+            retryInterval: 30
+          },
+          stage3: {
+            startDays: 60,
+            urgency: 'normal',
+            assign: 'auto',
+            notify: ['site', 'wechat'],
+            slaDays: 3,
+            slaAction: 'admin',
+            discount: false
+          }
+        });
+
+        const intentTable = ref([
+          { intent: '承诺付款', tagType: 'success', action: '记录承诺日期，暂停催收 3 天。到期未付则恢复催收并升级紧急度。', upgrade: false },
+          { intent: '已付款', tagType: 'success', action: '通知销售核实回款情况，暂停催收 1 天等待 ERP 同步。若确认到账则自动核销。', upgrade: false },
+          { intent: '有异议', tagType: 'warning', action: '引导客户在线上提交异议，工单自动挂起并转到"异议处理"流程。', upgrade: false },
+          { intent: '找错人', tagType: 'info', action: '转人工核实客户联系方式，更新客户档案。', upgrade: true },
+          { intent: '拒绝付款', tagType: 'danger', action: '直接升级到阶段3（人工跟进），紧急程度提升为"高"。', upgrade: true },
+          { intent: '未识别/无应答', tagType: 'info', action: '按重试规则重新外呼。达上限后升级到阶段3。', upgrade: false }
+        ]);
+
+        const previewCustomers = ref([
+          { code: 'C10023', name: '某某贸易有限公司', type: '经销商', level: 'C', sales: '张三', receivable: 156800, orders: 2, source: '类型+等级' },
+          { code: 'C10045', name: 'ZZ贸易', type: '经销商', level: 'C', sales: '张三', receivable: 245600, orders: 1, source: '类型+等级' },
+          { code: 'C10078', name: 'BB贸易', type: '经销商', level: 'C', sales: '李四', receivable: 88900, orders: 1, source: '类型+等级' },
+          { code: 'C10112', name: '华兴钢材经销部', type: '经销商', level: 'C', sales: '王五', receivable: 320400, orders: 0, source: '类型+等级' },
+          { code: 'C10135', name: '恒达五金贸易', type: '经销商', level: 'C', sales: '张三', receivable: 46300, orders: 0, source: '类型+等级' },
+          { code: 'C10156', name: '鑫源建材经销商', type: '经销商', level: 'C', sales: '赵六', receivable: 178500, orders: 1, source: '类型+等级' },
+          { code: 'C10178', name: '盛世金属贸易', type: '经销商', level: 'C', sales: '李四', receivable: 92100, orders: 0, source: '类型+等级' },
+          { code: 'C10201', name: '德泰钢构（独立配置）', type: '经销商', level: 'C', sales: '王五', receivable: 65800, orders: 1, source: '独立' }
+        ]);
+
+        const levelType = (l) => ({ A: 'danger', B: 'warning', C: 'primary', D: 'info' }[l] || '');
+        const goBack = () => { window.location.href = 'collection-profiles.html'; };
+        const go = (url) => { window.location.href = url; };
+
+        return { activeSections, form, intentTable, previewCustomers, levelType, goBack, go, ElementPlusIconsVue };
+      }
+    });
+    app.use(ElementPlus);
+    for (const [key, comp] of Object.entries(ElementPlusIconsVue)) app.component(key, comp);
+    app.mount('#app');
+  </script>
+</body>
+</html>
