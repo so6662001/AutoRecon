@@ -1,9 +1,16 @@
 # 对账通 v2.0 — 往来账对账系统设计方案
 
-> 版本: v2.0（需求重构版）  
+> 版本: v2.1（第 1 轮确认修订）  
 > 日期: 2026-07-04  
 > 分支: `autorecon-v2/reconciliation-redesign`  
-> 状态: 设计评审中，待确认后编码
+> 状态: 设计评审中，待最终确认后编码
+
+## 更新记录
+
+| 版本 | 日期 | 变更 |
+|------|------|------|
+| v2.0 | 2026-07-04 | 首次输出，含 10 个待确认决策 |
+| v2.1 | 2026-07-04 | 第 1 轮确认修订：科目过滤支持通配符；催收体系升级为"客户标签化差异化催收 + 部分/整单催 + AI 电话即时跟单"；AI 外呼首期对接阿里云；滚动周期节假日可配置顺延 |
 
 ---
 
@@ -922,4 +929,679 @@ Step 7: 更新配置
 
 ---
 
-*设计文档结束 — 待确认后开始编码*
+---
+
+## 九、第 1 轮确认后的详细设计增补（v2.1）
+
+### 9.1 决策确认结果
+
+| # | 决策点 | 最终决策 |
+|---|--------|---------|
+| 1 | 余额精度 | ✅ 保持 `DECIMAL(14,2)` |
+| 2 | 科目过滤 | ✅ **需要支持通配符** — 详见 9.2 |
+| 3 | 视同确认默认天数 | ✅ 默认 `0`（不启用），由企业自行配置 |
+| 4 | 催收工单粒度 | ✅ **需要按客户差异化 + 支持整单催和部分催** — 详见 9.3 ~ 9.5 |
+| 5 | AI 外呼平台 | ✅ **首期即对接阿里云智能外呼** — 详见 9.6 |
+| 6 | 滚动周期节假日 | ✅ **可配置，默认顺延** — 详见 9.7 |
+| 7 | Excel 模板 | ✅ 首期统一模板 |
+| 8 | v1 数据迁移 | ✅ **不需要** |
+| 9 | 多币种 | 首期仅人民币，v2.x 再考虑 |
+| 10 | Guest 页面确认方式 | 电子签章优先 + 手机验证码兜底 |
+
+---
+
+### 9.2 科目过滤：通配符支持
+
+#### 9.2.1 匹配规则
+
+| 语法 | 含义 | 示例 |
+|------|------|------|
+| 精确匹配 | 完全相同 | `HK001` 只匹配 HK001 |
+| `*` 通配符 | 匹配任意数量字符 | `HK*` 匹配 HK001、HK002、HK-回扣 |
+| `?` 通配符 | 匹配单个字符 | `HK00?` 匹配 HK001~HK009 |
+| `!` 前缀 | 排除（黑名单中的白名单） | `!HK998` 表示 HK998 不过滤（即使其他规则命中） |
+| 组合 | 多条规则 OR 逻辑 | `["HK*", "NB*", "!NB001"]` |
+
+#### 9.2.2 规则求值优先级
+
+```
+对每笔流水的科目编码进行匹配:
+  1. 若命中 "!XXX" 排除规则 → 不过滤（发送给客户）
+  2. 否则若命中任何过滤规则 → 过滤（不发送）
+  3. 否则 → 不过滤
+```
+
+#### 9.2.3 数据库字段调整
+
+`customer_ledger_config.filter_subjects` 字段从 `JSON 数组` 存储规则字符串列表：
+
+```json
+["HK*", "NB*", "!NB001", "ZJ-回扣", "调整-*"]
+```
+
+后端使用 `AntPathMatcher` 或简单正则实现通配符匹配。
+
+#### 9.2.4 规则变更时的处理
+
+> ⚠️ **规则变更是敏感操作**，会导致余额重算，必须记录审计日志。
+
+变更流程：
+
+```
+用户修改过滤规则
+    ↓
+系统提示: "此变更将影响 XXX 客户的余额计算，是否重新生成余额快照？"
+    ↓
+选择"是" → 后台任务重新扫描所有历史流水 → 重新计算 internal_balance/external_balance
+        → 生成新的余额快照 (type=FILTER_CHANGE)
+选择"否" → 仅对未来新流水生效，历史流水维持原状
+```
+
+---
+
+### 9.3 客户标签化管理（催收差异化的基础）
+
+#### 9.3.1 客户标签体系
+
+引入**三维客户画像**，作为催收策略匹配的依据：
+
+| 维度 | 说明 | 取值示例 |
+|------|------|---------|
+| **客户类型** | 业务性质 | 大型终端、经销商、同行、加工厂、贸易商 |
+| **客户等级** | 战略重要性 | A（战略客户）/ B（重点客户）/ C（普通客户）/ D（观察客户） |
+| **客户标签** | 灵活自定义标签 | VIP、老客户、新客户、高风险、月结、季结、免催 …… |
+
+#### 9.3.2 数据模型
+
+```sql
+-- 客户类型字典
+CREATE TABLE customer_type_dict (
+    id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+    enterprise_id   BIGINT NOT NULL,
+    type_code       VARCHAR(30) NOT NULL COMMENT '类型编码',
+    type_name       VARCHAR(50) NOT NULL COMMENT '类型名称',
+    default_profile_id BIGINT COMMENT '默认催收策略ID',
+    sort_order      INT DEFAULT 0,
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE INDEX uk_enterprise_code (enterprise_id, type_code)
+) COMMENT '客户类型字典';
+
+-- 客户标签字典
+CREATE TABLE customer_tag_dict (
+    id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+    enterprise_id   BIGINT NOT NULL,
+    tag_code        VARCHAR(30) NOT NULL,
+    tag_name        VARCHAR(50) NOT NULL,
+    tag_color       VARCHAR(20) DEFAULT '#409eff',
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE INDEX uk_enterprise_tag (enterprise_id, tag_code)
+) COMMENT '客户标签字典';
+
+-- 扩展 customer_ledger_config，新增维度字段
+ALTER TABLE customer_ledger_config
+  ADD COLUMN customer_type    VARCHAR(30) DEFAULT '' COMMENT '客户类型编码',
+  ADD COLUMN customer_level   VARCHAR(10) DEFAULT 'C' COMMENT 'A/B/C/D',
+  ADD COLUMN customer_tags    JSON COMMENT '标签编码列表 ["VIP","MONTHLY"]',
+  ADD COLUMN sales_owner_id   BIGINT COMMENT '负责销售员ID(转人工时分配)',
+  ADD COLUMN send_call_along  TINYINT DEFAULT 0 COMMENT '发送对账单时是否同时AI外呼(0=否,1=是)';
+```
+
+#### 9.3.3 催收策略匹配规则
+
+一个客户的催收策略按以下**优先级**决定（先命中的先生效）：
+
+```
+优先级 1: 客户级独立策略 (customer_ledger_config.collection_profile 非空)
+优先级 2: 标签匹配策略 (customer_tags 命中的第一个绑定策略)
+优先级 3: 类型+等级匹配策略 (客户类型 + 等级 组合)
+优先级 4: 企业默认策略 (is_default=1 的策略)
+```
+
+---
+
+### 9.4 催收策略配置（差异化重设计）
+
+#### 9.4.1 新的策略配置模型
+
+```sql
+-- 催收策略配置（重设计版）
+DROP TABLE IF EXISTS collection_profile;
+
+CREATE TABLE collection_profile (
+    id                  BIGINT AUTO_INCREMENT PRIMARY KEY,
+    enterprise_id       BIGINT NOT NULL,
+    profile_name        VARCHAR(50) NOT NULL COMMENT '策略名称',
+    profile_type        VARCHAR(20) NOT NULL DEFAULT 'TYPE_LEVEL'
+        COMMENT 'DEFAULT=企业默认, TYPE_LEVEL=按类型+等级, TAG=按标签, CUSTOMER=客户独立',
+    is_default          TINYINT DEFAULT 0,
+
+    -- 适用范围（根据 profile_type 使用不同字段）
+    match_customer_type VARCHAR(30) COMMENT 'TYPE_LEVEL 时使用',
+    match_customer_level VARCHAR(10) COMMENT 'TYPE_LEVEL 时使用: A/B/C/D',
+    match_tag_code      VARCHAR(30) COMMENT 'TAG 时使用',
+
+    -- 催收开关
+    collection_enabled  TINYINT DEFAULT 1 COMMENT '是否启用催收(为0=永不催收)',
+    collection_mode     VARCHAR(20) DEFAULT 'PARTIAL'
+        COMMENT 'FULL=整单催收, PARTIAL=按未收部分催收',
+
+    -- 对账单发送时的即时外呼
+    send_call_along     TINYINT DEFAULT 0 COMMENT '发送对账单时同时AI外呼',
+    send_call_delay_min INT DEFAULT 30 COMMENT '发送后延迟X分钟外呼',
+    send_call_script    VARCHAR(30) DEFAULT 'STATEMENT_NOTIFY'
+        COMMENT '话术模板编码: STATEMENT_NOTIFY',
+
+    -- 阶段1: 通知提醒
+    stage1_start_day    INT DEFAULT 1 COMMENT '逾期第X天开始(0=对账确认次日)',
+    stage1_interval     INT DEFAULT 3 COMMENT '提醒间隔天数',
+    stage1_max_count    INT DEFAULT 3 COMMENT '最多提醒次数',
+    stage1_channels     VARCHAR(100) DEFAULT 'SMS,WECHAT',
+    stage1_quiet_hours  VARCHAR(20) DEFAULT '22:00-08:00' COMMENT '免打扰时段',
+
+    -- 阶段2: AI 外呼
+    stage2_enabled      TINYINT DEFAULT 1 COMMENT '是否启用AI外呼阶段',
+    stage2_start_day    INT DEFAULT 30 COMMENT '逾期第X天升级',
+    stage2_interval     INT DEFAULT 7,
+    stage2_max_count    INT DEFAULT 2,
+    stage2_script_code  VARCHAR(30) DEFAULT 'COLLECTION_STANDARD'
+        COMMENT '话术模板编码',
+    stage2_call_window  VARCHAR(20) DEFAULT '09:00-18:00' COMMENT '外呼时段',
+    stage2_retry_no_answer INT DEFAULT 3 COMMENT '未接听重试次数',
+    stage2_retry_interval INT DEFAULT 30 COMMENT '重试间隔分钟',
+
+    -- 阶段3: 人工跟进
+    stage3_start_day    INT DEFAULT 60,
+    stage3_auto_assign  TINYINT DEFAULT 1 COMMENT '自动分配给负责销售',
+    stage3_urgency      VARCHAR(20) DEFAULT 'NORMAL' COMMENT 'NORMAL/HIGH/URGENT',
+
+    -- 特殊配置
+    skip_holidays       TINYINT DEFAULT 1 COMMENT '节假日是否跳过',
+    max_call_per_day    INT DEFAULT 1 COMMENT '每客户每天最多外呼次数',
+
+    created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at          DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted             TINYINT DEFAULT 0,
+
+    INDEX idx_enterprise (enterprise_id),
+    INDEX idx_profile_type (profile_type),
+    INDEX idx_match (match_customer_type, match_customer_level)
+) COMMENT '催收策略配置';
+```
+
+#### 9.4.2 典型策略示例
+
+| 策略名 | 类型 | 匹配条件 | 收款开关 | 阶段1 | 阶段2(AI外呼) | 阶段3 | 备注 |
+|--------|------|---------|---------|-------|-------------|-------|------|
+| **战略大客户** | TYPE_LEVEL | 大型终端 + A | 关闭催收 | - | - | 逾期30天转销售 | 完全人工，不打扰 |
+| **重点客户** | TYPE_LEVEL | 大型终端 + B | 开启 | 逾期7天短信 | ❌ 不外呼 | 逾期45天转销售 | 温和 |
+| **普通经销商** | TYPE_LEVEL | 经销商 + C | 开启 | 逾期3天+每3天 | 逾期30天，间隔7天，2次 | 逾期60天转人工 | 标准 |
+| **高风险客户** | TAG | 高风险 | 开启 | 逾期1天+每天 | 逾期7天，间隔2天，5次 | 逾期20天转人工 | 严格 |
+| **同行客户** | TYPE_LEVEL | 同行 + * | 开启 | 逾期5天+每5天 | 逾期20天，间隔5天，3次 | 逾期45天转销售 | 中等 |
+| **免催客户** | TAG | 免催 | 关闭 | - | - | - | 完全不催 |
+
+---
+
+### 9.5 催收工单：整单催 vs 部分催
+
+#### 9.5.1 两种催收模式
+
+| 模式 | 触发条件 | 工单粒度 | 催收金额 | 适用场景 |
+|------|---------|---------|---------|---------|
+| **整单催 (FULL)** | 对账确认后到期未全款 | 每张对账单 1 个工单 | 对账单余额 | 简单场景、A/B级客户 |
+| **部分催 (PARTIAL)** | ERP 数据显示对账单中部分单据已收款 | 按未收款单据合并生成工单 | ∑(未收款单据应收) | 精细化管理、C/D级客户 |
+
+#### 9.5.2 部分催的数据来源
+
+关键：**部分催需要知道哪些应收单已经付款、哪些没付款**，这个信息来自 ERP。
+
+设计方案：**流水与应收单关联，付款可反向匹配**
+
+```sql
+-- 应收明细表（对账单发送时冻结的应收明细，可与流水关联）
+CREATE TABLE receivable_item (
+    id                  BIGINT AUTO_INCREMENT PRIMARY KEY,
+    enterprise_id       BIGINT NOT NULL,
+    customer_id         BIGINT NOT NULL,
+
+    -- 应收源单信息
+    source_doc_no       VARCHAR(50) NOT NULL COMMENT '源单号(销售单号)',
+    source_doc_date     DATE NOT NULL,
+    source_summary      VARCHAR(200),
+
+    -- 金额
+    original_amount     DECIMAL(14,2) NOT NULL COMMENT '原始应收金额',
+    paid_amount         DECIMAL(14,2) DEFAULT 0 COMMENT '已付金额(从ERP同步)',
+    remaining_amount    DECIMAL(14,2) NOT NULL COMMENT '剩余应收 = original - paid',
+
+    -- 到期日
+    due_date            DATE COMMENT '到期日',
+    is_overdue          TINYINT GENERATED ALWAYS AS (CASE WHEN due_date < CURDATE() AND remaining_amount > 0 THEN 1 ELSE 0 END) STORED,
+
+    -- 状态
+    status              VARCHAR(20) DEFAULT 'PENDING'
+        COMMENT 'PENDING/PARTIAL_PAID/PAID/WRITTEN_OFF',
+    last_erp_sync_at    DATETIME COMMENT '最近ERP同步时间',
+
+    -- 关联流水
+    txn_id              BIGINT COMMENT '关联的初始应收流水ID',
+
+    created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at          DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted             TINYINT DEFAULT 0,
+
+    INDEX idx_customer (enterprise_id, customer_id),
+    INDEX idx_source_doc (source_doc_no),
+    INDEX idx_due_date (due_date),
+    INDEX idx_status (status)
+) COMMENT '应收明细(可回溯付款状态)';
+
+-- 催收工单表增加对应字段
+ALTER TABLE collection_order
+  ADD COLUMN mode              VARCHAR(20) DEFAULT 'FULL' COMMENT 'FULL=整单催, PARTIAL=部分催',
+  ADD COLUMN receivable_items  JSON COMMENT '关联应收明细ID列表(部分催时使用)',
+  ADD COLUMN profile_id        BIGINT COMMENT '关联的催收策略ID';
+```
+
+#### 9.5.3 催收工单生成流程
+
+```
+每日凌晨调度器扫描 (每小时增量扫描一次)
+    ↓
+从 ERP 增量同步应收付款状态 → 更新 receivable_item.paid_amount
+    ↓
+筛选所有 remaining_amount > 0 AND is_overdue = 1 的应收明细
+    ↓
+按 customer_id 分组
+    ↓
+对每个客户查询其对应的 collection_profile (按 9.3.3 匹配)
+    ↓
+如果策略 collection_enabled = 0 → 跳过
+如果策略 collection_mode = FULL:
+    → 查询该客户当前是否已有 ACTIVE 工单
+    → 是 → 更新工单金额 = 所有未收应收之和
+    → 否 → 创建新工单，金额 = 所有未收应收之和
+如果策略 collection_mode = PARTIAL:
+    → 为每笔未收应收单独关联到工单
+    → 已存在工单则同步（新增/移除已还款的应收）
+    ↓
+根据逾期天数决定当前 stage (STAGE_1/2/3)
+    ↓
+根据策略执行对应阶段的动作（发通知/AI外呼/转人工）
+```
+
+#### 9.5.4 部分催的对账单说明
+
+> 💡 **重要**：对账单本身仍然是"完整的应收明细"，部分催收只影响"催什么/催多少"，**不影响对账单的对外展示**。
+
+客户仍然看到完整的应收余额 ¥100,000，但系统内部知道：
+- 已付 ¥60,000（来自 ERP）
+- 应催 ¥40,000（催收工单金额）
+
+---
+
+### 9.6 对账单发送时的即时 AI 外呼跟单
+
+#### 9.6.1 场景
+
+商家配置：某客户 / 某策略下，**发送对账单后 X 分钟内 AI 打电话通知客户**，"您好，您的对账单已发送，请查收并及时确认"。
+
+这与"逾期催收"不同——这是**主动跟单**，用于提高对账单确认率。
+
+#### 9.6.2 配置层级
+
+`send_call_along` 支持在 3 个层级配置，从高到低优先级：
+
+```
+1. 客户级 (customer_ledger_config.send_call_along)
+2. 策略级 (collection_profile.send_call_along)
+3. 企业级默认 (enterprise_settings.default_send_call_along)
+```
+
+发送对账单时的实际决策：
+
+```java
+boolean shouldCallAlong = 
+    customerConfig.sendCallAlong != null ? customerConfig.sendCallAlong :
+    matchedProfile.sendCallAlong != null ? matchedProfile.sendCallAlong :
+    enterpriseSettings.defaultSendCallAlong;
+```
+
+#### 9.6.3 执行流程
+
+```
+对账单 status: DRAFT → SENT
+    ↓
+若 shouldCallAlong = true:
+    → 创建一次性外呼任务 (call_task)
+    → 延迟 send_call_delay_min 分钟后触发
+    → 使用 STATEMENT_NOTIFY 话术
+    → 外呼结果记录到 collection_follow_up
+    ↓
+若外呼中客户表示"未收到" → 系统自动重发 SMS/微信
+若客户表示"已收到会确认" → 记录，进入正常等待
+若客户提出异议 → 引导线上提交
+若无人接听 → 按 stage2_retry_no_answer 重试
+```
+
+---
+
+### 9.7 AI 外呼系统设计（对接阿里云）
+
+#### 9.7.1 阿里云智能外呼选型
+
+| 产品 | 说明 | 选型 |
+|------|------|------|
+| **阿里云语音服务 (Voice Interaction Service)** | 提供 TTS + ASR + 对话流程编排 | ✅ 首选 |
+| **阿里云智能对话分析 (SCA)** | 用于外呼后的通话质检和意图分析 | 可选，v2.1 后接 |
+| **阿里云语音通知 (Voice Notification)** | 简单播报固定文本 | 备选，作为兜底 |
+
+推荐方案：**智能外呼平台 (SDS - Smart Dialing System)**  
+产品地址：`aliyun.com/product/vms-outbound`（智能外呼）
+
+#### 9.7.2 集成架构
+
+```
+对账通催收引擎
+    ↓ (下单调用)
+CallService (SPI 抽象接口)
+    ├── AliyunCallProvider   ← 首期实现
+    ├── HuaweiCallProvider   ← 预留
+    └── TencentCallProvider  ← 预留
+    ↓
+阿里云智能外呼 SDK
+    ↓
+执行呼叫 → 播报话术 → 用户回答 → ASR识别 → 意图匹配 → 挂机
+    ↓
+    ↓ (异步回调 Webhook)
+CallCallbackController
+    ├── 更新 call_task 状态
+    ├── 记录 collection_follow_up
+    ├── 更新工单 stage（如客户承诺付款）
+    └── 下载录音存 MinIO
+```
+
+#### 9.7.3 数据模型
+
+```sql
+-- 外呼任务表
+CREATE TABLE call_task (
+    id                  BIGINT AUTO_INCREMENT PRIMARY KEY,
+    task_no             VARCHAR(30) NOT NULL COMMENT '任务号',
+    enterprise_id       BIGINT NOT NULL,
+    customer_id         BIGINT NOT NULL,
+
+    -- 关联业务
+    scene               VARCHAR(30) NOT NULL
+        COMMENT 'STATEMENT_NOTIFY=对账通知, COLLECTION=催收, DISPUTE_FOLLOW=异议跟进',
+    ref_type            VARCHAR(30) COMMENT 'STATEMENT/COLLECTION_ORDER',
+    ref_id              BIGINT,
+
+    -- 呼叫配置
+    target_phone        VARCHAR(20) NOT NULL COMMENT '目标手机号(存储时脱敏)',
+    target_name         VARCHAR(50) COMMENT '目标联系人',
+    script_code         VARCHAR(30) NOT NULL COMMENT '话术模板编码',
+    script_variables    JSON COMMENT '话术变量 {customer_name, amount, ...}',
+    script_style        VARCHAR(20) DEFAULT 'FRIENDLY' COMMENT 'FRIENDLY/FORMAL/URGENT',
+
+    -- 时间控制
+    scheduled_at        DATETIME NOT NULL COMMENT '计划呼叫时间',
+    call_window_start   TIME DEFAULT '09:00:00',
+    call_window_end     TIME DEFAULT '18:00:00',
+    max_retry           INT DEFAULT 3,
+    retry_interval_min  INT DEFAULT 30,
+
+    -- 执行状态
+    status              VARCHAR(20) DEFAULT 'PENDING'
+        COMMENT 'PENDING/CALLING/SUCCESS/NO_ANSWER/FAILED/CANCELLED',
+    retry_count         INT DEFAULT 0,
+    last_call_at        DATETIME,
+
+    -- 阿里云对接字段
+    provider            VARCHAR(20) DEFAULT 'ALIYUN',
+    provider_task_id    VARCHAR(100) COMMENT '阿里云任务ID',
+    provider_call_id    VARCHAR(100) COMMENT '阿里云通话ID',
+
+    -- 结果字段
+    call_duration       INT DEFAULT 0 COMMENT '通话时长(秒)',
+    call_result_code    VARCHAR(30) COMMENT '结果代码',
+    call_result_intent  VARCHAR(50) COMMENT '识别意图: PROMISE_PAY/REFUSED/NEED_INVOICE/NOT_ME',
+    call_transcript     TEXT COMMENT '对话内容',
+    record_url          VARCHAR(500) COMMENT '录音URL',
+
+    created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at          DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted             TINYINT DEFAULT 0,
+
+    UNIQUE INDEX uk_task_no (task_no),
+    INDEX idx_scheduled (scheduled_at, status),
+    INDEX idx_ref (ref_type, ref_id)
+) COMMENT 'AI外呼任务';
+
+-- 话术模板
+CREATE TABLE call_script_template (
+    id                  BIGINT AUTO_INCREMENT PRIMARY KEY,
+    enterprise_id       BIGINT COMMENT '企业ID(NULL=平台通用)',
+    script_code         VARCHAR(30) NOT NULL COMMENT '话术编码',
+    script_name         VARCHAR(100) NOT NULL,
+    scene               VARCHAR(30) NOT NULL,
+    style               VARCHAR(20) DEFAULT 'FRIENDLY',
+
+    -- 阿里云流程 ID (在阿里云控制台配置好流程后，绑定ID)
+    aliyun_flow_id      VARCHAR(100) COMMENT '阿里云智能外呼流程ID',
+
+    -- 话术内容(用于本地展示/备份)
+    greeting_text       TEXT COMMENT '开场白',
+    main_text           TEXT COMMENT '主体话术',
+    closing_text        TEXT COMMENT '结束语',
+    intent_config       JSON COMMENT '意图分支配置',
+
+    enabled             TINYINT DEFAULT 1,
+    created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at          DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    UNIQUE INDEX uk_enterprise_code (enterprise_id, script_code)
+) COMMENT 'AI外呼话术模板';
+```
+
+#### 9.7.4 话术模板示例
+
+**场景 1：对账单通知 (STATEMENT_NOTIFY)**
+
+```
+[开场白 - FRIENDLY]
+您好，我是 {enterprise_name} 的智能助理小对，
+您本期的对账单已发送到您的手机，
+金额是 {closing_balance} 元，请您注意查收。
+
+[意图分支]
+- 客户说"好的" → "感谢您的配合，方便的话请在 X 天内确认，祝生意兴隆。"
+- 客户说"没收到" → "抱歉，我马上帮您重新发送。"
+- 客户说"有问题/异议" → "好的，您可以点击短信链接在线提交异议，我们会尽快处理。"
+- 客户说"打错了/不是本人" → "抱歉打扰，请问 {contact_name} 的联系电话是？"
+
+[结束语]
+祝您工作顺利，再见。
+```
+
+**场景 2：逾期催收 (COLLECTION_STANDARD)**
+
+```
+[开场白 - FORMAL]
+您好，我是 {enterprise_name} 的对账系统助理，
+根据我们的记录，您有一笔 {overdue_amount} 元的应收款项
+已经逾期 {overdue_days} 天，希望您能及时安排付款。
+
+[意图分支]
+- "会尽快付" → 询问"预计什么时候能付款？" → 记录 expected_pay_date
+- "已经付了" → "好的，请您把付款凭证发给我们的销售员核对。" → 提醒销售核实
+- "有异议" → "您可以在对账系统中提交异议，我们会尽快处理。"
+- "找错人了" → "抱歉打扰。" → 转人工核实
+
+[结束语]
+感谢您的理解和配合，再见。
+```
+
+#### 9.7.5 意图识别与后续动作
+
+| 识别意图 | 系统自动动作 |
+|---------|-------------|
+| `PROMISE_PAY` | 记录 `expected_pay_date`，暂停催收提醒 3 天 |
+| `ALREADY_PAID` | 通知销售员核实，暂停催收提醒 1 天 |
+| `NEED_INVOICE` | 生成"发票申请"待办分配给销售 |
+| `DISPUTE` | 提醒客户在线提交异议，同时通知销售 |
+| `NOT_ME/WRONG_NUMBER` | 标记电话有误，转人工核实 |
+| `REFUSED` | 直接升级到人工阶段（STAGE_3） |
+| `NO_ANSWER` | 按重试策略重试 |
+
+#### 9.7.6 合规与限制
+
+| 项 | 要求 |
+|----|------|
+| **通话时段** | 严格遵守 09:00-18:00（可配置） |
+| **免打扰** | 客户明确拒绝后，加入黑名单 30 天不再外呼 |
+| **单日频次** | 单客户单日最多 1 通电话（可配置） |
+| **录音合规** | 开场白必须告知"通话将被录音"（阿里云自动播报） |
+| **数据存储** | 通话录音保留 6 个月，通话内容脱敏后可长期保留 |
+| **敏感号码** | 政府/事业单位号段自动过滤，不外呼 |
+
+#### 9.7.7 成本估算
+
+阿里云智能外呼 计费参考（v2.1 撰写时的公开价格）：
+
+| 费用项 | 单价 |
+|--------|------|
+| 通话费 | 约 0.10-0.15 元/分钟 |
+| 平台服务费 | 约 0.05 元/次呼叫（含未接通） |
+| ASR 识别 | 通常包含在通话费中 |
+
+**估算单个客户催收成本**：
+- 阶段2 平均 2 次外呼，每次 1-2 分钟
+- 单个工单 AI 外呼成本约 ¥0.5-1.0
+- 相比人工催收成本（人工电话约 ¥5-10/次），节省 80%+
+
+---
+
+### 9.8 滚动周期节假日处理
+
+#### 9.8.1 配置项
+
+在 `customer_ledger_config` 表增加：
+
+```sql
+ALTER TABLE customer_ledger_config
+  ADD COLUMN holiday_policy VARCHAR(20) DEFAULT 'POSTPONE'
+    COMMENT 'POSTPONE=顺延到下一工作日, ADVANCE=提前到上一工作日, KEEP=不调整';
+```
+
+#### 9.8.2 节假日日历
+
+引入国家法定节假日日历表：
+
+```sql
+CREATE TABLE holiday_calendar (
+    id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+    country_code    VARCHAR(10) DEFAULT 'CN',
+    holiday_date    DATE NOT NULL,
+    holiday_name    VARCHAR(50),
+    day_type        VARCHAR(20) NOT NULL COMMENT 'HOLIDAY=法定假日, WORKDAY=调休上班, WEEKEND=周末',
+    year            INT NOT NULL,
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE INDEX uk_country_date (country_code, holiday_date),
+    INDEX idx_year (year)
+) COMMENT '节假日日历';
+```
+
+日历数据来源：
+- **首选**：每年年底手工导入国务院公布的次年节假日安排
+- **备选**：对接第三方节假日 API（如聚合数据）
+- **兜底**：仅按周末（周六周日）判断
+
+#### 9.8.3 日期计算逻辑
+
+```java
+public LocalDate resolveNextReconDate(CustomerLedgerConfig config, LocalDate lastReconDate) {
+    LocalDate rawNextDate;
+
+    if (config.getReconMode() == FIXED) {
+        // 固定周期：每月X日对上月
+        rawNextDate = lastReconDate.plusMonths(1).withDayOfMonth(config.getFixedDay());
+    } else {
+        // 滚动周期：+N 天
+        rawNextDate = lastReconDate.plusDays(config.getRollingDays());
+    }
+
+    switch (config.getHolidayPolicy()) {
+        case "POSTPONE":
+            return holidayService.nextWorkday(rawNextDate);
+        case "ADVANCE":
+            return holidayService.previousWorkday(rawNextDate);
+        case "KEEP":
+            return rawNextDate;
+        default:
+            return rawNextDate;
+    }
+}
+```
+
+---
+
+### 9.9 v2.1 前端页面增补
+
+在原 5.1 页面清单基础上新增：
+
+| 序号 | 路径 | 页面名称 | 功能 |
+|------|------|---------|------|
+| 20 | `/customers/types` | 客户类型管理 | 类型字典 CRUD |
+| 21 | `/customers/tags` | 客户标签管理 | 标签字典 CRUD |
+| 22 | `/customers/batch-classify` | 客户批量分类 | 批量分配客户类型/等级/标签 |
+| 23 | `/collection/profiles` | 催收策略管理 | 策略列表 + 差异化配置 |
+| 24 | `/collection/profiles/:id/edit` | 编辑催收策略 | 三阶段详细配置向导 |
+| 25 | `/collection/orders` | 催收工单列表 | 整单/部分催工单 |
+| 26 | `/collection/call-tasks` | 外呼任务监控 | 实时外呼任务队列 |
+| 27 | `/collection/call-records` | 外呼记录 | 通话记录 + 录音回放 |
+| 28 | `/system/call-scripts` | AI话术管理 | 话术模板配置 |
+| 29 | `/system/holiday-calendar` | 节假日日历 | 节假日导入/维护 |
+| 30 | `/system/aliyun-config` | 阿里云外呼配置 | AK/SK + 号码池 |
+| 31 | `/reports/collection` | 催收分析报表 | 催收成功率/回款率/成本 |
+
+---
+
+### 9.10 v2.1 实施路线更新
+
+| 阶段 | 内容 | 依赖 |
+|------|------|------|
+| **P0 — 核心对账** | 往来流水 + 通配符科目过滤 + 双轨余额 + 对账单生成 | 无 |
+| **P1 — 周期调度** | 固定/滚动周期 + 节假日日历 + 顺延逻辑 | P0 |
+| **P2 — 确认异议** | 电子签章 + 视同确认标记 + 异议处理 | P0 |
+| **P3 — 客户分类** | 客户类型/等级/标签字典 + 客户配置 | P0 |
+| **P4 — 应收明细** | ERP 增量同步 receivable_item + 付款状态回写 | P0 |
+| **P5 — 催收策略** | 差异化策略配置 + 策略匹配引擎 + 工单生成（整单/部分催） | P3, P4 |
+| **P6 — AI 外呼基础** | 阿里云 SDK 集成 + 话术模板 + 外呼任务队列 | P5 |
+| **P7 — 发单即时跟单** | 发送对账单时的即时外呼 | P6 |
+| **P8 — 催收执行** | 阶段执行器 + Webhook 回调 + 意图识别 | P6 |
+| **P9 — 消息中心** | 多端消息推送 + 消息中心页面 | P0 |
+| **P10 — 报表看板** | 应收报表 + 催收分析 + 账龄分析 | P5, P8 |
+
+---
+
+### 9.11 待第 2 轮确认的问题
+
+请再确认以下问题，之后我将开始编码：
+
+| # | 问题 | 我的建议 |
+|---|------|---------|
+| A | 客户类型/等级/标签是否需要从 ERP 同步？ | 建议首期在平台维护，后续可从 ERP 同步 |
+| B | ERP 中的付款数据同步频率？ | 建议 T+1 全量 + 每小时增量 |
+| C | 阿里云外呼流程配置由谁完成？ | 建议：平台先配置好通用流程，企业可申请自定义流程 |
+| D | 外呼失败/拒接是否自动升级到人工？ | 建议：达到重试上限自动升级 |
+| E | 是否允许企业自建阿里云账号？ | 建议：首期使用平台账号，企业维度隔离；后续支持企业自建 |
+| F | 通话录音存储位置与保留期？ | 建议：MinIO 存储 6 个月，之后仅保留脱敏文本 |
+| G | 节假日日历的初始数据？ | 建议：内置 2026-2027 两年数据，之后每年更新 |
+| H | 部分催的应收明细是否需要买方可见？ | 建议：仅内部可见，对客户仍展示完整对账单 |
+| I | 商家能否临时暂停某个客户的所有催收？ | 建议：客户配置页增加"暂停催收 X 天"按钮 |
+| J | AI 外呼命中"承诺付款"后是否给销售发通知？ | 建议：是，实时通知销售员 |
+
+---
+
+*设计文档 v2.1 结束 — 等待第 2 轮确认后开始编码*
+
