@@ -1,0 +1,1168 @@
+# 对账通 v2.1 — Cursor 开发提示词（唯一入口）
+
+> **触发指令**：用户在 Cursor 中输入 `请按开发提示词进行开发` 时，Cursor 应严格按本文件从头至尾执行  
+> **文档定位**：本文件是**开发的唯一权威指令**，任何冲突以本文件为准  
+> **版本**：v1.0（2026-07-04）
+
+---
+
+## 🎯 使用说明（给 Cursor 的元指令）
+
+当用户输入 `请按开发提示词进行开发` 时，你必须按以下步骤执行：
+
+1. **完整读取本文件**（不要跳读、不要片段读取）
+2. **依次阅读参考资料清单**中的所有文档和原型文件
+3. **建立开发任务清单**（使用 TodoWrite 工具），按第十二章的分期路线拆分
+4. **进入执行循环**：每完成一个任务立即验证 → 编译 → 单测 → 集成测试 → 提交 → 更新任务清单
+5. **每完成一个阶段（P0-P10）必须停下**，输出阶段总结，等待用户确认后再进入下一阶段
+6. **遇到设计不清晰的问题**，先记录到 `docs/development/questions.md` 中批量处理，不要臆断
+7. **绝对遵守第十五章的红线规则**，任何违反都必须停止并向用户报告
+
+---
+
+## 📚 第一章 · 参考资料索引
+
+开发前**必须**阅读以下文档，按顺序：
+
+### 1.1 设计文档（权威业务规则来源）
+
+| 优先级 | 文件路径 | 用途 |
+|--------|---------|------|
+| ⭐⭐⭐ | `docs/design-v2/reconciliation-v2-design.md` | 系统设计方案 v2.1（往来账对账、双轨余额、差异化催收、AI外呼、通配符过滤等全部业务规则） |
+
+### 1.2 高保真原型（权威 UI/UX 来源）
+
+原型位于 `prototypes/autorecon-v2/`，共 30+ 个 HTML 文件。开发前必须**逐一打开浏览**，理解每个页面的：
+- 布局结构
+- 组件形态
+- 交互逻辑
+- 视觉风格
+
+**核心页面清单**（按端分组）：
+
+| 端别 | 关键原型文件 |
+|------|-------------|
+| **原型总览** | `index.html`（导航首页） |
+| **卖家 PC 端**（对账通主系统） | `login.html` · `dashboard.html` · `customer-ledger.html`（客户欠款余额） · `customer-ledger-detail.html`（往来明细，含双轨余额） · `customer-config.html` · `customer-types.html` · `customer-tags.html` · `statement-list.html` · `statement-create.html` · `statement-detail.html` · `collection-orders.html` · `collection-order-detail.html` · `collection-profiles.html` · `collection-profile-edit.html` · `call-tasks.html` · `call-records.html` · `call-scripts.html` · `aliyun-config.html` · `subjects-filter.html` · `holiday-calendar.html` · `messages.html` · `receivable-report.html` · `collection-report.html` · `template-manage.html` · `template-edit.html` |
+| **买家 PC 端** | `buyer-pc.html`（多供应商对账单聚合视图，无应付款管理） |
+| **买家移动端** | `buyer-mp.html`（小程序模拟，仅 3 Tab：首页/对账单/我的） |
+| **免注册端** | `guest.html`（银行对账单式，供邮件/短信链接访问） |
+| **平台管理端** | 复用卖家 PC 端框架，仅角色权限差异（详见 3.5） |
+
+### 1.3 阅读规则
+
+- 阅读原型时，**不要修改原型文件**，仅作为 UI 参考
+- 原型使用 CDN Vue3 + Element Plus，真实开发时按 3.3 技术栈重构
+- 如原型与设计文档冲突，**以设计文档为准**，并在 `questions.md` 记录
+
+---
+
+## 🏢 第二章 · 项目概述
+
+### 2.1 业务定位
+
+**对账通 v2.1** 是钢铁行业交易平台的**往来账对账系统**。核心业务链：
+
+```
+ERP 拉取往来流水 → 应用科目过滤(双轨余额) → 按周期(固定/滚动)生成对账单
+→ 发送客户(可即时AI外呼跟单) → 客户确认/异议/视同确认
+→ 逾期按客户标签差异化催收(通知→AI外呼→人工跟进) → 核销闭环
+```
+
+### 2.2 核心特色（v2 相比 v1 的重构点）
+
+| 维度 | 关键差异 | 必须实现 |
+|------|---------|---------|
+| **对账模型** | 银行对账单式（往来流水+双轨余额） | ✅ |
+| **科目过滤** | 通配符匹配（`*`/`?`/`!`） | ✅ |
+| **确认状态** | 禁止自动确认，仅"视同确认"状态标记 | ✅ |
+| **催收体系** | 三维客户画像（类型+等级+标签）差异化 | ✅ |
+| **催收模式** | 整单催 vs 部分催（基于 ERP 付款状态） | ✅ |
+| **AI 外呼** | 阿里云智能外呼首期对接 | ✅ |
+| **发单跟单** | 对账单发送后延时 AI 外呼提醒 | ✅ |
+| **周期调度** | 固定周期 + 滚动周期 + 节假日顺延 | ✅ |
+
+---
+
+## 🖥 第三章 · 五端架构
+
+### 3.1 端别定义
+
+| 端别 | 名称 | 定位 | 技术栈 |
+|------|------|------|--------|
+| **端 1** | 卖家 PC 端 | 对账通核心系统，商家运营/财务/销售日常操作 | Vue3 + TypeScript + Element Plus |
+| **端 2** | 卖家移动端 | 销售员移动办公（发起对账、查看催收、AI 外呼监听、批注） | UniApp（微信小程序 + H5 双端） |
+| **端 3** | 买家 PC 端 | 买方登录后使用，多供应商对账单聚合视图 | Vue3 + TypeScript + Element Plus |
+| **端 4** | 买家移动端 | 买方微信小程序查看对账单、确认/异议、下载 PDF | UniApp（微信小程序 + H5） |
+| **端 5** | 平台方 PC 端 | 平台运营方使用，租户管理、系统监控、账单结算、话术审核 | Vue3 + TypeScript + Element Plus |
+
+### 3.2 端别关系图
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      平台方 PC 端 (端5)                       │
+│           租户管理 · 系统监控 · 收费结算 · 话术审核             │
+└────────────────────┬────────────────────────────────────────┘
+                     │ 后台管理 API
+┌────────────────────┴────────────────────────────────────────┐
+│                     后端服务 (Spring Boot)                    │
+│  ┌──────────┬──────────┬──────────┬──────────┬──────────┐  │
+│  │对账核心  │催收引擎  │AI外呼    │调度引擎  │消息网关  │  │
+│  └──────────┴──────────┴──────────┴──────────┴──────────┘  │
+└────┬────────────┬───────────┬─────────────┬────────────────┘
+     │ 卖家 API   │ 买家 API  │ 移动 API    │ Guest API
+     ↓            ↓           ↓             ↓
+┌──────────┐ ┌──────────┐ ┌──────────────┐ ┌──────────────┐
+│卖家PC(1) │ │买家PC(3) │ │卖家/买家移动 │ │免注册Guest   │
+│Vue3      │ │Vue3      │ │(2/4)UniApp   │ │(链接直达)    │
+└──────────┘ └──────────┘ └──────────────┘ └──────────────┘
+```
+
+### 3.3 技术栈
+
+#### 后端
+
+| 组件 | 版本 | 用途 |
+|------|------|------|
+| Java | 17 | 语言（LTS 版本） |
+| Spring Boot | 3.2.x | 应用框架 |
+| MyBatis-Plus | 3.5.x | ORM |
+| MySQL | 8.0 | 主数据库 |
+| Redis | 7.x | 缓存 + 分布式锁 + 会话 |
+| RabbitMQ | 3.12 | 消息队列（异步任务、事件解耦） |
+| XXL-JOB | 2.4 | 分布式定时任务（周期调度） |
+| MinIO | 最新 | 对象存储（PDF、录音、附件） |
+| Elasticsearch | 8.x | 全文检索（对账单/流水/异议） |
+| Spring Security + JWT | - | 认证授权 |
+| Hutool | 5.8 | 工具库 |
+| Jackson | Spring Boot 内置 | JSON 序列化 |
+| Aliyun SDK for Java | 最新 | 阿里云智能外呼对接 |
+| iText / OpenPDF | 最新 | PDF 生成 |
+| Apache POI | 5.x | Excel 导入导出 |
+| JUnit 5 + Mockito | - | 单元测试 |
+| Testcontainers | - | 集成测试 |
+
+#### 前端（PC 端：端 1/3/5）
+
+| 组件 | 版本 | 用途 |
+|------|------|------|
+| Vue | 3.5+ | 框架 |
+| TypeScript | 5.x | 语言 |
+| Vite | 5.x | 构建 |
+| Element Plus | 2.9+ | UI 组件库 |
+| Pinia | 2.x | 状态管理 |
+| Vue Router | 4.x | 路由 |
+| Axios | 1.x | HTTP |
+| ECharts | 5.5+ + vue-echarts | 图表 |
+| VueUse | - | 组合式 API 工具集 |
+| dayjs | - | 日期处理 |
+| @element-plus/icons-vue | 2.3+ | 图标 |
+| vitest | - | 单元测试 |
+
+#### 移动端（端 2/4）
+
+| 组件 | 版本 | 用途 |
+|------|------|------|
+| UniApp | Vue3 版 | 跨端框架 |
+| uni-ui / uview-plus | 最新稳定版 | UI 组件库 |
+| Pinia | Vue3 版本 | 状态管理 |
+| uni.request 封装 | - | HTTP |
+| 微信小程序原生能力 | - | 扫码/支付/授权/推送 |
+
+### 3.4 端别功能矩阵
+
+| 功能模块 | 卖家PC | 卖家移动 | 买家PC | 买家移动 | 平台PC |
+|---------|:------:|:-------:|:------:|:-------:|:------:|
+| 工作台 | ✅ | ✅精简 | ✅ | ✅精简 | ✅监控看板 |
+| 客户欠款余额 | ✅ | ✅查看 | ❌ | ❌ | ❌ |
+| 往来明细/双轨余额 | ✅ | ✅查看 | ❌ | ❌ | ❌ |
+| 对账单列表 | ✅创建/管理 | ✅查看/发起 | ✅接收 | ✅接收 | ✅监控 |
+| 对账单详情 | ✅ | ✅ | ✅ | ✅ | ✅查看 |
+| 发起对账 | ✅完整流程 | ✅简化 | ❌ | ❌ | ❌ |
+| 对账单模板 | ✅ | ❌ | ❌ | ❌ | ✅审核 |
+| 异议处理 | ✅处理方 | ✅ | ✅发起 | ✅发起 | ✅仲裁 |
+| 确认签章 | ❌ | ❌ | ✅ | ✅ | ❌ |
+| 催收工单 | ✅ | ✅执行 | ❌ | ❌ | ❌ |
+| 催收策略配置 | ✅ | ❌ | ❌ | ❌ | ❌ |
+| AI 外呼任务 | ✅ | ✅提醒 | ❌ | ❌ | ✅监控 |
+| AI 话术管理 | ✅ | ❌ | ❌ | ❌ | ✅审核 |
+| 阿里云配置 | ✅ | ❌ | ❌ | ❌ | ✅平台层 |
+| 科目过滤 | ✅ | ❌ | ❌ | ❌ | ❌ |
+| 节假日日历 | ✅查看 | ❌ | ❌ | ❌ | ✅维护 |
+| 消息中心 | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 报表分析 | ✅ | ✅精简 | ❌ | ❌ | ✅全局 |
+| 供应商管理 | ❌ | ❌ | ✅ | ✅ | ✅ |
+| 租户管理 | ❌ | ❌ | ❌ | ❌ | ✅ |
+| 收费结算 | ❌ | ❌ | ❌ | ❌ | ✅ |
+| 系统监控 | ❌ | ❌ | ❌ | ❌ | ✅ |
+| 免注册访问 | 生成链接 | - | - | - | 监控访问 |
+
+### 3.5 平台方 PC 端专属功能
+
+平台方 PC 端复用卖家 PC 端框架和组件，但有专属功能模块：
+
+- **租户管理**：企业注册审核、租户开通、租户数据隔离验证
+- **收费结算**：按企业月度用量统计（对账单数、AI外呼数、SMS 数），生成账单
+- **系统监控**：全平台 QPS、错误率、数据库连接池、Redis 命中率、MQ 堆积
+- **话术审核**：企业提交的 AI 话术需平台审核后才能上线
+- **阿里云余额监控**：平台账户余额、企业分配额度
+- **异议仲裁**：平台介入的重大异议协调
+- **数据分析平台**：全平台数据指标、行业趋势
+- **公告与消息**：全平台消息推送
+
+---
+
+## 📁 第四章 · 项目结构
+
+### 4.1 后端多模块 Maven 结构
+
+```
+autorecon-v2-server/
+├── pom.xml (parent)
+├── autorecon-common/          # 公共工具、常量、异常、DTO 基类
+├── autorecon-domain/          # 实体、枚举、DTO、VO、Mapper
+├── autorecon-security/        # 认证、授权、JWT、租户隔离
+├── autorecon-service/         # 核心业务服务
+│   ├── ledger/                # 往来账 + 双轨余额
+│   ├── statement/             # 对账单
+│   ├── collection/            # 催收工单 + 策略引擎
+│   ├── call/                  # AI 外呼 + 阿里云对接
+│   ├── schedule/              # 调度引擎 + 节假日
+│   ├── notification/          # 消息网关
+│   ├── template/              # 对账单模板
+│   ├── customer/              # 客户 + 类型 + 标签
+│   ├── subject/               # 科目过滤
+│   ├── dispute/               # 异议处理
+│   └── sign/                  # 电子签章
+├── autorecon-integration/     # 外部集成
+│   ├── erp/                   # ERP 适配器（金蝶/用友/管家婆）
+│   ├── aliyun-call/           # 阿里云智能外呼 SDK 封装
+│   ├── sms/                   # SMS 网关
+│   ├── wechat/                # 微信公众号/小程序推送
+│   ├── esign/                 # e签宝/法大大电子签章
+│   └── minio/                 # 对象存储
+├── autorecon-web-seller/      # 卖家 PC 端 API 控制器
+├── autorecon-web-buyer/       # 买家 PC 端 API 控制器
+├── autorecon-web-mobile/      # 移动端（卖家+买家）API 控制器
+├── autorecon-web-platform/    # 平台方 API 控制器
+├── autorecon-web-guest/       # 免注册端 API 控制器
+├── autorecon-job/             # XXL-JOB 定时任务模块
+└── autorecon-boot/            # 启动模块（可分为不同实例）
+```
+
+### 4.2 前端项目结构（每个 PC 端一个独立仓库）
+
+```
+autorecon-v2-seller/           # 端 1：卖家 PC
+├── package.json
+├── vite.config.ts
+├── tsconfig.json
+├── src/
+│   ├── main.ts
+│   ├── App.vue
+│   ├── router/                # 路由
+│   ├── stores/                # Pinia
+│   ├── api/                   # Axios 请求封装 + API 定义
+│   ├── layouts/               # 布局组件（sidebar/header）
+│   ├── views/                 # 页面组件
+│   │   ├── dashboard/
+│   │   ├── customer/          # 客户欠款余额、往来明细、配置
+│   │   ├── statement/         # 对账单列表/创建/详情
+│   │   ├── collection/        # 催收工单/策略/编辑
+│   │   ├── call/              # AI 外呼任务/记录/话术
+│   │   ├── system/            # 科目/节假日/阿里云
+│   │   ├── message/           # 消息中心
+│   │   ├── report/            # 报表
+│   │   └── template/          # 对账单模板
+│   ├── components/            # 通用业务组件
+│   ├── directives/            # 自定义指令（权限、防抖、水印）
+│   ├── composables/           # 组合式 API
+│   ├── utils/                 # 工具（日期、金额、脱敏、URL 安全）
+│   ├── constants/             # 枚举、常量
+│   ├── types/                 # TypeScript 类型定义
+│   └── styles/                # 全局样式、主题变量
+├── public/
+└── tests/
+
+autorecon-v2-buyer/            # 端 3：买家 PC (类似结构，views 精简)
+autorecon-v2-platform/         # 端 5：平台方 PC (类似结构，含租户管理)
+```
+
+### 4.3 移动端结构（UniApp）
+
+```
+autorecon-v2-mobile-seller/    # 端 2：卖家移动端
+├── manifest.json
+├── pages.json
+├── App.vue
+├── main.ts
+├── pages/
+│   ├── index/                 # 工作台
+│   ├── customer/              # 客户欠款查看
+│   ├── statement/             # 对账单
+│   ├── collection/            # 催收执行
+│   ├── message/               # 消息
+│   └── mine/                  # 我的
+├── components/                # 组件
+├── api/
+├── stores/
+├── utils/
+└── static/
+
+autorecon-v2-mobile-buyer/     # 端 4：买家移动端 (类似结构，pages 精简)
+```
+
+### 4.4 数据库结构
+
+按业务领域分库或按表前缀分组：
+
+| 前缀 | 领域 | 关键表 |
+|------|------|--------|
+| `ledger_` | 往来账 | `ledger_transaction`, `customer_ledger_config`, `balance_snapshot` |
+| `stmt_` | 对账单 | `recon_statement`, `recon_statement_item`, `receivable_item`, `recon_dispute` |
+| `coll_` | 催收 | `collection_order`, `collection_follow_up`, `collection_profile` |
+| `call_` | AI 外呼 | `call_task`, `call_script_template` |
+| `cust_` | 客户 | `customer`, `customer_type_dict`, `customer_tag_dict` |
+| `sys_` | 系统 | `holiday_calendar`, `notification_record`, `subject_filter_rule` |
+| `plat_` | 平台方 | `tenant`, `billing_record`, `usage_metric` |
+| `sec_` | 安全 | `user`, `role`, `permission`, `audit_log` |
+
+**DDL 规范**：所有表使用 InnoDB + utf8mb4，包含 `id`(BIGINT AUTO_INCREMENT PK) + `enterprise_id`(BIGINT，租户隔离键) + `created_at` + `updated_at` + `deleted`(TINYINT 软删除) 字段。
+
+---
+
+## 📐 第五章 · 后端开发规范
+
+### 5.1 分层与命名
+
+```
+Controller → Service → Manager → Mapper
+```
+
+| 层 | 职责 | 命名 |
+|----|------|------|
+| Controller | 参数校验、请求分发、组装响应 | `XxxController` + `@RestController` |
+| Service | 业务逻辑、事务边界 | `XxxService` + `XxxServiceImpl` |
+| Manager | 复杂查询、跨表业务、领域服务 | `XxxManager` |
+| Mapper | 单表 CRUD + 简单联表 | `XxxMapper extends BaseMapper<T>` |
+
+**禁止**：Controller 直接调用 Mapper；Service 直接跨模块调用另一个 Service（应通过接口或事件解耦）。
+
+### 5.2 API 设计规范
+
+- **路径规范**：`/api/{端别}/{领域}/{资源}[/{id}]/{action?}`  
+  示例：`/api/seller/statement/list`、`/api/seller/statement/123/send`
+- **HTTP 方法**：GET(查询)、POST(创建/复杂查询)、PUT(全量更新)、PATCH(部分更新)、DELETE(删除)
+- **响应格式**：统一使用 `R<T>` 包装
+
+  ```json
+  {
+    "code": 0,
+    "msg": "success",
+    "data": {},
+    "traceId": "xxx"
+  }
+  ```
+- **分页参数**：`page`(从1开始) + `size`(默认20，最大100)
+- **响应分页**：`{"records": [], "total": N, "page": N, "size": N}`
+- **错误码规范**：
+  - `0` 成功
+  - `1xxx` 参数错误
+  - `2xxx` 认证/授权错误
+  - `3xxx` 业务错误（明确定义每个错误码）
+  - `5xxx` 系统错误
+- **接口幂等**：所有写操作必须支持 `Idempotency-Key` 请求头
+
+### 5.3 事务与并发
+
+- **事务边界**：仅在 Service 方法上使用 `@Transactional`
+- **禁止**：在事务内调用外部 HTTP、发送 MQ 消息（改用事务性发件箱模式）
+- **分布式锁**：使用 Redisson 提供的锁，key 前缀 `lock:{业务}:{资源ID}`
+- **并发写余额**：必须使用数据库行锁 `SELECT ... FOR UPDATE`
+- **乐观锁**：使用 `@Version` 字段做条件更新，冲突后重试最多 3 次
+
+### 5.4 双轨余额实现关键点
+
+这是 v2 最核心的业务逻辑，务必按以下要点实现：
+
+1. **每条流水入账**都要计算 `internal_balance` 和 `external_balance` 两个字段
+2. **计算公式**（严格按顺序）：
+   - `internal_balance(N) = internal_balance(N-1) + 本期应收(N) - 本期实收(N)`（含过滤项）
+   - `external_balance(N) = external_balance(N-1) + 本期应收(N) - 本期实收(N)`（若 N 被过滤则不累加）
+3. **入账事务**：`SELECT FOR UPDATE 上一条流水 → 计算 → INSERT 新流水`
+4. **规则变更重算**：科目过滤规则变更时，异步任务全量重算历史流水的 `external_balance`（`internal_balance` 不变），生成 `balance_snapshot(type=FILTER_CHANGE)`
+5. **对账单快照**：生成对账单时，从 `ledger_transaction` 复制**非过滤流水**到 `recon_statement_item`，作为"发送时快照"，之后原始流水变更不影响已发送的对账单
+
+### 5.5 状态机实现
+
+对账单状态机（严格按 v2 设计文档第 4.1 节）：
+
+```
+DRAFT → SENT → PENDING → CONFIRMED / DEEMED_CONFIRMED / DISPUTED
+                                          ↓
+                                        REVISED → SENT (重新发送)
+```
+
+**实现要点**：
+- 使用 Spring StateMachine 或手动实现状态转换表
+- 每次状态变更**必须**记录 `audit_log`
+- `DEEMED_CONFIRMED` **绝对不能**自动变为 `CONFIRMED`（这是 v2 的核心禁令）
+- 视同确认由 XXL-JOB 每天扫描 `sent_at + deemed_confirm_days < now()` 的 PENDING 单据触发
+
+### 5.6 差异化催收引擎
+
+按 v2 设计文档 §9.3-9.5 实现：
+
+1. **策略匹配**：按 `客户级 > 标签 > 类型+等级 > 企业默认` 4 级优先级
+2. **工单生成模式**：
+   - `FULL`（整单催）：一张对账单一个工单，金额 = 对账单余额
+   - `PARTIAL`（部分催）：从 ERP 同步 `receivable_item.paid_amount` → 计算未付 → 生成工单，金额 = 未付合计
+3. **三阶段执行**：
+   - 阶段 1（通知）：调用 SMS/微信/邮件网关
+   - 阶段 2（AI外呼）：调用阿里云外呼 API，创建 `call_task`
+   - 阶段 3（人工）：分配销售员，发内部消息 + 短信
+4. **发送对账单时即时外呼**：`statement.send()` 触发时按 `send_call_along` 配置延时创建 `call_task`
+
+### 5.7 阿里云 AI 外呼对接
+
+按 v2 设计文档 §9.6 实现，关键点：
+
+1. **抽象接口**：`CallService` 定义所有外呼能力
+2. **实现类**：`AliyunCallProvider implements CallService`
+3. **配置隔离**：AK/SK 从加密配置读取，每个企业可绑定自己的号码池
+4. **异步回调**：`/api/callback/aliyun-call` 接收阿里云 Webhook
+5. **意图映射**：`PROMISE_PAY / ALREADY_PAID / DISPUTE / WRONG_NUMBER / REFUSED / NO_ANSWER`
+6. **合规限制**：外呼时段、单客户单日频次、黑名单（30 天）、敏感号段过滤
+
+### 5.8 租户隔离（关键安全）
+
+**所有查询、写入、更新**必须携带 `enterprise_id` 条件，通过 `TenantUtil` 强制执行：
+
+```java
+// ✅ 正确
+List<Xxx> list = xxxMapper.selectList(
+    new LambdaQueryWrapper<Xxx>()
+        .eq(Xxx::getEnterpriseId, TenantUtil.getCurrentEnterpriseId())
+        .eq(Xxx::getStatus, status)
+);
+
+// ❌ 错误：可能导致 IDOR 漏洞
+List<Xxx> list = xxxMapper.selectList(
+    new LambdaQueryWrapper<Xxx>().eq(Xxx::getStatus, status)
+);
+```
+
+平台方端例外，但必须在 Controller 上加 `@PlatformOnly` 注解。
+
+---
+
+## 🎨 第六章 · 前端开发规范（PC 端）
+
+### 6.1 项目初始化
+
+使用 `npm create vite@latest` 创建 Vue3 + TypeScript 项目，然后安装依赖清单（见 3.3）。
+
+### 6.2 目录组织
+
+- `views/` 按业务模块分层（`customer/`、`statement/` 等）
+- `components/business/` 存放跨页面复用的业务组件（如 `<ArTable>`、`<StatementCard>`）
+- `components/common/` 存放通用组件（如 `<PageTitle>`、`<StatsCard>`）
+- `composables/` 存放组合式 API（如 `useTable`、`useAsync`、`usePermission`）
+
+### 6.3 API 层
+
+- 每个模块一个 `api/xxx.ts` 文件，导出该模块的所有请求函数
+- 请求函数命名：`getXxx`（查询）、`createXxx`、`updateXxx`、`deleteXxx`、`sendXxx`（动作）
+- 使用 TypeScript 类型定义请求/响应结构
+- 统一在 `utils/request.ts` 处理错误、Token、Loading
+
+### 6.4 状态管理
+
+- 使用 Pinia，按业务领域拆分 store
+- 全局状态：`useUserStore`（用户信息 + Token）、`useAppStore`（主题、语言、侧栏折叠）
+- **禁止**：把业务数据放全局 store，业务数据应用 `composables/useXxx` 管理
+
+### 6.5 路由与权限
+
+- 路由 `meta` 携带 `permissions: string[]`
+- 全局导航守卫：登录检查 + 权限过滤
+- 侧栏菜单根据用户权限动态生成
+- 按钮级权限：使用 `v-permission="'xxx:xxx'"` 指令
+
+### 6.6 表单与校验
+
+- 使用 Element Plus 的 `<el-form>` + `rules`
+- 通用校验器封装在 `utils/validator.ts`
+- 表单提交防重：使用 `useAsync` 组合式 API 自动加锁
+
+### 6.7 表格规范
+
+**严格按原型呈现**：
+
+- 固定左侧列：**选择框、主键列**（如对账单号）
+- 固定右侧列：**操作列**
+- 表格宽度控制：**总宽度不超过 1200px**（标准 1440 屏幕减去侧栏 220 + padding 40）
+- 状态标签使用统一的 `<StatusTag :status="xxx">`
+- 金额展示使用 `<MoneyText :value="xxx">`（自动千分位 + ¥ 符号 + 等宽字体）
+- 时间展示使用 `<TimeText :value="xxx" format="datetime">`
+- 空值展示：统一为 `-`（灰色 `#c0c4cc`）
+
+### 6.8 图表规范
+
+- ECharts 主题：**科技风**（见第七章 §7.3）
+- 图表容器高度：主图 300-400px，辅图 200-250px
+- 响应式：使用 `vue-echarts` 的 `autoresize`
+- 数据加载：显示 loading 状态（`v-loading`）
+- 空数据：显示 `<el-empty>`
+
+---
+
+## 📱 第七章 · UI/UX 设计规范
+
+### 7.1 设计原则
+
+**科技风 + 简洁 + 扁平**，严格遵守：
+
+1. **不使用**：3D 立体效果、拟物化图标、复杂纹理、渐变阴影（除了品牌色渐变）
+2. **使用**：纯色块、细边框、大留白、清晰层次、微妙动画
+3. **图标风格**：线性图标（Element Plus Icons 或自绘 SVG）
+4. **动画时长**：≤ 300ms（按钮 hover、弹窗、tab 切换）
+
+### 7.2 主题色板
+
+**核心色**：
+
+| 名称 | 色值 | 用途 |
+|------|------|------|
+| Primary（主色-科技蓝） | `#409eff` | 主按钮、链接、选中态 |
+| Primary Dark | `#1976d2` | Hover、深色主色 |
+| Primary Light | `#ecf5ff` | 浅背景、tag 底色 |
+| Success（成功绿） | `#52c41a` | 成功状态、正向数据 |
+| Warning（警告橙） | `#faad14` | 警告、待处理 |
+| Danger（危险红） | `#f5222d` | 错误、异议、逾期 |
+| Info（信息灰蓝） | `#8c8c8c` | 次要文字、禁用 |
+| Purple Accent（紫色强调） | `#9c27b0` | 特殊标记、AI 相关 |
+
+**中性色**：
+
+| 名称 | 色值 | 用途 |
+|------|------|------|
+| Title | `#262626` | 主标题 |
+| Body | `#595959` | 正文 |
+| Secondary | `#8c8c8c` | 次要文字 |
+| Placeholder | `#bfbfbf` | 占位符 |
+| Divider | `#f0f0f0` | 分割线 |
+| Background | `#f0f2f5` | 页面背景 |
+| Card | `#ffffff` | 卡片背景 |
+
+**侧栏主题**（深色科技风）：
+
+| 名称 | 色值 |
+|------|------|
+| 侧栏底色 | `#001529` |
+| 菜单激活底色 | `#1890ff`（渐变到 `#096dd9`） |
+| 菜单激活左侧强调线 | `#40a9ff` 3px 竖线 |
+| 菜单文字 | `rgba(255,255,255,0.75)` |
+| 菜单激活文字 | `#ffffff` |
+| 侧栏 Hover | `#000c17` |
+
+### 7.3 排版规范
+
+- **字体**：`-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif`
+- **数字字体**：`"SF Mono", Consolas, Menlo, monospace`（金额、编号）
+- **字号阶梯**：
+  - 页面主标题：`20px / 600`
+  - 卡片标题：`16px / 600`
+  - 正文：`14px / 400`
+  - 次要文字：`12px / 400`
+  - 数字（金额）：`22-28px / 700` 于统计卡，`14-15px / 600` 于表格
+- **行高**：正文 `1.5`，标题 `1.4`
+
+### 7.4 间距规范
+
+| 场景 | 值 |
+|------|---|
+| 页面 padding | `20px 24px` |
+| 卡片 padding | `20px` |
+| 卡片间距 | `16px` |
+| 表单项间距 | `20px`（垂直）、`24px`（水平） |
+| 表格 cell padding | `12px 16px` |
+| 按钮 padding | `8px 20px`（默认）、`6px 15px`（small） |
+
+### 7.5 组件规范
+
+**卡片**：
+```
+background: #fff
+border-radius: 8px
+box-shadow: 0 1px 3px rgba(0,0,0,.04)
+padding: 20px
+```
+
+**按钮**：
+- 主按钮（`type="primary"`）：主色填充
+- 次按钮（默认）：白底 + 灰边框
+- 危险按钮（`type="danger"`）：红色填充
+- 图标按钮：圆形（`circle`）
+- 链接按钮（`link`）：仅表格内操作列使用
+
+**标签（Status Tag）**：
+- 圆角矩形 `border-radius: 3px`
+- 内部左侧带小圆点 ● 强化视觉
+- 视同确认专用：**灰色 + 虚线边框 + 斜体**（与已确认区分）
+
+**表格**：
+- 表头背景 `#fafafa`
+- 悬停行背景 `#f5f7fa`
+- 斑马纹：奇数行 `#fafbfc`
+- 边框：`border` 属性 + 细灰色 `#ebeef5`
+
+**药丸样式**（用于日期、编号等）：
+```css
+display: inline-block;
+padding: 2px 8px;
+background: #f0f5ff;
+color: #1976d2;
+border-radius: 3px;
+font-size: 12px;
+font-variant-numeric: tabular-nums;
+```
+
+### 7.6 移动端 UI 规范
+
+**H5/小程序遵循微信原生设计**：
+
+- **主色**：微信绿 `#07c160`（买家端）或科技蓝 `#409eff`（卖家端）
+- **底部 Tab Bar**：白底、图标 22px、文字 10px、激活蓝色
+- **卡片**：圆角 `12-16px`、白底、软阴影
+- **列表项**：白底 + 底部 1px 分隔线 + 右侧箭头
+- **按钮**：主要按钮 45px 高、圆角 22px、全宽
+- **状态色带**：卡片左侧 4px 竖条表示状态
+- **底部固定按钮**：黏在屏幕底部，安全区适配（`env(safe-area-inset-bottom)`）
+
+### 7.7 空状态、加载态、错误态
+
+- **空状态**：`<el-empty>` + 引导文字（如 "还没有对账单，去发起对账 →"）
+- **加载态**：`v-loading` + 简洁 spinner
+- **错误态**：友好错误页 + 重试按钮
+- **骨架屏**：列表加载超过 500ms 才显示骨架屏
+
+---
+
+## 🔐 第八章 · 安全与性能
+
+### 8.1 安全红线
+
+**红线（违反必须停止）**：
+
+1. **禁止**：任何 SQL 拼接（必须用 MyBatis-Plus 或 PreparedStatement）
+2. **禁止**：任何硬编码密钥、Token、密码
+3. **禁止**：任何跨租户数据访问（每个查询必须包含 `enterprise_id`）
+4. **禁止**：日志输出敏感信息（手机号、身份证、密码）
+5. **禁止**：将 `DEEMED_CONFIRMED` 状态自动升级为 `CONFIRMED`
+6. **禁止**：绕过状态机直接修改状态字段
+7. **禁止**：直接删除物理数据（一律软删除）
+8. **禁止**：在事务内做外部 HTTP 调用或发 MQ
+
+**必须**：
+
+1. 所有接口都要有认证（除 Guest 端明确开放的接口）
+2. 所有写接口都要幂等
+3. 所有敏感接口都要有操作审计（记录 `audit_log`）
+4. 密码使用 BCrypt 加密（cost=12）
+5. Token 使用 JWT + Redis 双端存储（支持主动踢出）
+6. 所有输入必须校验（长度、格式、范围）
+7. 所有输出必须防 XSS（后端过滤 + 前端 v-html 禁用）
+8. 文件上传必须校验类型、大小、内容（防止上传 shell）
+9. 手机号、身份证等敏感字段**存储**用 AES 加密，**展示**用脱敏格式
+
+### 8.2 性能要求
+
+| 指标 | 目标 |
+|------|------|
+| API P95 响应时间 | ≤ 300ms（查询）、≤ 500ms（写入） |
+| 首屏加载 | ≤ 2s |
+| 大列表加载 | ≤ 500ms（分页 20 条） |
+| PDF 生成 | ≤ 3s |
+| Excel 导入 10000 行 | ≤ 30s |
+| 单接口 QPS | ≥ 500 |
+| 数据库慢查询 | 无（>500ms 必须优化） |
+
+### 8.3 性能优化清单
+
+- **数据库**：所有 WHERE 字段建索引；分页避免大偏移（用 keyset pagination）；批量插入用 `insertBatchSomeColumn`
+- **缓存**：热点数据用 Redis（客户信息、字典表）；使用 `@Cacheable` 注解
+- **前端**：路由懒加载；图片懒加载；虚拟滚动（大列表 >500 行）；防抖节流
+- **接口**：批量查询代替循环查询（避免 N+1）；分页强制 max=100
+- **数据库连接池**：HikariCP，max=20，min-idle=5
+- **异步**：所有耗时>500ms 的操作走 MQ 或 CompletableFuture
+
+### 8.4 监控与日志
+
+- **日志分级**：ERROR / WARN / INFO / DEBUG
+- **日志格式**：JSON 结构化日志（含 `traceId`、`enterpriseId`、`userId`）
+- **接入 SkyWalking 或 Arthas**：链路追踪
+- **Prometheus + Grafana**：指标监控（JVM、DB、Redis、业务指标）
+- **告警**：错误率 >1%、P95 >1s、堆积 >1000 触发钉钉/短信告警
+
+---
+
+## 🗂 第九章 · 数据库设计原则
+
+### 9.1 通用字段
+
+**每张业务表必须包含**：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | BIGINT AUTO_INCREMENT PK | 主键 |
+| `enterprise_id` | BIGINT NOT NULL | 租户 ID（除平台方全局表） |
+| `created_at` | DATETIME DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+| `updated_at` | DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+| `created_by` | BIGINT | 创建人（可空，系统触发时为空） |
+| `updated_by` | BIGINT | 更新人 |
+| `deleted` | TINYINT DEFAULT 0 | 软删除（0=有效，1=已删除） |
+| `version` | INT DEFAULT 0 | 乐观锁版本号（部分表） |
+
+### 9.2 索引规范
+
+- **必建索引**：`enterprise_id`（组合索引首字段）、外键、状态字段、时间字段
+- **联合索引原则**：最左匹配、区分度高的字段在前
+- **不建索引**：更新频繁字段、区分度低字段（如状态只有 3-5 个值）
+- **命名**：`idx_表前缀_字段1_字段2` 或 `uk_...`（唯一索引）
+
+### 9.3 分表策略（预留）
+
+- 大表（预估 >5000 万行）：按 `enterprise_id % 16` 分表
+- 时间流水表（如 `call_task`）：按月分表（`call_task_202607`）
+- 使用 ShardingSphere-JDBC（后期接入，首期先不分）
+
+### 9.4 编码规范
+
+- 表名：`snake_case` 复数（如 `recon_statements`... 实际本项目用单数如 `recon_statement`，遵守已有命名）
+- 字段名：`snake_case`
+- 字符串枚举：`VARCHAR(30)`（避免 int，可读性好）
+- 金额：`DECIMAL(14,2)`
+- 布尔：`TINYINT DEFAULT 0`
+- JSON 字段：`JSON` 类型（MySQL 5.7+）
+
+---
+
+## 🚀 第十章 · 分期实施路线
+
+**严格按此顺序执行，每完成一个阶段停下等用户确认。**
+
+### P0 · 基础设施与登录（预计工作量：大）
+
+- [ ] 创建后端 Maven 父项目 + 所有子模块骨架
+- [ ] 创建前端 3 个 Vue3 项目骨架（seller/buyer/platform）
+- [ ] 创建 2 个 UniApp 项目骨架（seller-mobile/buyer-mobile）
+- [ ] 数据库初始化脚本（sec_ 前缀表 + 基础字典）
+- [ ] 后端：认证模块（登录/JWT/密码加密/租户上下文）
+- [ ] 后端：统一响应 `R<T>`、异常处理、日志切面、租户拦截器
+- [ ] 前端：登录页 + 布局壳（侧栏/头部）+ 路由守卫 + Token 拦截器 + 主题变量
+- [ ] 移动端：登录页 + Tab 框架 + 全局请求封装
+- [ ] Docker Compose：MySQL / Redis / RabbitMQ / MinIO 本地环境
+- [ ] CI 配置：Maven 编译 + 前端构建 + 单元测试
+
+**验收**：5 个端都能启动，能登录，能看到工作台（暂时展示假数据）
+
+### P1 · 核心对账（往来账 + 对账单）
+
+- [ ] 数据库：`ledger_` 和 `stmt_` 前缀所有表
+- [ ] 后端：客户往来账 CRUD、往来流水 CRUD、双轨余额计算
+- [ ] 后端：科目过滤规则引擎（通配符匹配）
+- [ ] 后端：ERP 适配器接口 + 金蝶实现（Mock 数据）
+- [ ] 后端：Excel 导入（支持双表 + 合并表两种模式）
+- [ ] 后端：对账单生成引擎（含流水快照、状态机）
+- [ ] 后端：PDF 生成（对账单主体 + 应收明细附件 + 签章区）
+- [ ] 前端（卖家 PC）：客户欠款余额列表 + 详情（含双轨余额展示）
+- [ ] 前端（卖家 PC）：对账单列表 + 发起对账 4 步向导 + 详情页
+- [ ] 前端（卖家 PC）：科目过滤配置页（含通配符测试工具）
+- [ ] 前端（卖家 PC）：对账单模板管理 + 编辑（左右分屏实时预览）
+- [ ] 单元测试：双轨余额计算、通配符匹配、状态机转换
+
+**验收**：能从 ERP/Excel 导入流水、生成对账单、导出 PDF；双轨余额展示与设计文档举例一致
+
+### P2 · 买家端与免注册
+
+- [ ] 后端：Guest Token 生成与验证（短期有效）
+- [ ] 后端：买家 API（多供应商聚合视图、确认、异议）
+- [ ] 前端（买家 PC）：完整功能（对照 buyer-pc.html）
+- [ ] 前端（Guest）：免注册页（对照 guest.html，银行对账单式）
+- [ ] 单元测试：Guest Token 边界、买家权限
+
+**验收**：买家能通过链接查看对账单、确认或提异议
+
+### P3 · 周期调度与视同确认
+
+- [ ] 数据库：`sys_holiday_calendar`
+- [ ] 后端：节假日日历 CRUD + 初始数据（2026-2027）
+- [ ] 后端：`resolveNextReconDate` 服务（含顺延逻辑）
+- [ ] 后端：XXL-JOB 每日调度器（扫描到期客户 → 触发对账单生成）
+- [ ] 后端：视同确认扫描任务（每日凌晨标记 `DEEMED_CONFIRMED`）
+- [ ] 前端：客户对账配置页（周期/节假日策略/视同确认天数）
+- [ ] 前端：节假日日历维护页
+
+**验收**：设置每 5 天滚动对账后，5 天后自动生成对账单；节假日自动顺延
+
+### P4 · 电子签章与异议
+
+- [ ] 后端：电子签章对接（e签宝或法大大 API）
+- [ ] 后端：签章位配置、签章流程状态机
+- [ ] 后端：异议提交、处理、修订流程
+- [ ] 前端：签章操作（PC 端 4 步弹窗）
+- [ ] 前端：异议列表、异议处理、修订对账单
+
+**验收**：客户签章后 PDF 加盖电子章；异议流程闭环
+
+### P5 · 客户分类与应收明细同步
+
+- [ ] 数据库：`cust_type_dict`、`cust_tag_dict`、`stmt_receivable_item`
+- [ ] 后端：客户类型/标签字典管理
+- [ ] 后端：ERP 应收明细增量同步任务（T+1 全量 + 每小时增量）
+- [ ] 后端：应收明细查询（含已付/未付/到期日/逾期状态）
+- [ ] 前端：客户类型管理页、客户标签管理页
+- [ ] 前端：客户批量分类工具
+- [ ] 前端：应收明细展示（12 列标准表：行号/规格/数量/单价/计价方式/金额/备注/已付/未付/到期日/逾期/状态）
+
+**验收**：客户可打标签；应收明细按付款状态实时更新
+
+### P6 · 差异化催收（不含 AI 外呼）
+
+- [ ] 数据库：`coll_profile`、`coll_order`、`coll_follow_up`
+- [ ] 后端：催收策略配置 CRUD
+- [ ] 后端：策略匹配引擎（4 级优先级）
+- [ ] 后端：催收工单生成（整单催 + 部分催）
+- [ ] 后端：催收执行器（阶段 1 通知 + 阶段 3 人工分配）
+- [ ] 后端：跟进记录、核销
+- [ ] 前端：催收策略管理（对照 collection-profiles.html）
+- [ ] 前端：催收策略编辑（7 段配置，对照 collection-profile-edit.html）
+- [ ] 前端：催收工单列表 + 详情（含跟进时间线）
+
+**验收**：不同标签客户触发不同催收节奏；部分催正确显示未付金额
+
+### P7 · AI 外呼基础（阿里云对接）
+
+- [ ] 数据库：`call_task`、`call_script_template`
+- [ ] 后端：阿里云智能外呼 SDK 封装（`AliyunCallProvider`）
+- [ ] 后端：外呼任务队列、调度、重试机制
+- [ ] 后端：Webhook 回调、意图识别、录音下载
+- [ ] 后端：话术模板 CRUD
+- [ ] 前端：阿里云外呼配置页（AK/SK、号码池、流程绑定）
+- [ ] 前端：AI 话术管理页（6 种预置话术）
+- [ ] 前端：外呼任务监控页
+- [ ] 前端：外呼记录页（含通话摘要、音频播放器、转写）
+
+**验收**：能通过阿里云真实外呼、接收回调、记录意图
+
+### P8 · 催收 AI 外呼集成与发单跟单
+
+- [ ] 后端：催收阶段 2（AI 外呼）串通阶段 1 和阶段 3
+- [ ] 后端：发送对账单时按 `send_call_along` 触发即时外呼
+- [ ] 后端：意图 → 动作映射（承诺付款自动记录、异议引导线上）
+- [ ] 前端：催收工单详情页显示外呼历史 + 录音回放
+
+**验收**：整个催收闭环跑通：SMS → AI外呼 → 人工，全过程有记录
+
+### P9 · 消息中心与移动端补齐
+
+- [ ] 后端：消息推送引擎（多渠道适配：SMS/微信模板/App 内消息）
+- [ ] 后端：WebSocket 实时推送
+- [ ] 前端（PC）：消息中心页面
+- [ ] 前端（PC）：状态可视化看板（客户对账状态、催收阶段）
+- [ ] 移动端：卖家端所有页面（工作台/客户/对账单/催收执行/消息/我的）
+- [ ] 移动端：买家端所有页面（首页/对账单/我的，含详情）
+- [ ] 移动端：小程序推送通知（微信订阅消息 + 服务通知）
+
+**验收**：5 端消息实时同步；移动端可完成日常操作
+
+### P10 · 报表、数据分析、平台方
+
+- [ ] 后端：应收报表数据聚合服务
+- [ ] 后端：催收分析数据服务（策略 ROI）
+- [ ] 后端：账龄分析
+- [ ] 前端：应收报表页（含账龄堆叠图）
+- [ ] 前端：催收分析报表（策略对比表）
+- [ ] 平台方 PC 端：租户管理、收费结算、系统监控、话术审核
+- [ ] 平台方 PC 端：全局数据分析看板
+
+**验收**：完整报表体系；平台方可管理租户
+
+### P11 · 埋点、优化、上线准备
+
+- [ ] 埋点 SDK（可选，从 v1 分支移植）
+- [ ] 全量性能压测（JMeter）
+- [ ] 全量安全扫描（SonarQube + OWASP ZAP）
+- [ ] 全量渗透测试（重点 IDOR、SQL 注入、XSS）
+- [ ] 部署文档 + K8s 配置
+- [ ] 运维手册 + 应急预案
+- [ ] 用户培训手册（从 v1 分支移植并更新）
+- [ ] 上线检查清单
+
+**验收**：全套系统达到生产就绪状态
+
+---
+
+## 🛠 第十一章 · 开发流程与协作
+
+### 11.1 Git 规范
+
+- **分支模型**：主分支 `main`（禁止直接推）、开发分支 `develop`、功能分支 `feature/xxx`、修复分支 `fix/xxx`
+- **每个 P 阶段一个 feature 分支**：如 `feature/p1-core-reconciliation`
+- **Commit 规范**：Angular 规范
+  - `feat(module): xxx` 新功能
+  - `fix(module): xxx` bug 修复
+  - `refactor(module): xxx` 重构
+  - `docs(module): xxx` 文档
+  - `test(module): xxx` 测试
+  - `chore(module): xxx` 杂项
+- **每个 commit 只做一件事**，粒度尽量小
+
+### 11.2 Cursor 执行节奏
+
+**每完成一个子任务立即做**：
+
+1. 代码写完
+2. `mvn compile` / `npm run build` 验证编译
+3. `mvn test` / `npm test` 验证单元测试
+4. 用工具打开原型页对照，确保 UI 一致
+5. Git commit（按规范命名）
+6. TodoWrite 更新任务状态
+7. 遇到不清楚的问题：**不要臆断**，记入 `docs/development/questions.md`
+
+**每完成一个 P 阶段**：
+
+1. Git push 到 feature 分支
+2. 生成阶段总结（`docs/development/progress-P{N}.md`）
+3. **停下**，向用户报告：
+   - 已完成的功能清单
+   - 验收测试结果
+   - 遇到的问题清单（引用 questions.md）
+   - 下一阶段规划
+4. **等待用户确认**"继续下一阶段"或修改反馈
+
+### 11.3 代码审查（自审）
+
+每个 P 阶段完成前，Cursor 需自审：
+
+- [ ] 是否有硬编码密钥/URL？
+- [ ] 是否有 `TODO`/`FIXME` 未处理？
+- [ ] 是否有跨租户漏洞？
+- [ ] 是否有 SQL 注入风险？
+- [ ] 是否有日志泄露敏感信息？
+- [ ] 单元测试覆盖率 ≥ 60%？
+- [ ] 关键路径覆盖率 ≥ 80%？
+- [ ] 所有 API 都有幂等保护？
+- [ ] 所有表都有 `enterprise_id`？
+- [ ] 所有原型页面都已实现？
+
+### 11.4 依赖管理
+
+- **禁止**：私自引入未经批准的依赖
+- **允许**：本文档 §3.3 中列出的所有依赖
+- **新增依赖**：必须在 `questions.md` 记录，说明用途、评估安全性
+- **依赖锁定**：`package-lock.json` / `pom.xml` 都提交到 Git
+
+---
+
+## ✅ 第十二章 · 测试与验收标准
+
+### 12.1 单元测试
+
+- **覆盖率目标**：整体 ≥ 60%，核心业务 ≥ 80%
+- **必测场景**：
+  - 双轨余额计算（含过滤项、边界情况）
+  - 通配符匹配（各种通配符组合）
+  - 状态机转换（合法/非法转换）
+  - 客户策略匹配（4 级优先级）
+  - 催收工单生成（整单/部分催）
+  - 节假日计算（顺延/提前/不调整）
+  - JWT 认证、租户隔离
+
+### 12.2 集成测试
+
+使用 Testcontainers 启动真实 MySQL + Redis + RabbitMQ，测试：
+
+- 完整对账流程（导入→生成→发送→确认→签章）
+- 完整催收流程（工单→通知→外呼→人工）
+- 定时任务触发（周期对账、视同确认）
+- Webhook 回调（阿里云外呼）
+
+### 12.3 前端测试
+
+- **组件测试**：核心组件使用 Vitest 测试（`<ArTable>`, `<StatusTag>`）
+- **E2E 测试**：使用 Playwright 覆盖关键路径（登录→创建对账单→发送→确认）
+
+### 12.4 UI 一致性检查
+
+**每个页面开发完成后**，对比原型：
+
+- [ ] 布局结构一致
+- [ ] 颜色一致
+- [ ] 组件形态一致
+- [ ] 交互一致
+- [ ] 空/加载/错误状态处理
+
+允许的偏差：字号 ±2px、间距 ±4px、颜色微调（如深浅度）
+
+### 12.5 性能验收
+
+按第八章 §8.2 的性能目标验收，未达标必须优化后再进入下一阶段。
+
+---
+
+## 🎓 第十三章 · 部署与运维（预留）
+
+首期开发完成后再详细规划，本节仅列出目标形态：
+
+- **容器化**：所有服务 Docker 镜像
+- **编排**：K8s 部署（生产）+ Docker Compose（开发）
+- **网关**：Spring Cloud Gateway 或 Nginx
+- **配置中心**：Nacos 或 Apollo
+- **注册中心**：Nacos
+- **CI/CD**：GitLab CI 或 Jenkins
+- **监控**：Prometheus + Grafana + ELK
+- **备份**：MySQL 每日全备 + binlog 实时
+
+---
+
+## 🚫 第十四章 · 常见问题处理规则
+
+### 14.1 设计不清晰时
+
+**不要臆断**，按以下步骤：
+
+1. 在 `docs/development/questions.md` 记录问题（含上下文、影响范围、建议方案）
+2. **暂停该功能**，继续开发不受影响的功能
+3. 阶段结束时批量向用户提问
+
+### 14.2 原型与设计文档冲突
+
+**以设计文档为准**，但要在 `questions.md` 记录冲突详情。
+
+### 14.3 依赖第三方 API 未就绪（如阿里云）
+
+- 优先实现 SPI 接口 + Mock 实现
+- 生产接入延后到阶段 P7
+- 单元测试使用 Mock
+
+### 14.4 遇到大型重构需求
+
+- 停下向用户报告
+- 评估影响范围
+- 得到批准后再动手
+
+### 14.5 遇到性能瓶颈
+
+按以下顺序排查：
+
+1. 索引是否命中（EXPLAIN）
+2. N+1 查询
+3. 缓存命中率
+4. 序列化开销
+5. 网络延迟
+6. GC 停顿
+
+### 14.6 遇到测试失败
+
+- **单个失败**：修复代码或调整测试
+- **大面积失败**：**停下**，先排查是否有共同原因
+- **禁止**：为了通过测试而降低断言强度
+
+---
+
+## 🚨 第十五章 · 硬性红线（违反必停）
+
+以下规则任何一条被违反，Cursor 必须**立即停止**开发，向用户报告：
+
+1. **数据安全**：任何跨租户数据泄露风险
+2. **业务红线**：`DEEMED_CONFIRMED` 被自动升级到 `CONFIRMED`
+3. **代码质量**：`TODO`/`FIXME` 未处理即进入下一阶段
+4. **测试**：单元测试覆盖率跌破 60%
+5. **依赖**：引入本文档未批准的依赖
+6. **UI**：偏离原型或设计规范超过允许偏差
+7. **性能**：接口 P95 > 1s（未优化前不能发布）
+8. **合规**：AI 外呼在非允许时段（22:00-08:00）被触发
+9. **金额精度**：使用 `float`/`double` 存储金额（必须 `DECIMAL`）
+10. **删除操作**：物理 DELETE（必须软删除）
+
+---
+
+## 🎬 第十六章 · 启动指令
+
+**当用户输入 `请按开发提示词进行开发` 时，你必须严格按以下顺序响应**：
+
+### Step 1：确认理解
+
+回复一段简短总结（≤ 20 行）：
+
+- 项目定位（一句话）
+- 五端架构（列表）
+- 分期路线（P0-P11 一览）
+- 首期任务（P0 内容）
+- 预估阶段数
+- 关键红线提醒
+
+### Step 2：读取所有参考资料
+
+- 读完 `docs/design-v2/reconciliation-v2-design.md`
+- 浏览 `prototypes/autorecon-v2/index.html`（了解原型全貌）
+- 阅读关键原型页（至少 6 个核心页）
+
+### Step 3：初始化任务清单
+
+使用 TodoWrite 工具创建任务清单，按 P0 的每一个复选框拆分为独立任务。
+
+### Step 4：进入 P0 开发循环
+
+按 §11.2 的节奏执行 P0。
+
+### Step 5：P0 完成检查点
+
+- 5 端项目都能启动
+- 都能登录
+- 都能看到工作台
+
+达标后**停下**，输出阶段总结，等待用户确认继续 P1。
+
+### Step 6：循环执行 P1-P11
+
+每完成一个 P 阶段停下等确认。
+
+---
+
+## 📞 附录 · 联系与支持
+
+- **产品需求**：设计文档 `docs/design-v2/reconciliation-v2-design.md`
+- **UI 参考**：`prototypes/autorecon-v2/*.html`
+- **问题记录**：`docs/development/questions.md`（Cursor 自动创建维护）
+- **进度报告**：`docs/development/progress-P{N}.md`（每阶段生成）
+- **代码提交**：见 §11.1
+
+---
+
+## 🔖 使用样例
+
+**用户输入**：
+
+```
+请按开发提示词进行开发
+```
+
+**Cursor 应立即执行**：
+
+1. 阅读本文件（`docs/development/cursor-dev-prompt.md`）
+2. 阅读设计文档
+3. 浏览原型
+4. 创建 P0 任务清单
+5. 开始 P0 开发
+6. P0 完成 → 停下 → 汇报 → 等确认
+7. 继续 P1 → 停下 → 汇报 → 等确认
+8. ... 循环至 P11
+
+**用户可以随时打断**并给出指令，Cursor 会响应并重新对齐。
+
+---
+
+*文档结束 · v1.0 · 2026-07-04*
