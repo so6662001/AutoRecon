@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>客户往来账 - 对账通v2原型</title>
+  <title>客户欠款余额 - 对账通v2原型</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
   <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
@@ -81,7 +81,7 @@
               <el-icon><UserFilled /></el-icon>
               <span>客户中心</span>
             </template>
-            <el-menu-item index="customer-ledger" @click="go('customer-ledger.html')">客户往来账</el-menu-item>
+            <el-menu-item index="customer-ledger" @click="go('customer-ledger.html')">客户欠款余额</el-menu-item>
             <el-menu-item index="customer-types" @click="go('customer-types.html')">客户类型</el-menu-item>
             <el-menu-item index="customer-tags" @click="go('customer-tags.html')">客户标签</el-menu-item>
           </el-sub-menu>
@@ -143,7 +143,7 @@
           <el-breadcrumb separator="/">
             <el-breadcrumb-item>首页</el-breadcrumb-item>
             <el-breadcrumb-item>客户中心</el-breadcrumb-item>
-            <el-breadcrumb-item>客户往来账</el-breadcrumb-item>
+            <el-breadcrumb-item>客户欠款余额</el-breadcrumb-item>
           </el-breadcrumb>
         </div>
         <div class="actions">
@@ -176,7 +176,7 @@
       <!-- ===== CONTENT ===== -->
       <main class="content">
         <div class="page-title">
-          客户往来账
+          客户欠款余额
           <span class="tag">共 {{ total }} 个客户</span>
         </div>
 
