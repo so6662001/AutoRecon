@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>买方免注册查看 - 对账通原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #e3f0ff 0%, #c7e0f9 50%, #dbeafe 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    }
+    .security-banner {
+      background: rgba(59, 130, 246, 0.08);
+      border-bottom: 1px solid rgba(59, 130, 246, 0.15);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #3b82f6;
+      backdrop-filter: blur(8px);
+    }
+    .security-banner .el-icon { font-size: 16px; }
+    .page-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: calc(100vh - 100px);
+      padding: 40px 20px;
+    }
+    .content-card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+      max-width: 520px;
+      width: 100%;
+      padding: 40px 36px;
+    }
+    .verify-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1a1a2e;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    .verify-subtitle {
+      font-size: 14px;
+      color: #909399;
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .code-input-group {
+      display: flex;
+      gap: 12px;
+    }
+    .code-input-group .el-input { flex: 1; }
+    .bill-header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .bill-header h2 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin-bottom: 4px;
+    }
+    .bill-header p {
+      font-size: 13px;
+      color: #909399;
+    }
+    .bill-summary {
+      background: #f8fafc;
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin-bottom: 20px;
+    }
+    .bill-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      font-size: 14px;
+      color: #606266;
+      border-bottom: 1px dashed #e8e8e8;
+    }
+    .bill-row:last-child { border-bottom: none; }
+    .bill-row .label { color: #909399; }
+    .bill-row .value { font-weight: 500; color: #303133; }
+    .bill-row .value.amount { color: #e6a23c; font-weight: 700; font-size: 18px; }
+    .bill-row .value.balance { color: #f56c6c; font-weight: 700; font-size: 16px; }
+    .action-bar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .detail-table { margin-bottom: 24px; }
+    .bottom-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .footer {
+      text-align: center;
+      padding: 30px 20px 20px;
+    }
+    .trust-badges {
+      display: flex;
+      justify-content: center;
+      gap: 32px;
+      margin-bottom: 12px;
+    }
+    .trust-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #909399;
+    }
+    .trust-badge .el-icon { font-size: 16px; color: #67c23a; }
+    .footer-copy {
+      font-size: 12px;
+      color: #c0c4cc;
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="security-banner">
+    <el-icon><Lock /></el-icon>
+    <span>本页面由 AutoRecon 提供技术支持，数据加密传输</span>
+  </div>
+
+  <div class="page-container">
+    <!-- State 1: Verification -->
+    <div class="content-card" v-if="state === 'verify'">
+      <div class="verify-title">手机验证</div>
+      <div class="verify-subtitle">请输入手机号并完成验证以查看对账单</div>
+      <el-form :model="form" label-position="top" size="large">
+        <el-form-item>
+          <el-input v-model="form.phone" placeholder="请输入手机号" :prefix-icon="Iphone" maxlength="11" />
+        </el-form-item>
+        <el-form-item>
+          <div class="code-input-group">
+            <el-input v-model="form.code" placeholder="请输入验证码" :prefix-icon="Message" maxlength="6" />
+            <el-button type="primary" plain :disabled="countdown > 0" @click="sendCode" style="min-width: 120px;">
+              {{ countdown > 0 ? countdown + 's 后重试' : '获取验证码' }}
+            </el-button>
+          </div>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" size="large" style="width: 100%; height: 48px; font-size: 16px;" @click="verify">验 证</el-button>
+        </el-form-item>
+      </el-form>
+    </div>
+
+    <!-- State 2: Bill View -->
+    <div class="content-card" v-else>
+      <div class="bill-header">
+        <h2>对账单详情</h2>
+        <p>请核对以下对账信息</p>
+      </div>
+
+      <div class="bill-summary">
+        <div class="bill-row">
+          <span class="label">卖方</span>
+          <span class="value">某某钢铁有限公司</span>
+        </div>
+        <div class="bill-row">
+          <span class="label">买方</span>
+          <span class="value">某某贸易有限公司</span>
+        </div>
+        <div class="bill-row">
+          <span class="label">对账周期</span>
+          <span class="value">2025-02-01 ~ 2025-02-28</span>
+        </div>
+        <div class="bill-row">
+          <span class="label">总金额</span>
+          <span class="value amount">¥125,800.50</span>
+        </div>
+        <div class="bill-row">
+          <span class="label">已付金额</span>
+          <span class="value">¥50,000.00</span>
+        </div>
+        <div class="bill-row">
+          <span class="label">余额</span>
+          <span class="value balance">¥75,800.50</span>
+        </div>
+      </div>
+
+      <div class="action-bar">
+        <el-button :icon="Download" @click="ElMessage.success('PDF 下载已开始')">下载 PDF</el-button>
+        <el-button :icon="View" @click="showDetail = !showDetail">
+          {{ showDetail ? '收起明细' : '查看明细' }}
+        </el-button>
+      </div>
+
+      <div class="detail-table" v-show="showDetail">
+        <el-table :data="details" border stripe size="small" style="width: 100%;">
+          <el-table-column prop="name" label="品名" />
+          <el-table-column prop="spec" label="规格" />
+          <el-table-column prop="qty" label="数量" align="right" />
+          <el-table-column prop="amount" label="金额" align="right">
+            <template #default="{ row }">
+              <span style="color: #e6a23c; font-weight: 600;">{{ row.amount }}</span>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <div class="bottom-actions">
+        <el-button type="success" size="large" style="width: 100%; height: 48px; font-size: 16px;" @click="ElMessage.success('已确认无异议')">确认无异议</el-button>
+        <el-button type="danger" plain size="large" style="width: 100%;" @click="ElMessage.warning('异议已提交，工作人员将尽快处理')">我有异议</el-button>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="trust-badges">
+      <div class="trust-badge">
+        <el-icon><Lock /></el-icon>
+        <span>安全加密</span>
+      </div>
+      <div class="trust-badge">
+        <el-icon><Document /></el-icon>
+        <span>合规存证</span>
+      </div>
+      <div class="trust-badge">
+        <el-icon><Service /></el-icon>
+        <span>7×24 支持</span>
+      </div>
+    </div>
+    <div class="footer-copy">© AutoRecon 对账平台</div>
+  </div>
+</div>
+
+<script>
+const { createApp, ref, shallowRef } = Vue;
+const app = createApp({
+  setup() {
+    const state = ref('verify');
+    const showDetail = ref(false);
+    const countdown = ref(0);
+    const form = ref({ phone: '', code: '' });
+
+    const Iphone = shallowRef(ElementPlusIconsVue.Iphone);
+    const Message = shallowRef(ElementPlusIconsVue.Message);
+    const Download = shallowRef(ElementPlusIconsVue.Download);
+    const View = shallowRef(ElementPlusIconsVue.View);
+
+    const details = ref([
+      { name: 'HRB400螺纹钢', spec: 'Φ20×12m', qty: '50吨', amount: '¥38,500.00' },
+      { name: 'Q235B热轧卷板', spec: '4.75×1500mm', qty: '30吨', amount: '¥32,400.50' },
+      { name: 'Q345B中厚板', spec: '16×2200mm', qty: '25吨', amount: '¥29,900.00' },
+      { name: 'HRB400盘螺', spec: 'Φ8mm', qty: '20吨', amount: '¥25,000.00' },
+    ]);
+
+    const sendCode = () => {
+      if (!form.value.phone) {
+        ElMessage.warning('请输入手机号');
+        return;
+      }
+      countdown.value = 60;
+      ElMessage.success('验证码已发送');
+      const timer = setInterval(() => {
+        countdown.value--;
+        if (countdown.value <= 0) clearInterval(timer);
+      }, 1000);
+    };
+
+    const verify = () => {
+      if (!form.value.phone) {
+        ElMessage.warning('请输入手机号');
+        return;
+      }
+      if (!form.value.code) {
+        ElMessage.warning('请输入验证码');
+        return;
+      }
+      state.value = 'bill';
+    };
+
+    return { state, showDetail, countdown, form, details, Iphone, Message, Download, View, sendCode, verify, ElMessage };
+  }
+});
+for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+  app.component(key, component);
+}
+app.use(ElementPlus);
+app.mount('#app');
+</script>
+</body>
+</html>
