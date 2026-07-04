@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>编辑对账单模板 - 对账通v2原型</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; background: #f0f2f5; }
+    #app { height: 100%; }
+    .layout { display: flex; height: 100vh; overflow: hidden; }
+
+    /* Sidebar */
+    .sidebar { width: 220px; background: #001529; color: #fff; flex-shrink: 0; display: flex; flex-direction: column; }
+    .sidebar-logo { height: 64px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600; color: #fff; border-bottom: 1px solid #1f3448; letter-spacing: 2px; background: linear-gradient(90deg,#001529 0%, #002140 100%); }
+    .sidebar-logo .logo-badge { display: inline-block; width: 24px; height: 24px; border-radius: 4px; background: linear-gradient(135deg,#40a9ff,#1890ff); margin-right: 8px; text-align: center; line-height: 24px; font-size: 13px; font-weight: 700; }
+    .el-menu.sidebar-menu { border-right: none; background: transparent; flex: 1; overflow-y: auto; }
+    .sidebar-menu:not(.el-menu--collapse) { --el-menu-bg-color: transparent; --el-menu-text-color: rgba(255,255,255,0.75); --el-menu-hover-bg-color: #000c17; --el-menu-active-color: #fff; --el-menu-hover-text-color:#fff;}
+    .sidebar-menu .el-sub-menu__title { color: rgba(255,255,255,0.75) !important; }
+    .sidebar-menu .el-sub-menu__title:hover { background: #000c17 !important; color:#fff !important; }
+    .sidebar-menu .el-menu-item { color: rgba(255,255,255,0.75); }
+    .sidebar-menu .el-menu-item:hover { background: #000c17 !important; color:#fff !important; }
+    .sidebar-menu .el-menu-item.is-active { background: #1890ff !important; color: #fff !important; }
+    .sidebar-menu .el-sub-menu .el-menu { background: #000c17 !important; }
+    .sidebar-menu .el-sub-menu .el-menu-item { background: #000c17 !important; }
+    .sidebar-menu .el-sub-menu .el-menu-item.is-active { background: #1890ff !important; }
+
+    /* Main */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .header { height: 64px; background: #fff; border-bottom: 1px solid #eaeef3; display: flex; align-items: center; padding: 0 24px; justify-content: space-between; box-shadow: 0 1px 4px rgba(0,21,41,.06); }
+    .header .left { display: flex; align-items: center; gap: 16px; }
+    .header .right { display: flex; align-items: center; gap: 20px; }
+    .company-badge { display: flex; align-items: center; gap:8px; color:#333; font-weight:500; padding:6px 12px; background:#f5f7fa; border-radius:6px;}
+    .page-title-bar { padding: 16px 24px; background:#fff; border-bottom:1px solid #eaeef3; display:flex; align-items:center; gap:16px;}
+    .page-title { font-size: 18px; font-weight: 600; color: #262626; margin: 0; display:flex; align-items:center; gap:8px;}
+    .tpl-tag { font-size:12px; color:#1890ff; background:#e6f7ff; padding:3px 10px; border-radius:12px; border:1px solid #91d5ff;}
+
+    /* Split screen */
+    .edit-body { flex:1; display:flex; overflow:hidden;}
+    .edit-left { width:50%; background:#fff; border-right:1px solid #eaeef3; display:flex; flex-direction:column; overflow:hidden;}
+    .edit-right { width:50%; background:#e8ecf0; overflow-y:auto; padding:24px;}
+    .left-inner { flex:1; overflow-y:auto; padding: 12px 20px 100px 20px;}
+    .left-tabs { border-bottom:1px solid #eaeef3;}
+
+    /* Config form */
+    .cfg-section { margin-bottom:24px;}
+    .cfg-section h4 { font-size:14px; font-weight:600; color:#262626; margin: 0 0 12px 0; padding-bottom:8px; border-bottom:1px dashed #eaeef3; display:flex; align-items:center; gap:6px;}
+    .cfg-section h4 .required { color:#f5222d;}
+    .element-list { display:flex; flex-direction:column; gap:6px; padding:8px; background:#fafafa; border-radius:6px;}
+    .element-item { display:flex; align-items:center; gap:8px; padding:8px 12px; background:#fff; border:1px solid #eaeef3; border-radius:4px; transition:all .15s; cursor:grab;}
+    .element-item:hover { border-color:#1890ff; background:#f0f9ff;}
+    .element-item.dim { opacity:.55;}
+    .element-item.core { border-left:3px solid #1890ff;}
+    .element-item.highlight { border-left:3px solid #faad14;}
+    .element-item .drag-handle { color:#bfbfbf; cursor:grab;}
+    .element-item .name { flex:1; color:#262626; font-size:13px;}
+    .element-item .tag-core { font-size:10px; color:#1890ff; background:#e6f7ff; padding:1px 6px; border-radius:8px;}
+    .element-item .tag-hi { font-size:10px; color:#faad14; background:#fff7e6; padding:1px 6px; border-radius:8px;}
+    .element-item .desc { color:#8c8c8c; font-size:11px;}
+
+    .field-list { display:flex; flex-direction:column; gap:4px;}
+    .field-row { display:flex; align-items:center; gap:8px; padding:6px 10px; background:#fff; border:1px solid #eaeef3; border-radius:4px;}
+    .field-row:hover { background:#f5f7fa;}
+    .field-row .drag-handle { color:#bfbfbf; cursor:grab; font-size:14px;}
+    .field-row .fname { flex:1; font-size:13px; color:#262626;}
+    .field-row .fnote { color:#8c8c8c; font-size:11px;}
+
+    /* Sticky bottom bar */
+    .action-bar-sticky { position:absolute; left:0; right:0; bottom:0; background:#fff; padding:12px 20px; border-top:1px solid #eaeef3; display:flex; gap:8px; justify-content:flex-end; box-shadow:0 -2px 8px rgba(0,0,0,0.04); z-index:5;}
+
+    /* PDF Preview */
+    .preview-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;}
+    .preview-header h3 { margin:0; color:#262626; font-size:15px; display:flex; align-items:center; gap:6px;}
+    .preview-controls { display:flex; align-items:center; gap:8px;}
+
+    .pdf-page { background:#fff; box-shadow:0 4px 20px rgba(0,0,0,0.12); margin: 0 auto 24px auto; position:relative;
+                min-height:520px; }
+    .pdf-page.a4 { width: 100%; max-width: 480px; padding: 36px 42px;}
+    .pdf-page.landscape { max-width: 640px; padding: 32px 36px; min-height: 380px;}
+    .pdf-page.a3 { max-width: 560px; }
+    .page-num { position:absolute; top:-20px; right:0; color:#8c8c8c; font-size:11px;}
+
+    /* PDF content styles (dynamic based on theme) */
+    .pdf-page[data-font="song"] { font-family: "宋体", SimSun, serif;}
+    .pdf-page[data-font="yahei"] { font-family: "Microsoft YaHei","微软雅黑", sans-serif;}
+    .pdf-page[data-font="siyuan"] { font-family: "PingFang SC","Source Han Sans", sans-serif;}
+
+    .pdf-hdr { display:flex; align-items:center; gap:10px; padding-bottom:10px; border-bottom: 2px solid var(--theme, #409eff);}
+    .pdf-hdr .logo { width:36px; height:36px; background:linear-gradient(135deg, var(--theme, #409eff), var(--themeLite, #1890ff)); border-radius:6px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:14px;}
+    .pdf-hdr .info { flex:1; }
+    .pdf-hdr .company-name { color:#262626; font-weight:600;}
+    .pdf-hdr .sub { color:#8c8c8c; font-size: 82%;}
+    .pdf-title { text-align:center; letter-spacing: 8px; margin: 18px 0 4px 0; color:#262626; font-weight:600;}
+    .pdf-sub-title { text-align:center; color:#8c8c8c; margin-bottom:16px; font-size:88%;}
+    .pdf-parties { display:flex; justify-content:space-between; padding:10px 0; border-top:1px solid #d9d9d9; border-bottom:1px solid #d9d9d9; margin-bottom:14px; font-size: 92%;}
+    .pdf-parties .col { }
+    .pdf-parties b { color:#595959;}
+    .pdf-parties .col.right { text-align:right;}
+    .pdf-parties .col .line { margin-top:3px; color:#595959;}
+    .pdf-opening { display:flex; justify-content:space-between; align-items:center; padding: 8px 12px; background:#fafafa; border-radius:4px; font-size:92%; color:#262626; margin-bottom:8px;}
+    .pdf-opening b { color:#595959; margin-right:4px;}
+
+    .pdf-table { width:100%; border-collapse: collapse; font-size:82%; margin: 6px 0;}
+    .pdf-table th, .pdf-table td { padding: 6px 8px; border: 1px solid #e8e8e8; text-align:right;}
+    .pdf-table th:first-child, .pdf-table th:nth-child(2), .pdf-table th:nth-child(3), .pdf-table th:nth-child(4),
+    .pdf-table td:first-child, .pdf-table td:nth-child(2), .pdf-table td:nth-child(3), .pdf-table td:nth-child(4) { text-align:left;}
+    .pdf-table thead th { background: var(--themeSoft, #f0f7ff); color:#262626; font-weight:600;}
+    .pdf-table.stripe tbody tr:nth-child(even) { background:#fafafa;}
+    .pdf-table.borderless th, .pdf-table.borderless td { border-left:0; border-right:0;}
+    .pdf-table.minimal th, .pdf-table.minimal td { border:0; border-bottom:1px solid #f0f0f0; padding: 8px 4px;}
+    .pdf-table.minimal thead th { border-bottom:2px solid #d9d9d9;}
+
+    .pdf-summary { display:grid; grid-template-columns: repeat(3,1fr); gap:8px; margin-top:12px; padding:12px; background: var(--themeSoft, #f0f7ff); border-radius:4px;}
+    .pdf-summary .item { text-align:center;}
+    .pdf-summary .lbl { color:#8c8c8c; font-size:74%;}
+    .pdf-summary .val { color:#262626; font-weight:600; font-family:"SF Mono",Consolas,monospace; margin-top:2px;}
+    .pdf-summary .val.hi { color: var(--theme,#409eff); font-size: 108%;}
+
+    .pdf-section-title { font-weight:600; color:#262626; padding: 8px 0; border-bottom:2px solid var(--theme,#409eff); margin: 4px 0 8px 0; display:flex; align-items:center; gap:6px;}
+    .pdf-section-title .tag-attach { font-size: 66%; background: var(--theme,#409eff); color:#fff; padding: 2px 6px; border-radius:3px;}
+    .pdf-note { font-size:76%; color:#8c8c8c; margin-bottom: 8px; padding: 4px 8px; background:#fffbe6; border-left:2px solid #faad14; border-radius:2px;}
+
+    .pdf-signature { display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:24px;}
+    .sig-box { border:1px solid #e8e8e8; padding: 14px; text-align:center; border-radius:4px; min-height:120px; display:flex; flex-direction:column; justify-content:space-between;}
+    .sig-box .sig-title { color:#595959; font-weight:600; font-size:88%;}
+    .sig-box .sig-seal { color:#f5222d; border: 2px dashed #f5222d; border-radius:50%; width:70px; height:70px; display:inline-flex; align-items:center; justify-content:center; margin: 8px auto; font-weight:700; font-size:76%; transform: rotate(-8deg);}
+    .sig-box.pending .sig-seal { border-color:#bfbfbf; color:#bfbfbf; transform:none;}
+    .sig-box .sig-date { color:#8c8c8c; font-size:76%;}
+
+    .pdf-footer { display:flex; justify-content:space-between; padding-top:10px; border-top:1px dashed #d9d9d9; margin-top:16px; font-size:72%; color:#8c8c8c;}
+    .pdf-terms { padding: 10px 12px; background:#f5f7fa; border-radius:4px; margin-top:12px; font-size:80%; color:#595959;}
+    .pdf-terms .t { color:#8c8c8c; margin-right:4px;}
+
+    /* placeholder for disabled sections */
+    .pdf-placeholder { padding: 8px; color:#bfbfbf; font-style:italic; text-align:center; background: repeating-linear-gradient(45deg,#f5f5f5, #f5f5f5 4px, #fff 4px, #fff 8px); border-radius:4px; font-size:11px; margin: 6px 0;}
+
+    .hint-text { color:#8c8c8c; font-size:12px; margin: 4px 0 12px 0;}
+    .field-count-tag { color:#1890ff; font-weight:600; font-family:"SF Mono",Consolas,monospace;}
+    .info-tip { background: linear-gradient(90deg, #e6f7ff, #f0f9ff); border-left:3px solid #1890ff; padding: 8px 12px; border-radius:4px; color:#595959; font-size:12px; margin-bottom:12px; line-height:1.6;}
+    .warn-tip { background: #fff7e6; border-left:3px solid #faad14; padding: 8px 12px; border-radius:4px; color:#595959; font-size:12px; margin-bottom:12px;}
+
+    /* preview mode */
+    .preview-wrapper.compact { transform: scale(0.85); transform-origin: top center;}
+
+    .amt-pos { color:#52c41a; font-weight:600;}
+    .amt-neg { color:#f5222d; font-weight:600;}
+    .amt-bal { color:#262626; font-weight:700;}
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="layout">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-logo"><span class="logo-badge">对</span>对账通 v2</div>
+        <el-menu class="sidebar-menu" default-active="template-manage" :default-openeds="['recon']">
+          <el-menu-item index="dashboard" @click="nav('dashboard.html')">
+            <el-icon><component :is="Icons.Odometer" /></el-icon><span>工作台</span>
+          </el-menu-item>
+          <el-sub-menu index="customer">
+            <template #title>
+              <el-icon><component :is="Icons.User" /></el-icon><span>客户中心</span>
+            </template>
+            <el-menu-item index="customer-ledger" @click="nav('customer-ledger.html')">客户往来账</el-menu-item>
+            <el-menu-item index="customer-types" @click="nav('customer-types.html')">客户类型</el-menu-item>
+            <el-menu-item index="customer-tags" @click="nav('customer-tags.html')">客户标签</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="recon">
+            <template #title>
+              <el-icon><component :is="Icons.Document" /></el-icon><span>对账管理</span>
+            </template>
+            <el-menu-item index="statement-list" @click="nav('statement-list.html')">对账单列表</el-menu-item>
+            <el-menu-item index="statement-create" @click="nav('statement-create.html')">发起对账</el-menu-item>
+            <el-menu-item index="template-manage" @click="nav('template-manage.html')">对账单模板</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="collect">
+            <template #title>
+              <el-icon><component :is="Icons.Bell" /></el-icon><span>催收中心</span>
+            </template>
+            <el-menu-item index="collection-orders" @click="nav('collection-orders.html')">催收工单</el-menu-item>
+            <el-menu-item index="collection-profiles" @click="nav('collection-profiles.html')">催收策略</el-menu-item>
+            <el-menu-item index="call-tasks" @click="nav('call-tasks.html')">外呼任务</el-menu-item>
+            <el-menu-item index="call-records" @click="nav('call-records.html')">外呼记录</el-menu-item>
+          </el-sub-menu>
+          <el-menu-item index="messages" @click="nav('messages.html')"><el-icon><component :is="Icons.ChatDotRound" /></el-icon><span>消息中心</span></el-menu-item>
+          <el-menu-item index="report"><el-icon><component :is="Icons.DataAnalysis" /></el-icon><span>报表分析</span></el-menu-item>
+          <el-menu-item index="system"><el-icon><component :is="Icons.Setting" /></el-icon><span>系统设置</span></el-menu-item>
+        </el-menu>
+      </aside>
+
+      <!-- Main -->
+      <div class="main">
+        <div class="header">
+          <div class="left">
+            <el-breadcrumb separator="/">
+              <el-breadcrumb-item>首页</el-breadcrumb-item>
+              <el-breadcrumb-item>对账管理</el-breadcrumb-item>
+              <el-breadcrumb-item><a href="./template-manage.html">对账单模板</a></el-breadcrumb-item>
+              <el-breadcrumb-item>编辑模板</el-breadcrumb-item>
+            </el-breadcrumb>
+          </div>
+          <div class="right">
+            <div class="company-badge"><el-icon><component :is="Icons.OfficeBuilding" /></el-icon><span>某某钢铁有限公司</span></div>
+            <el-badge :value="12" :max="99"><el-icon size="20" color="#595959"><component :is="Icons.Bell" /></el-icon></el-badge>
+            <el-dropdown>
+              <span style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <el-avatar :size="32" style="background:#1890ff;">张</el-avatar>
+                <span>张财务</span>
+                <el-icon><component :is="Icons.ArrowDown" /></el-icon>
+              </span>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item>个人设置</el-dropdown-item>
+                  <el-dropdown-item>修改密码</el-dropdown-item>
+                  <el-dropdown-item divided>退出登录</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+        </div>
+
+        <!-- Page title -->
+        <div class="page-title-bar">
+          <el-button :icon="Icons.ArrowLeft" @click="goBack">返回</el-button>
+          <h2 class="page-title">
+            <el-icon color="#1890ff"><component :is="Icons.Edit" /></el-icon>
+            编辑模板
+          </h2>
+          <span class="tpl-tag">
+            <el-icon :size="12" style="vertical-align:-2px;"><component :is="Icons.Document"/></el-icon>
+            {{ tpl.name }}
+          </span>
+          <el-tag v-if="tpl.enabled" type="success" size="small" effect="light">启用中</el-tag>
+          <el-tag v-else type="info" size="small" effect="light">已禁用</el-tag>
+          <el-tag v-if="tpl.isDefault" type="warning" size="small" effect="dark" style="background:#faad14;border-color:#faad14;">
+            <el-icon :size="10" style="vertical-align:-1px;"><component :is="Icons.Star"/></el-icon>
+            默认模板
+          </el-tag>
+          <div style="flex:1;"></div>
+          <span style="color:#8c8c8c; font-size:12px;">最后修改：2025-03-15 张财务</span>
+        </div>
+
+        <!-- Split screen -->
+        <div class="edit-body">
+          <!-- Left: Config panel -->
+          <div class="edit-left" style="position:relative;">
+            <div class="left-inner">
+              <el-tabs v-model="activeTab" class="left-tabs" type="border-card">
+
+                <!-- Tab 1: 基本信息 -->
+                <el-tab-pane label="基本信息" name="basic">
+                  <template #label><el-icon><component :is="Icons.InfoFilled"/></el-icon> 基本信息</template>
+                  <el-form :model="tpl" label-width="110px" label-position="right" style="max-width:100%;">
+                    <el-form-item label="模板名称" required>
+                      <el-input v-model="tpl.name" placeholder="请输入模板名称" maxlength="50" show-word-limit/>
+                    </el-form-item>
+                    <el-form-item label="模板类型" required>
+                      <el-radio-group v-model="tpl.type">
+                        <el-radio value="bank">银行式</el-radio>
+                        <el-radio value="detailed">明细式</el-radio>
+                        <el-radio value="simple">简化式</el-radio>
+                      </el-radio-group>
+                    </el-form-item>
+                    <el-form-item label="模板描述">
+                      <el-input v-model="tpl.description" type="textarea" :rows="2" placeholder="描述该模板的用途和特点" maxlength="200" show-word-limit/>
+                    </el-form-item>
+                    <el-form-item label="适用客户类型">
+                      <el-select v-model="tpl.applicableTypes" multiple placeholder="选择适用的客户类型" style="width:100%">
+                        <el-option label="大型终端" value="terminal"/>
+                        <el-option label="经销商" value="dealer"/>
+                        <el-option label="同行" value="peer"/>
+                        <el-option label="加工厂" value="factory"/>
+                        <el-option label="贸易商" value="trader"/>
+                      </el-select>
+                    </el-form-item>
+                    <el-form-item label="状态">
+                      <el-switch v-model="tpl.enabled" active-text="启用" inactive-text="禁用"/>
+                    </el-form-item>
+                    <el-form-item label="设为默认">
+                      <el-switch v-model="tpl.isDefault" active-text="默认模板" inactive-text="非默认"/>
+                      <div class="hint-text">默认模板：客户未指定模板时自动使用；同时只能有一个默认模板</div>
+                    </el-form-item>
+                  </el-form>
+                </el-tab-pane>
+
+                <!-- Tab 2: 页面布局 -->
+                <el-tab-pane label="页面布局" name="layout">
+                  <template #label><el-icon><component :is="Icons.Grid"/></el-icon> 页面布局</template>
+                  <div class="info-tip">
+                    <b>核心配置：</b>决定PDF展示哪些板块。勾选/取消将实时反映在右侧预览。
+                  </div>
+
+                  <div class="cfg-section">
+                    <h4>纸张与方向</h4>
+                    <el-form label-width="90px" label-position="right">
+                      <el-form-item label="纸张大小">
+                        <el-radio-group v-model="layout.paper">
+                          <el-radio value="A4">A4 (推荐)</el-radio>
+                          <el-radio value="A3">A3</el-radio>
+                          <el-radio value="Letter">Letter</el-radio>
+                        </el-radio-group>
+                      </el-form-item>
+                      <el-form-item label="方向">
+                        <el-radio-group v-model="layout.orientation">
+                          <el-radio value="portrait">纵向</el-radio>
+                          <el-radio value="landscape">横向</el-radio>
+                        </el-radio-group>
+                      </el-form-item>
+                    </el-form>
+                  </div>
+
+                  <div class="cfg-section">
+                    <h4>页面元素 (拖拽调整顺序，勾选控制显隐)</h4>
+                    <div class="element-list">
+                      <div v-for="el in layoutElements" :key="el.key"
+                           class="element-item"
+                           :class="{ dim: !el.enabled, core: el.core, highlight: el.highlight }">
+                        <el-icon class="drag-handle"><component :is="Icons.Rank"/></el-icon>
+                        <el-checkbox v-model="el.enabled" />
+                        <span class="name">{{ el.name }}</span>
+                        <span v-if="el.core" class="tag-core">核心</span>
+                        <span v-if="el.highlight" class="tag-hi">重点</span>
+                        <span class="desc">{{ el.desc }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </el-tab-pane>
+
+                <!-- Tab 3: 流水表字段配置 -->
+                <el-tab-pane label="流水表字段" name="ledger">
+                  <template #label><el-icon><component :is="Icons.List"/></el-icon> 流水字段</template>
+                  <div class="info-tip">
+                    <b>往来流水表</b>是对账单核心，列出对账周期内所有交易。当前已选 <span class="field-count-tag">{{ enabledLedgerCount }}</span> / {{ ledgerFields.length }} 个字段。
+                  </div>
+                  <div class="warn-tip" v-if="ledgerFields.find(f => f.key==='内部余额')?.enabled">
+                    <el-icon><component :is="Icons.WarningFilled"/></el-icon>
+                    注意：「内部余额」为内部字段，勾选后仅在预览可见，不会发送给客户。
+                  </div>
+                  <div class="field-list">
+                    <div v-for="(f, idx) in ledgerFields" :key="f.key" class="field-row">
+                      <el-icon class="drag-handle"><component :is="Icons.Rank"/></el-icon>
+                      <span style="color:#8c8c8c; font-size:11px; min-width:20px;">#{{ idx + 1 }}</span>
+                      <el-checkbox v-model="f.enabled"/>
+                      <span class="fname">{{ f.key }}</span>
+                      <span class="fnote">{{ f.note }}</span>
+                    </div>
+                  </div>
+                </el-tab-pane>
+
+                <!-- Tab 4: 应收明细字段配置 -->
+                <el-tab-pane label="应收明细字段" name="receivable">
+                  <template #label>
+                    <el-icon color="#faad14"><component :is="Icons.StarFilled"/></el-icon> 应收明细字段
+                  </template>
+                  <div class="info-tip">
+                    <b>应收明细清单 (附件)</b> — 展示买方在本公司的详细购货明细，配合标准应收明细表(STANDARD RECEIVABLE ITEM TABLE)。当前已选 <span class="field-count-tag">{{ enabledReceivableCount }}</span> / {{ receivableFields.length }} 个字段。
+                  </div>
+                  <div class="field-list">
+                    <div v-for="(f, idx) in receivableFields" :key="f.key" class="field-row">
+                      <el-icon class="drag-handle"><component :is="Icons.Rank"/></el-icon>
+                      <span style="color:#8c8c8c; font-size:11px; min-width:20px;">#{{ idx + 1 }}</span>
+                      <el-checkbox v-model="f.enabled"/>
+                      <span class="fname">{{ f.key }}</span>
+                      <span class="fnote">{{ f.note }}</span>
+                    </div>
+                  </div>
+                  <div class="hint-text" style="margin-top:12px;">
+                    提示：此附件页仅在「页面布局」中勾选「应收明细清单」时生效。
+                    <el-link type="primary" @click="activeTab='layout'">前往调整</el-link>
+                  </div>
+                </el-tab-pane>
+
+                <!-- Tab 5: 样式配置 -->
+                <el-tab-pane label="样式配置" name="style">
+                  <template #label><el-icon><component :is="Icons.Brush"/></el-icon> 样式</template>
+                  <el-form label-width="90px" label-position="right">
+                    <el-form-item label="主题色">
+                      <el-color-picker v-model="style.themeColor" show-alpha :predefine="['#409eff','#1890ff','#52c41a','#faad14','#722ed1','#f5222d','#13c2c2','#eb2f96']"/>
+                      <span style="margin-left:12px; color:#8c8c8c; font-size:12px;">{{ style.themeColor }}</span>
+                    </el-form-item>
+                    <el-form-item label="字体">
+                      <el-select v-model="style.font" style="width:220px">
+                        <el-option label="思源黑体 (推荐)" value="siyuan"/>
+                        <el-option label="微软雅黑" value="yahei"/>
+                        <el-option label="宋体" value="song"/>
+                      </el-select>
+                    </el-form-item>
+                    <el-form-item label="正文字号">
+                      <el-input-number v-model="style.fontSize" :min="9" :max="16" :step="1"/>
+                      <span style="margin-left:8px; color:#8c8c8c;">pt</span>
+                    </el-form-item>
+                    <el-form-item label="表格样式">
+                      <el-radio-group v-model="style.tableStyle">
+                        <el-radio value="stripe">斑马纹</el-radio>
+                        <el-radio value="border">边框</el-radio>
+                        <el-radio value="minimal">极简</el-radio>
+                      </el-radio-group>
+                    </el-form-item>
+                    <el-form-item label="页眉文字">
+                      <el-input v-model="style.headerText" placeholder="留空则不显示页眉"/>
+                    </el-form-item>
+                    <el-form-item label="页脚文字">
+                      <el-input v-model="style.footerText" placeholder="页脚显示的固定文字"/>
+                    </el-form-item>
+                    <el-form-item label="水印">
+                      <el-switch v-model="style.watermark" active-text="启用水印"/>
+                      <el-input v-if="style.watermark" v-model="style.watermarkText" placeholder="水印文字" style="width:200px; margin-left:12px;"/>
+                    </el-form-item>
+                  </el-form>
+                </el-tab-pane>
+
+              </el-tabs>
+            </div>
+
+            <!-- Sticky bottom action bar -->
+            <div class="action-bar-sticky">
+              <el-button @click="cancel">取消</el-button>
+              <el-button :icon="Icons.CopyDocument" @click="saveAsNew">另存为新模板</el-button>
+              <el-button type="primary" :icon="Icons.Check" @click="save">保存</el-button>
+              <el-button type="success" :icon="Icons.View" @click="saveAndPreview">保存并预览完整PDF</el-button>
+            </div>
+          </div>
+
+          <!-- Right: Live Preview -->
+          <div class="edit-right">
+            <div class="preview-header">
+              <h3>
+                <el-icon color="#52c41a"><component :is="Icons.View"/></el-icon>
+                实时预览
+                <el-tag size="small" type="success" effect="light" style="margin-left:8px;">同步更新</el-tag>
+              </h3>
+              <div class="preview-controls">
+                <el-select v-model="previewPage" size="small" style="width:150px;">
+                  <el-option label="全部页面" value="all"/>
+                  <el-option label="页 1 - 往来流水" value="1"/>
+                  <el-option v-if="isElEnabled('receivable')" label="页 2 - 应收明细" value="2"/>
+                  <el-option v-if="isElEnabled('signature')" label="页 3 - 签章" value="3"/>
+                </el-select>
+                <el-button-group>
+                  <el-tooltip content="缩小" placement="top"><el-button size="small" :icon="Icons.ZoomOut" @click="zoom = Math.max(0.6, zoom - 0.1)"/></el-tooltip>
+                  <el-button size="small" style="min-width:56px;">{{ Math.round(zoom * 100) }}%</el-button>
+                  <el-tooltip content="放大" placement="top"><el-button size="small" :icon="Icons.ZoomIn" @click="zoom = Math.min(1.4, zoom + 0.1)"/></el-tooltip>
+                </el-button-group>
+              </div>
+            </div>
+
+            <div class="preview-wrapper" :style="{ transform: `scale(${zoom})`, transformOrigin:'top center' }">
+
+              <!-- Page 1: Ledger / Flow -->
+              <div v-if="previewPage === 'all' || previewPage === '1'"
+                   class="pdf-page a4"
+                   :class="{ landscape: layout.orientation==='landscape', a3: layout.paper==='A3' }"
+                   :data-font="style.font"
+                   :style="pageThemeVars">
+                <span class="page-num">Page 1 / {{ totalPages }}</span>
+
+                <div v-if="style.headerText" style="text-align:center; color:#8c8c8c; font-size:11px; margin-bottom:6px;">{{ style.headerText }}</div>
+
+                <!-- Header -->
+                <div v-if="isElEnabled('header')" class="pdf-hdr">
+                  <div class="logo">钢</div>
+                  <div class="info">
+                    <div class="company-name">某某钢铁有限公司</div>
+                    <div class="sub">Somemou Iron & Steel Co., Ltd.</div>
+                  </div>
+                  <div style="text-align:right; font-size:80%; color:#8c8c8c;">
+                    <div>No. R202503001</div>
+                    <div>2025-03-31</div>
+                  </div>
+                </div>
+                <div v-else class="pdf-placeholder">[公司抬头 - 已隐藏]</div>
+
+                <!-- Title -->
+                <h1 v-if="isElEnabled('title')" class="pdf-title">对 账 单</h1>
+                <div v-else class="pdf-placeholder">[对账单标题 - 已隐藏]</div>
+
+                <!-- Period -->
+                <div v-if="isElEnabled('period')" class="pdf-sub-title">对账周期：2025-03-01 至 2025-03-31</div>
+
+                <!-- Parties -->
+                <div v-if="isElEnabled('parties')" class="pdf-parties">
+                  <div class="col">
+                    <div><b>卖方：</b>某某钢铁有限公司</div>
+                    <div class="line">地址：XXX市XXX区XXX路100号</div>
+                    <div class="line" v-if="isElEnabled('contact')">电话：138xxxx8888</div>
+                  </div>
+                  <div class="col right">
+                    <div><b>买方：</b>某某贸易有限公司</div>
+                    <div class="line">地址：XXX市XXX区XXX路200号</div>
+                    <div class="line" v-if="isElEnabled('contact')">电话：138xxxx9999</div>
+                  </div>
+                </div>
+                <div v-else class="pdf-placeholder">[买卖双方信息 - 已隐藏]</div>
+
+                <!-- Opening balance -->
+                <div v-if="isElEnabled('openingBalance')" class="pdf-opening">
+                  <span><b>期初余额：</b>¥20,500.00</span>
+                  <span style="font-size:80%; color:#8c8c8c;">上期结转</span>
+                </div>
+
+                <!-- Ledger table -->
+                <div v-if="isElEnabled('ledger')">
+                  <table class="pdf-table" :class="tableClass">
+                    <thead>
+                      <tr>
+                        <th v-for="f in enabledLedgerFields" :key="f.key">{{ f.key }}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="row in ledgerRows" :key="row.no">
+                        <td v-for="f in enabledLedgerFields" :key="f.key"
+                            :class="f.key==='本期应收' && row.receive ? 'amt-pos' : (f.key==='本期实收' && row.pay ? 'amt-neg' : (f.key==='应收余额' ? 'amt-bal' : ''))">
+                          <template v-if="f.key==='日期'">{{ row.date }}</template>
+                          <template v-else-if="f.key==='单号'">{{ row.no }}</template>
+                          <template v-else-if="f.key==='单据类型'">{{ row.type }}</template>
+                          <template v-else-if="f.key==='摘要'">{{ row.desc }}</template>
+                          <template v-else-if="f.key==='结算数量'">{{ row.qty || '-' }}</template>
+                          <template v-else-if="f.key==='本期应收'">{{ row.receive ? '+' + row.receive.toLocaleString() + '.00' : '-' }}</template>
+                          <template v-else-if="f.key==='本期实收'">{{ row.pay ? '-' + row.pay.toLocaleString() + '.00' : '-' }}</template>
+                          <template v-else-if="f.key==='应收余额'">{{ row.balance.toLocaleString() }}.00</template>
+                          <template v-else-if="f.key==='内部余额'">{{ (row.balance + 500).toLocaleString() }}</template>
+                          <template v-else-if="f.key==='科目编码'">1122.02</template>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div v-else class="pdf-placeholder">[往来流水表 - 已隐藏 (核心项，建议开启)]</div>
+
+                <!-- Closing balance -->
+                <div v-if="isElEnabled('closingBalance')" class="pdf-summary">
+                  <div class="item">
+                    <div class="lbl">本期应收</div>
+                    <div class="val amt-pos">+¥25,000.00</div>
+                  </div>
+                  <div class="item">
+                    <div class="lbl">本期实收</div>
+                    <div class="val amt-neg">-¥8,000.00</div>
+                  </div>
+                  <div class="item">
+                    <div class="lbl">期末余额</div>
+                    <div class="val hi">¥37,500.00</div>
+                  </div>
+                </div>
+
+                <!-- Payment info -->
+                <div v-if="isElEnabled('paymentInfo')" class="pdf-terms">
+                  <div><b>付款方式：</b>银行转账</div>
+                  <div style="margin-top:4px;"><span class="t">收款账户：</span>中国工商银行 XXX支行 6222 xxxx xxxx 1234</div>
+                  <div style="margin-top:4px;"><span class="t">户名：</span>某某钢铁有限公司</div>
+                </div>
+
+                <!-- Terms -->
+                <div v-if="isElEnabled('terms')" class="pdf-terms" style="background:#fff7e6;">
+                  <div><b>附加条款：</b></div>
+                  <div style="margin-top:4px;">1. 请贵司在收到本对账单后 7 个工作日内确认。</div>
+                  <div>2. 若无异议，逾期视为默认确认。</div>
+                </div>
+
+                <!-- Footer -->
+                <div v-if="isElEnabled('footer')" class="pdf-footer">
+                  <span>{{ style.footerText || '本对账单由对账通系统自动生成' }}</span>
+                  <span>Page 1 / {{ totalPages }} · 生成时间: 2025-03-31 14:20</span>
+                </div>
+              </div>
+
+              <!-- Page 2: Receivable detail -->
+              <div v-if="isElEnabled('receivable') && (previewPage === 'all' || previewPage === '2')"
+                   class="pdf-page a4"
+                   :class="{ landscape: layout.orientation==='landscape', a3: layout.paper==='A3' }"
+                   :data-font="style.font"
+                   :style="pageThemeVars">
+                <span class="page-num">Page 2 / {{ totalPages }}</span>
+
+                <div v-if="style.headerText" style="text-align:center; color:#8c8c8c; font-size:11px; margin-bottom:6px;">{{ style.headerText }}</div>
+
+                <div class="pdf-section-title">
+                  <el-icon><component :is="Icons.Paperclip"/></el-icon>
+                  应收明细清单
+                  <span class="tag-attach">附件</span>
+                </div>
+                <div class="pdf-note">
+                  说明：本清单展示买方在本公司的详细购货明细，与流水表期末余额匹配。
+                </div>
+
+                <table class="pdf-table" :class="tableClass">
+                  <thead>
+                    <tr>
+                      <th v-for="f in enabledReceivableFields" :key="f.key">{{ f.key }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="row in receivableRows" :key="row.no">
+                      <td v-for="f in enabledReceivableFields" :key="f.key"
+                          :class="f.key==='未付金额' && row.unpaid > 0 ? 'amt-neg' : (f.key==='已付金额' ? 'amt-pos' : '')">
+                        <template v-if="f.key==='行号'">{{ row.no }}</template>
+                        <template v-else-if="f.key==='商品规格'">{{ row.spec }}</template>
+                        <template v-else-if="f.key==='数量'">{{ row.qty }}</template>
+                        <template v-else-if="f.key==='单价'">{{ row.price.toLocaleString() }}</template>
+                        <template v-else-if="f.key==='计价方式'">{{ row.priceMethod }}</template>
+                        <template v-else-if="f.key==='金额'">{{ row.amount.toLocaleString() }}</template>
+                        <template v-else-if="f.key==='备注'">{{ row.remark }}</template>
+                        <template v-else-if="f.key==='已付金额'">{{ row.paid.toLocaleString() }}</template>
+                        <template v-else-if="f.key==='未付金额'">{{ row.unpaid.toLocaleString() }}</template>
+                        <template v-else-if="f.key==='到期日'">{{ row.dueDate }}</template>
+                        <template v-else-if="f.key==='逾期天数'">{{ row.overdue > 0 ? row.overdue + '天' : '-' }}</template>
+                        <template v-else-if="f.key==='状态'">
+                          <span :style="{ color: statusColor(row.status), fontWeight: 600 }">{{ row.status }}</span>
+                        </template>
+                      </td>
+                    </tr>
+                    <tr style="background:var(--themeSoft, #f0f7ff); font-weight:700;">
+                      <template v-for="(f, i) in enabledReceivableFields" :key="'sub-'+f.key">
+                        <td v-if="i === 0" :colspan="subtotalLabelSpan" style="text-align:right;">小计：</td>
+                        <td v-else-if="i >= subtotalLabelSpan" :style="{ textAlign: subtotalCells[f.key] ? 'right' : 'left' }"
+                            :class="{ 'amt-pos': f.key==='已付金额', 'amt-neg': f.key==='未付金额' }">
+                          {{ subtotalCells[f.key] || '' }}
+                        </td>
+                      </template>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <div style="margin-top:12px; color:#8c8c8c; font-size:80%; text-align:right;">共 8 条明细 · 本页仅展示前 4 条</div>
+
+                <div v-if="isElEnabled('footer')" class="pdf-footer">
+                  <span>{{ style.footerText || '本对账单由对账通系统自动生成' }}</span>
+                  <span>Page 2 / {{ totalPages }} · 附件页</span>
+                </div>
+              </div>
+
+              <!-- Page 3: Signature -->
+              <div v-if="isElEnabled('signature') && (previewPage === 'all' || previewPage === '3')"
+                   class="pdf-page a4"
+                   :class="{ landscape: layout.orientation==='landscape', a3: layout.paper==='A3' }"
+                   :data-font="style.font"
+                   :style="pageThemeVars">
+                <span class="page-num">Page 3 / {{ totalPages }}</span>
+
+                <div v-if="style.headerText" style="text-align:center; color:#8c8c8c; font-size:11px; margin-bottom:6px;">{{ style.headerText }}</div>
+
+                <div class="pdf-section-title">
+                  <el-icon><component :is="Icons.EditPen"/></el-icon>
+                  签章确认
+                </div>
+
+                <div class="pdf-note">
+                  说明：请双方核对上述内容，确认无误后于下方签章。签章即视为对本次对账单结果的正式确认。
+                </div>
+
+                <div class="pdf-signature">
+                  <div class="sig-box">
+                    <div class="sig-title">卖方确认</div>
+                    <div class="sig-seal">某某钢铁<br/>财务专用章</div>
+                    <div class="sig-date">
+                      经办人：张财务<br/>
+                      日期：2025-03-31
+                    </div>
+                  </div>
+                  <div class="sig-box pending">
+                    <div class="sig-title">买方确认</div>
+                    <div class="sig-seal">待客户<br/>签章</div>
+                    <div class="sig-date">
+                      经办人：______________<br/>
+                      日期：______________
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="isElEnabled('footer')" class="pdf-footer">
+                  <span>{{ style.footerText || '本对账单由对账通系统自动生成' }}</span>
+                  <span>Page 3 / {{ totalPages }} · 签章页 · 联系电话: 400-xxxx-xxxx</span>
+                </div>
+              </div>
+
+              <!-- Empty state -->
+              <div v-if="totalPages === 0" class="pdf-page a4" style="text-align:center; color:#bfbfbf; padding: 60px 32px;">
+                <el-icon :size="48"><component :is="Icons.DocumentDelete"/></el-icon>
+                <div style="margin-top:12px;">所有页面元素均已关闭 —— 无内容可预览。<br/>请在「页面布局」中至少启用一个元素。</div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, ref, reactive, computed } = Vue;
+    const Icons = ElementPlusIconsVue;
+
+    const app = createApp({
+      setup() {
+        const activeTab = ref('basic');
+        const previewPage = ref('all');
+        const zoom = ref(1);
+
+        const tpl = reactive({
+          id: '001',
+          name: '标准银行对账单模板',
+          type: 'bank',
+          description: '标准的银行式对账单模板，包含往来流水表和应收明细附件，适用于大部分客户场景。',
+          applicableTypes: ['dealer','terminal','factory','trader'],
+          enabled: true,
+          isDefault: true
+        });
+
+        const layout = reactive({
+          paper: 'A4',
+          orientation: 'portrait'
+        });
+
+        const layoutElements = reactive([
+          { key:'header',         name:'公司抬头 (LOGO + 卖方信息)', enabled:true, core:false, highlight:false, desc:'页头品牌区' },
+          { key:'title',          name:'对账单标题',                  enabled:true, core:false, highlight:false, desc:'居中大标题' },
+          { key:'parties',        name:'买卖双方信息',                enabled:true, core:false, highlight:false, desc:'双方名称/地址' },
+          { key:'period',         name:'对账周期',                    enabled:true, core:false, highlight:false, desc:'起止日期' },
+          { key:'openingBalance', name:'期初余额汇总',                enabled:true, core:false, highlight:false, desc:'上期结转' },
+          { key:'ledger',         name:'往来流水表',                  enabled:true, core:true,  highlight:false, desc:'核心' },
+          { key:'closingBalance', name:'期末余额汇总',                enabled:true, core:false, highlight:false, desc:'汇总栏' },
+          { key:'receivable',     name:'应收明细清单 (附件)',         enabled:true, core:false, highlight:true,  desc:'用户重点要求' },
+          { key:'paymentInfo',    name:'付款方式提示',                enabled:false, core:false, highlight:false, desc:'账户信息' },
+          { key:'contact',        name:'联系方式',                    enabled:false, core:false, highlight:false, desc:'附加联系人' },
+          { key:'signature',      name:'签章区 (卖方 + 买方)',        enabled:true, core:false, highlight:false, desc:'签章位' },
+          { key:'terms',          name:'附加条款',                    enabled:false, core:false, highlight:false, desc:'确认条款' },
+          { key:'footer',         name:'页脚 (页码 + 生成时间)',       enabled:true, core:false, highlight:false, desc:'页脚' }
+        ]);
+
+        const ledgerFields = reactive([
+          { key:'日期',       enabled:true,  note:'交易日期' },
+          { key:'单号',       enabled:true,  note:'销售单/收款单号' },
+          { key:'单据类型',   enabled:true,  note:'销售/收款/退款' },
+          { key:'摘要',       enabled:true,  note:'交易说明' },
+          { key:'结算数量',   enabled:true,  note:'吨/件' },
+          { key:'本期应收',   enabled:true,  note:'销售金额' },
+          { key:'本期实收',   enabled:true,  note:'实际收到' },
+          { key:'应收余额',   enabled:true,  note:'累计余额' },
+          { key:'内部余额',   enabled:false, note:'内部使用不发送' },
+          { key:'科目编码',   enabled:false, note:'财务编码' }
+        ]);
+
+        const receivableFields = reactive([
+          { key:'行号',       enabled:true,  note:'#' },
+          { key:'商品规格',   enabled:true,  note:'如：螺纹钢Φ20' },
+          { key:'数量',       enabled:true,  note:'吨/件' },
+          { key:'单价',       enabled:true,  note:'元' },
+          { key:'计价方式',   enabled:true,  note:'磅计/理计/结算价' },
+          { key:'金额',       enabled:true,  note:'数量×单价' },
+          { key:'备注',       enabled:true,  note:'附注' },
+          { key:'已付金额',   enabled:true,  note:'累计已付' },
+          { key:'未付金额',   enabled:true,  note:'尚欠款' },
+          { key:'到期日',     enabled:true,  note:'账期截止日' },
+          { key:'逾期天数',   enabled:false, note:'仅逾期时显示' },
+          { key:'状态',       enabled:true,  note:'已付/部分/未付' }
+        ]);
+
+        const style = reactive({
+          themeColor: '#409eff',
+          font: 'siyuan',
+          fontSize: 12,
+          tableStyle: 'stripe',
+          headerText: '',
+          footerText: '本对账单由对账通系统自动生成',
+          watermark: false,
+          watermarkText: '某某钢铁·对账单'
+        });
+
+        const ledgerRows = ref([
+          { date:'03-01', no:'S001', type:'销售单', desc:'螺纹钢Φ20', qty:'20吨',  receive:10000, pay:0,    balance:30500 },
+          { date:'03-10', no:'R001', type:'收款单', desc:'银行转账',  qty:'-',     receive:0,     pay:8000, balance:22500 },
+          { date:'03-20', no:'S002', type:'销售单', desc:'盘螺Φ10',   qty:'30吨',  receive:15000, pay:0,    balance:37500 }
+        ]);
+
+        const receivableRows = ref([
+          { no:1, spec:'螺纹钢Φ20',  qty:'20吨', price:4500, priceMethod:'磅计', amount:45000,  remark:'交货正常', paid:45000, unpaid:0,      dueDate:'03-15', overdue:0, status:'已付' },
+          { no:2, spec:'盘螺Φ10',    qty:'25吨', price:4200, priceMethod:'理计', amount:105000, remark:'-',        paid:60000, unpaid:45000,  dueDate:'03-25', overdue:0, status:'部分' },
+          { no:3, spec:'角钢50×50',  qty:'10吨', price:4800, priceMethod:'结算价', amount:48000, remark:'加急',     paid:0,     unpaid:48000,  dueDate:'04-05', overdue:0, status:'未付' },
+          { no:4, spec:'工字钢I200', qty:'15吨', price:5100, priceMethod:'磅计', amount:76500,  remark:'-',        paid:36160, unpaid:40340,  dueDate:'04-10', overdue:0, status:'部分' }
+        ]);
+
+        const isElEnabled = (key) => layoutElements.find(e => e.key === key)?.enabled;
+
+        const enabledLedgerFields = computed(() =>
+          ledgerFields.filter(f => f.enabled && f.key !== '内部余额')
+            .concat(ledgerFields.filter(f => f.enabled && f.key === '内部余额'))
+        );
+        const enabledLedgerCount = computed(() => ledgerFields.filter(f => f.enabled).length);
+        const enabledReceivableFields = computed(() => receivableFields.filter(f => f.enabled));
+        const enabledReceivableCount = computed(() => receivableFields.filter(f => f.enabled).length);
+        const isRcvField = (k) => receivableFields.find(f => f.key === k)?.enabled;
+
+        // Subtotal label spans all fields before "金额" (or all-1 if 金额 disabled)
+        const subtotalLabelSpan = computed(() => {
+          const list = enabledReceivableFields.value;
+          const idx = list.findIndex(f => f.key === '金额');
+          return idx > 0 ? idx : Math.max(1, list.length - 1);
+        });
+        const subtotalCells = {
+          '金额': '¥465,160',
+          '已付金额': '¥241,160',
+          '未付金额': '¥224,000'
+        };
+
+        const tableClass = computed(() => ({
+          stripe: style.tableStyle === 'stripe',
+          borderless: style.tableStyle === 'minimal',
+          minimal: style.tableStyle === 'minimal'
+        }));
+
+        const totalPages = computed(() => {
+          let pages = 0;
+          const hasPage1 = ['header','title','parties','period','openingBalance','ledger','closingBalance'].some(k => isElEnabled(k));
+          if (hasPage1) pages++;
+          if (isElEnabled('receivable')) pages++;
+          if (isElEnabled('signature')) pages++;
+          return pages;
+        });
+
+        const pageThemeVars = computed(() => {
+          const theme = style.themeColor || '#409eff';
+          // Compute soft variant by adding alpha (approximation)
+          const hex = theme.startsWith('#') ? theme : '#409eff';
+          const r = parseInt(hex.slice(1,3),16);
+          const g = parseInt(hex.slice(3,5),16);
+          const b = parseInt(hex.slice(5,7),16);
+          const soft = `rgba(${r},${g},${b},0.08)`;
+          return {
+            '--theme': theme,
+            '--themeLite': theme,
+            '--themeSoft': soft,
+            fontSize: (style.fontSize || 12) + 'pt'
+          };
+        });
+
+        function statusColor(s) {
+          return { '已付':'#52c41a', '部分':'#faad14', '未付':'#f5222d' }[s] || '#595959';
+        }
+
+        function nav(page) { window.location.href='./'+page; }
+        function goBack() { window.location.href='./template-manage.html'; }
+        function cancel() {
+          ElementPlus.ElMessageBox.confirm('未保存的修改将丢失，确认返回？', '取消编辑', { type: 'warning' })
+            .then(() => window.location.href='./template-manage.html').catch(()=>{});
+        }
+        function save() {
+          ElementPlus.ElMessage.success('模板已保存 (已生效)');
+        }
+        function saveAsNew() {
+          ElementPlus.ElMessageBox.prompt('请输入新模板名称', '另存为新模板', {
+            inputValue: tpl.name + ' - 副本',
+            inputPattern: /.+/,
+            inputErrorMessage: '模板名称不能为空'
+          }).then(({ value }) => {
+            ElementPlus.ElMessage.success(`已另存为「${value}」`);
+          }).catch(()=>{});
+        }
+        function saveAndPreview() {
+          ElementPlus.ElMessage.success('已保存，正在生成完整 PDF 预览...');
+        }
+
+        return {
+          Icons, activeTab, previewPage, zoom,
+          tpl, layout, layoutElements, ledgerFields, receivableFields, style,
+          ledgerRows, receivableRows,
+          isElEnabled, isRcvField, enabledLedgerFields, enabledLedgerCount,
+          enabledReceivableFields, enabledReceivableCount,
+          subtotalLabelSpan, subtotalCells,
+          tableClass, totalPages, pageThemeVars, statusColor,
+          nav, goBack, cancel, save, saveAsNew, saveAndPreview
+        };
+      }
+    });
+    app.use(ElementPlus);
+    for (const [k, v] of Object.entries(ElementPlusIconsVue)) { app.component(k, v); }
+    app.mount('#app');
+  </script>
+</body>
+</html>
